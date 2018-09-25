@@ -1,0 +1,16 @@
+#pragma once
+
+
+// 开启调试模式
+#define OPEN_NET_UV_DEBUG 1
+
+
+// 日志等级
+#define NET_UV_L_HEART	 (0)
+#define NET_UV_L_INFO	 (1)
+#define NET_UV_L_WARNING (2)
+#define NET_UV_L_ERROR	 (3)
+#define NET_UV_L_FATAL	 (4)
+
+// log输出最低等级
+#define NET_UV_L_MIN_LEVEL NET_UV_L_INFO
