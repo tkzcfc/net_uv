@@ -8,10 +8,9 @@
 NS_NET_UV_BEGIN
 
 class Socket;
-using socketRecvCall = std::function<void(char*, ssize_t)>;
-using socketConnectCall = std::function<void(Socket*,bool)>;
-using socketCloseCall = std::function<void(Socket*)>;
-using socketNewConnectionCall = std::function<void(uv_stream_t*, int)>;
+using SocketConnectCall = std::function<void(Socket*,bool)>;
+using SocketCloseCall = std::function<void(Socket*)>;
+using SocketNewConnectionCall = std::function<void(uv_stream_t*, int)>;
 
 class NET_UV_EXTERN Socket
 {
@@ -30,14 +29,12 @@ public:
 	virtual bool send(char* data, int len) = 0;
 
 	virtual void disconnect() = 0;
-	
-	inline void setRecvCallback(const socketRecvCall& call);
 
-	inline void setConnectCallback(const socketConnectCall& call);
+	inline void setConnectCallback(const SocketConnectCall& call);
 
-	inline void setCloseCallback(const socketCloseCall& call);
+	inline void setCloseCallback(const SocketCloseCall& call);
 
-	inline void setNewConnectionCallback(const socketNewConnectionCall& call);
+	inline void setNewConnectionCallback(const SocketNewConnectionCall& call);
 	
 public:
 
@@ -57,6 +54,8 @@ public:
 
 	inline void* getUserdata();
 
+	inline uv_loop_t* getLoop();
+
 protected:
 	uv_loop_t* m_loop;
 	
@@ -66,10 +65,9 @@ protected:
 
 	void* m_userdata;
 
-	socketRecvCall m_recvCall;
-	socketConnectCall m_connectCall;
-	socketCloseCall m_closeCall;
-	socketNewConnectionCall m_newConnectionCall;
+	SocketConnectCall m_connectCall;
+	SocketCloseCall m_closeCall;
+	SocketNewConnectionCall m_newConnectionCall;
 };
 
 const std::string& Socket::getIp()
@@ -102,22 +100,17 @@ void Socket::setIsIPV6(bool isIPV6)
 	m_isIPV6 = isIPV6;
 }
 
-void Socket::setRecvCallback(const socketRecvCall& call)
-{
-	m_recvCall = std::move(call);
-}
-
-void Socket::setConnectCallback(const socketConnectCall& call)
+void Socket::setConnectCallback(const SocketConnectCall& call)
 {
 	m_connectCall = std::move(call);
 }
 
-void Socket::setCloseCallback(const socketCloseCall& call)
+void Socket::setCloseCallback(const SocketCloseCall& call)
 {
 	m_closeCall = std::move(call);
 }
 
-void Socket::setNewConnectionCallback(const socketNewConnectionCall& call)
+void Socket::setNewConnectionCallback(const SocketNewConnectionCall& call)
 {
 	m_newConnectionCall = std::move(call);
 }
@@ -129,6 +122,11 @@ void Socket::setUserdata(void* userdata)
 void* Socket::getUserdata()
 {
 	return m_userdata;
+}
+
+uv_loop_t* Socket::getLoop()
+{
+	return m_loop;
 }
 
 NS_NET_UV_END

@@ -8,6 +8,7 @@ NS_NET_UV_BEGIN
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 TCPSocket::TCPSocket(uv_loop_t* loop, uv_tcp_t* tcp)
+	: m_recvCall(nullptr)
 {
 	m_loop = loop;
 	m_tcp = tcp;
@@ -145,7 +146,7 @@ bool TCPSocket::connect(const char* ip, unsigned int port)
 		net_adjustBuffSize((uv_handle_t*)tcp, TCP_UV_SOCKET_RECV_BUF_LEN, TCP_UV_SOCKET_SEND_BUF_LEN);
 		return true;
 	}
-	NET_UV_LOG(NET_UV_L_ERROR, "地址信息获取失败");
+	NET_UV_LOG(NET_UV_L_ERROR, "[%s:%d]地址信息获取失败", ip, port);
 	return false;
 }
 
@@ -305,6 +306,7 @@ void TCPSocket::uv_on_after_connect(uv_connect_t* handle, int status)
 	}
 	else
 	{
+		NET_UV_LOG(NET_UV_L_ERROR, "tcp connect error %s", uv_strerror(status));
 		s->m_connectCall(s, false);
 	}
 	fc_free(handle);
@@ -314,6 +316,7 @@ void TCPSocket::server_on_after_new_connection(uv_stream_t *server, int status)
 {
 	if (status != 0)
 	{
+		NET_UV_LOG(NET_UV_L_ERROR, "tcp new connection error %s", uv_strerror(status));
 		return;
 	}
 	TCPSocket* s = (TCPSocket*)server->data;
@@ -338,6 +341,10 @@ void TCPSocket::uv_on_after_read(uv_stream_t *handle, ssize_t nread, const uv_bu
 
 void TCPSocket::uv_on_after_write(uv_write_t* req, int status)
 {
+	if (status != 0)
+	{
+		NET_UV_LOG(NET_UV_L_ERROR, "tcp write error %s", uv_strerror(status));
+	}
 	uv_buf_t* buf = (uv_buf_t*)req->data;
 	fc_free(buf->base);
 	fc_free(buf);

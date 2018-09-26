@@ -2,129 +2,94 @@
 
 NS_NET_UV_BEGIN
 
-UDPSocket::UDPSocket(uv_loop_t* loop)
-	: m_connectSockaddr(NULL)
-	, m_isClose(true)
-	, m_call(NULL)
-	, m_userdata(NULL)
+UDPSocket::UDPSocket(uv_loop_t* loop, uv_udp_t* udp)
+	: m_socketAddr(NULL)
 	, m_udp(NULL)
+	, m_readCall(nullptr)
 {
 	m_loop = loop;
-	init();
+	this->setUdp(udp);
 }
 
 UDPSocket::~UDPSocket()
 {
-	if (m_connectSockaddr)
+	if (m_socketAddr)
 	{
-		fc_free(m_connectSockaddr);
+		fc_free(m_socketAddr);
+		m_socketAddr = NULL;
+	}
+	if (m_udp)
+	{
+		net_closeHandle((uv_handle_t*)m_udp, net_closehandle_defaultcallback);
+		m_udp = NULL;
 	}
 }
 
-void UDPSocket::init()
-{
-	Socket::init();
-
-	m_udp = (uv_udp_t*)fc_malloc(sizeof(uv_udp_t));
-	int r = uv_udp_init(m_loop, m_udp);
-	CHECK_UV_ASSERT(r);
-
-	r = uv_udp_recv_start(m_udp, uv_alloc_buffer, uv_on_after_read);
-	CHECK_UV_ASSERT(r);
-
-	m_udp->data = this;
-}
-
-void UDPSocket::listen(const char* ip, unsigned int port, bool isIPV6)
+bool UDPSocket::bind(const char* ip, unsigned int port)
 {
 	this->setIp(ip);
 	this->setPort(port);
-	this->setIsIPV6(isIPV6);
-	int r = uv_async_send(m_listenAsync);
+	this->setIsIPV6(false);
 
-	CHECK_UV_ASSERT(r);
+	struct sockaddr_in bind_addr;
+	int r = uv_ip4_addr(getIp().c_str(), getPort(), &bind_addr);
 
-	UV_LOG(UV_L_INFO, "listen [%p][%s]:[%d]...", this, ip, port);
-}
-
-void UDPSocket::connect(const char* ip, unsigned int port)
-{
-	m_connectIP = ip;
-	m_connectPort = port;
-
-	int r = uv_async_send(m_connectAsync);
-	CHECK_UV_ASSERT(r);
-}
-
-void UDPSocket::send(void* data, int dataLen)
-{
-	UDPBlockBuffer buf;
-	buf.base = fc_malloc(dataLen);
-	buf.len = dataLen;
-	memcpy(buf.base, data, dataLen);
-
-	uv_mutex_lock(&m_writeMutex);
-	m_writeCache.emplace_back(buf);
-	uv_mutex_unlock(&m_writeMutex);
-
-	uv_async_send(m_writeAsync);
-}
-
-void UDPSocket::close()
-{
-	uv_async_send(m_closeAsync);
-}
-
-void UDPSocket::udp_send(void* data, int len, struct sockaddr* addr)
-{
-	uv_buf_t* buf = (uv_buf_t*)fc_malloc(sizeof(uv_buf_t));
-	buf->base = (char*)data;
-	buf->len = len;
-
-	uv_udp_send_t* udp_send = (uv_udp_send_t*)fc_malloc(sizeof(uv_udp_send_t));
-	udp_send->data = buf;
-	int r = uv_udp_send(udp_send, m_udp, buf, 1, addr, uv_on_udp_send);
-	if (r)
+	if (r != 0)
 	{
-		UV_LOG(UV_L_ERROR, "%s", getUVError(r).c_str());
+		return false;
 	}
-}
 
-void UDPSocket::setSocketCall(udp_socket_call call, void* userdata)
-{
-	m_call = call;
-	m_userdata = userdata;
-}
+	checkUdp();
 
-void UDPSocket::onAsyncListen()
-{
-	if (!m_isClose)
-		return;
-	int r = 0;
-	if (isIPV6())
+	r = uv_udp_bind(m_udp, (const struct sockaddr*) &bind_addr, 0);
+
+	if (r == 0)
 	{
-		struct sockaddr_in6 bind_addr;
-		r = uv_ip6_addr(getIp().c_str(), getPort(), &bind_addr);
-		CHECK_UV_ASSERT(r);
-		r = uv_udp_bind(m_udp, (const struct sockaddr*) &bind_addr, 0);
-		CHECK_UV_ASSERT(r);
+		struct sockaddr* p_bind_addr = (struct sockaddr*)&bind_addr;
+		struct sockaddr* socker_addr = (struct sockaddr*)fc_malloc(sizeof(struct sockaddr));
+		memcpy(socker_addr, p_bind_addr, sizeof(struct sockaddr));
+		this->setSocketAddr(socker_addr);
 	}
-	else
-	{
-		struct sockaddr_in bind_addr;
-		r = uv_ip4_addr(getIp().c_str(), getPort(), &bind_addr);
-		CHECK_UV_ASSERT(r);
-		r = uv_udp_bind(m_udp, (const struct sockaddr*) &bind_addr, 0);
-		CHECK_UV_ASSERT(r);
-	}
-	adjustBuffSize((uv_handle_t*)m_udp, UDP_UV_SOCKET_RECV_BUF_LEN, UDP_UV_SOCKET_SEND_BUF_LEN);
-	m_isClose = false;
+
+	return (r == 0);
 }
 
-void UDPSocket::onAsyncConnet()
+bool UDPSocket::bind6(const char* ip, unsigned int port)
 {
-	if (!m_isClose)
-		return;
+	this->setIp(ip);
+	this->setPort(port);
+	this->setIsIPV6(true);
+
+	struct sockaddr_in6 bind_addr;
+	int r = uv_ip6_addr(getIp().c_str(), getPort(), &bind_addr);
+
+	if (r != 0)
+	{
+		return false;
+	}
+
+	checkUdp();
+
+	r = uv_udp_bind(m_udp, (const struct sockaddr*) &bind_addr, 0);
+
+	if (r == 0)
+	{
+		struct sockaddr* p_bind_addr = (struct sockaddr*)&bind_addr;
+		struct sockaddr* socker_addr = (struct sockaddr*)fc_malloc(sizeof(struct sockaddr));
+		memcpy(socker_addr, p_bind_addr, sizeof(struct sockaddr));
+		this->setSocketAddr(socker_addr);
+	}
+
+	return (r == 0);
+}
+
+bool UDPSocket::listen()
+{
+	return true;
+}
+
+bool UDPSocket::connect(const char* ip, unsigned int port)
+{
 	struct addrinfo hints;
 	struct addrinfo* ainfo;
 	struct addrinfo* rp;
@@ -137,7 +102,7 @@ void UDPSocket::onAsyncConnet()
 	hints.ai_flags = AI_ADDRCONFIG;
 	hints.ai_socktype = SOCK_STREAM;
 
-	int ret = getaddrinfo(m_connectIP.c_str(), NULL, &hints, &ainfo);
+	int ret = getaddrinfo(getIp().c_str(), NULL, &hints, &ainfo);
 
 	if (ret == 0)
 	{
@@ -146,14 +111,14 @@ void UDPSocket::onAsyncConnet()
 			if (rp->ai_family == AF_INET)
 			{
 				addr4 = (struct sockaddr_in*)rp->ai_addr;
-				addr4->sin_port = htons(m_connectPort);
+				addr4->sin_port = htons(getPort());
 				break;
 
 			}
 			else if (rp->ai_family == AF_INET6)
 			{
 				addr6 = (struct sockaddr_in6*)rp->ai_addr;
-				addr6->sin6_port = htons(m_connectPort);
+				addr6->sin6_port = htons(getPort());
 				break;
 			}
 			else
@@ -162,111 +127,120 @@ void UDPSocket::onAsyncConnet()
 			}
 		}
 		addr = addr4 ? (struct sockaddr*)addr4 : (struct sockaddr*)addr6;
-		m_connectSockaddr = (struct sockaddr*)fc_malloc(sizeof(struct sockaddr));
-		memcpy(m_connectSockaddr, addr, sizeof(struct sockaddr));
+		struct sockaddr* socker_addr = (struct sockaddr*)fc_malloc(sizeof(struct sockaddr));
+		memcpy(socker_addr, addr, sizeof(struct sockaddr));
+		this->setSocketAddr(socker_addr);
 
-		m_isClose = false;
-		if (m_call)
-		{
-			m_call(udp_socket_call_type::resolve_suc, this, m_userdata);
-		}
+		return true;
 	}
-	else
-	{
-		UV_LOG(UV_L_ERROR, "get addr info fail!!!");
-		if (m_call)
-		{
-			m_call(udp_socket_call_type::resolve_fail, this, m_userdata);
-		}
-	}	
+	NET_UV_LOG(NET_UV_L_ERROR, "[%s:%d]地址信息获取失败", ip, port);
+	return false;
 }
 
-void UDPSocket::onAsyncWrite()
+bool UDPSocket::send(char* data, int len)
 {
-	if (m_connectSockaddr == NULL)
+	if (getSocketAddr() == NULL || m_udp == NULL)
 	{
-		uv_async_send(m_writeAsync);
-		return;
+		return false;
 	}
+	uv_buf_t* buf = (uv_buf_t*)fc_malloc(sizeof(uv_buf_t));
+	buf->base = (char*)data;
+	buf->len = len;
 
-	if (uv_mutex_trylock(&m_writeMutex) != 0)
-	{
-		uv_async_send(m_writeAsync);
-		return;
-	}
-
-	auto size = m_writeCache.size();
-	if (size <= 0)
-	{
-		uv_mutex_unlock(&m_writeMutex);
-		return;
-	}
-
-	auto it = m_writeCache.begin();
-	void* data = it->base;
-	int len = it->len;
-	m_writeCache.erase(it);
-
-	uv_mutex_unlock(&m_writeMutex);
-
-	this->udp_send(data, len, m_connectSockaddr);
-	UV_LOG(UV_L_INFO, "send...");
-
-	if (size > 1)
-	{
-		uv_async_send(m_writeAsync);
-	}
+	uv_udp_send_t* udp_send = (uv_udp_send_t*)fc_malloc(sizeof(uv_udp_send_t));
+	udp_send->data = buf;
+	int r = uv_udp_send(udp_send, m_udp, buf, 1, m_socketAddr, uv_on_udp_send);
+	return (r == 0);
 }
 
-void UDPSocket::onAsyncClose()
+void UDPSocket::disconnect()
 {
+	shutdownSocket();
+}
+
+void UDPSocket::shutdownSocket()
+{
+	if (m_udp == NULL)
+	{
+		return;
+	}
 	uv_udp_recv_stop(m_udp);
-	if (m_call)
-	{
-		m_call(udp_socket_call_type::recv_stop, this, m_userdata);
-	}
+	net_closeHandle((uv_handle_t*)m_udp, uv_on_close_socket);
+	m_udp = NULL;
 }
 
-void UDPSocket::server_on_after_new_connection(uv_stream_t *server, int status)
+void UDPSocket::checkUdp()
 {
+	if (m_udp != NULL)
+		return;
+
+	m_udp = (uv_udp_t*)fc_malloc(sizeof(uv_udp_t));
+	int r = uv_udp_init(m_loop, m_udp);
+	CHECK_UV_ASSERT(r);
+
+	r = uv_udp_recv_start(m_udp, net_alloc_buffer, uv_on_after_read);
+	CHECK_UV_ASSERT(r);
+
+	m_udp->data = this;
+}
+
+void UDPSocket::setSocketAddr(struct sockaddr* addr)
+{
+	if (m_socketAddr == addr)
+		return;
+	if (m_socketAddr)
+	{
+		fc_free(m_socketAddr);
+	}
+	m_socketAddr = addr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void UDPSocket::uv_on_close_socket(uv_handle_t* socket)
+{
+	UDPSocket* s = (UDPSocket*)(socket->data);
+	if (s->m_closeCall != nullptr)
+	{
+		s->m_closeCall(s);
+	}
+	fc_free(socket);
 }
 
 void UDPSocket::uv_on_udp_send(uv_udp_send_t *req, int status) 
 {
-	if (status) 
+	if (status != 0) 
 	{
-		UV_LOG(UV_L_ERROR, "udp send error %s", uv_strerror(status));
+		NET_UV_LOG(NET_UV_L_ERROR, "udp send error %s", uv_strerror(status));
 	}
 	uv_buf_t* buf = (uv_buf_t*)req->data;
-	if (buf)
-	{
-		fc_free(buf->base);
-		fc_free(buf);
-	}
+	fc_free(buf->base);
+	fc_free(buf);
 	fc_free(req);
 }
 
 void UDPSocket::uv_on_after_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
 {
-	UDPSocket* s = (UDPSocket*)handle->data;
-	if (nread < 0) 
-	{
-		UV_LOG(UV_L_ERROR, "Read error %s\n", uv_err_name(nread));
-		fc_free(buf->base);
-		return;
-	}
-	if (addr == NULL)
-	{
-		fc_free(buf->base);
-		UV_LOG(UV_L_ERROR, "addr is null");
-		return;
-	}
+	//m_readCall
+
+	//UDPSocket* s = (UDPSocket*)handle->data;
+	//if (nread < 0) 
+	//{
+	//	UV_LOG(UV_L_ERROR, "Read error %s\n", uv_err_name(nread));
+	//	fc_free(buf->base);
+	//	return;
+	//}
+	//if (addr == NULL)
+	//{
+	//	fc_free(buf->base);
+	//	UV_LOG(UV_L_ERROR, "addr is null");
+	//	return;
+	//}
 
 	//char sender[17] = { 0 };
 	//uv_ip4_name((const struct sockaddr_in*) addr, sender, 16);
 	//UV_LOG(UV_L_INFO, "[%p]Recv from %s\n", addr, sender);
 	
-	fc_free(buf->base);
+	//fc_free(buf->base);
 }
 
 NS_NET_UV_END

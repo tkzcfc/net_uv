@@ -49,9 +49,13 @@ NET_UV_EXTERN void printMemInfo();
 
 
 
-#define CHECK_UV_ERROR(r) if(r) { getUVError(r); return false; }
+#define CHECK_UV_ERROR(r) if(r) { return false; }
 
-#define CHECK_UV_ASSERT(r) if(r) { auto str = getUVError(r); NET_UV_LOG(NET_UV_L_ERROR, str.c_str()); assert(0); }
+#if OPEN_NET_UV_DEBUG == 1
+#define CHECK_UV_ASSERT(r) if(r != 0) { auto str = getUVError(r); NET_UV_LOG(NET_UV_L_ERROR, str.c_str()); assert(0); }
+#else
+#define CHECK_UV_ASSERT(r) if(r != 0) { assert(0); }
+#endif
 
 NET_UV_EXTERN std::string getUVError(int errcode);
 

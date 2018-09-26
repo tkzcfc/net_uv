@@ -1,11 +1,44 @@
 #include "KcpSession.h"
 #include "UDPSocket.h"
 
+KcpSession* KcpSession::createSession(SessionManager* sessionManager, UDPSocket* socket, IUINT32 conv)
+{
+	KcpSession* session = (KcpSession*)fc_malloc(sizeof(KcpSession));
+	new(session)KcpSession(sessionManager);
 
-KcpSession::KcpSession()
-	: m_kcp(NULL)
+	if (session == NULL)
+	{
+		socket->disconnect();
+		socket->~UDPSocket();
+		fc_free(socket);
+		return NULL;
+	}
+
+	if (session->init(socket, conv))
+	{
+		//session->setMsgCallback(call);
+		return session;
+	}
+	else
+	{
+		session->~KcpSession();
+		fc_free(session);
+	}
+	return NULL;
+}
+
+KcpSession::KcpSession(SessionManager* sessionManager)
+	: Session(sessionManager)
+	, m_kcp(NULL)
 	, m_socket(NULL)
-{}
+{
+	if (m_socket)
+	{
+		m_socket->~UDPSocket();
+		fc_free(m_socket);
+		m_socket = NULL;
+	}
+}
 
 KcpSession::~KcpSession()
 {
@@ -16,19 +49,20 @@ KcpSession::~KcpSession()
 	}
 }
 
-void KcpSession::init(IUINT32 conv, UDPSocket* socket)
+bool KcpSession::init(UDPSocket* socket, IUINT32 conv)
 {
-	if (m_kcp != NULL)
-	{
-		return;
-	}
-	this->setSocket(socket);
+	assert(socket != 0);
+	m_socket = socket;
 
 	m_kcp = ikcp_create(conv, this);
+	if (m_kcp == NULL)
+		return false;
+
 	m_kcp->output = udp_output;
 
 	this->setWndSize(128, 128);
 	this->setMode(2);
+	return true;
 }
 
 void KcpSession::setMode(int mode)
@@ -56,17 +90,21 @@ void KcpSession::setMode(int mode)
 	}
 }
 
-void KcpSession::send(const char* buffer, int len)
-{
-	ikcp_send(m_kcp, buffer, len);
-}
-
 int KcpSession::udp_output(const char *buf, int len, ikcpcb *kcp, void *user)
 {
 	KcpSession* s = (KcpSession*)user;
 	if (s->m_socket)
 	{
-		s->m_socket->send((void*)buf, len);
+		s->m_socket->send((char*)buf, len);
 	}
 	return 0;
 }
+
+void KcpSession::executeSend(char* data, unsigned int len)
+{
+	ikcp_send(m_kcp, data, len);
+}
+
+void KcpSession::executeDisconnect()
+{}
+

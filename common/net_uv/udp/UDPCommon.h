@@ -3,6 +3,9 @@
 #include "../base/Common.h"
 #include "../base/Socket.h"
 #include "../base/Runnable.h"
+#include "../base/uv_func.h"
+#include "../base/Session.h"
+#include "../base/Mutex.h"
 #include <time.h>
 #include "ikcp.h"
 
@@ -68,9 +71,9 @@ static inline IUINT32 iclock()
 #define UDP_MAX_CONNECT (0xFFFF)
 
 // 套接字最小接收缓存大小
-#define UDP_UV_SOCKET_RECV_BUF_LEN (1024 * 8)
+#define UDP_UV_SOCKET_RECV_BUF_LEN (1024 * 4)
 // 套接字最小发送缓存大小
-#define UDP_UV_SOCKET_SEND_BUF_LEN (1024 * 8)
+#define UDP_UV_SOCKET_SEND_BUF_LEN (1024 * 4)
 
 
 NS_NET_UV_END

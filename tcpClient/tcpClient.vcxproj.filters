@@ -27,6 +27,9 @@
     <Filter Include="net_uv\tcp">
       <UniqueIdentifier>{aebfa0f2-d07b-41f9-bdb1-d311fa53755c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="net_uv\udp">
+      <UniqueIdentifier>{dd79e32b-1ee9-4ed2-8875-ec8518889b24}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="testClient.cpp">
@@ -176,6 +179,18 @@
     <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp">
       <Filter>net_uv\tcp</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\net_uv\udp\UDPClient.cpp">
+      <Filter>net_uv\udp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\udp\UDPSocket.cpp">
+      <Filter>net_uv\udp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\udp\ikcp.c">
+      <Filter>net_uv\udp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\udp\KcpSession.cpp">
+      <Filter>net_uv\udp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\libuv\include\tree.h">
@@ -321,6 +336,21 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h">
       <Filter>net_uv\tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\udp\KcpSession.h">
+      <Filter>net_uv\udp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\udp\UDPClient.h">
+      <Filter>net_uv\udp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\udp\UDPCommon.h">
+      <Filter>net_uv\udp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\udp\UDPSocket.h">
+      <Filter>net_uv\udp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\udp\ikcp.h">
+      <Filter>net_uv\udp</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

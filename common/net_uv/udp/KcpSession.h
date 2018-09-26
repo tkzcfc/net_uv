@@ -10,17 +10,13 @@ struct UDPBlockBuffer
 	int len;
 };
 
-class KcpSession
+class KcpSession : public Session
 {
 public:
-	KcpSession();
+	KcpSession() = delete;
 	KcpSession(const KcpSession&) = delete;
 	virtual ~KcpSession();
-
-	void send(const char* buffer, int len);
-	
-	void init(IUINT32 conv, UDPSocket* socket);
-	
+		
 	inline void setWndSize(int sndwnd, int rcvwnd);
 
 	void setMode(int mode);
@@ -31,9 +27,17 @@ public:
 
 	inline void recv(char* buffer, int len);
 
-	inline UDPSocket* getSocket();
+	inline UDPSocket* getUDPSocket();
 
-	inline void setSocket(UDPSocket* socket);
+	virtual inline unsigned int getPort()override;
+
+	virtual inline const std::string& getIp()override;
+	
+protected:
+
+	static KcpSession* createSession(SessionManager* sessionManager, UDPSocket* socket, IUINT32 conv);
+
+	KcpSession(SessionManager* sessionManager);
 
 protected:
 
@@ -41,10 +45,13 @@ protected:
 
 protected:
 
-	uv_mutex_t m_writeMutex;
-	std::list<UDPBlockBuffer> m_writeCache;
-	std::list<UDPBlockBuffer> m_readCache;
+	bool init(UDPSocket* socket, IUINT32 conv);
 
+	virtual void executeSend(char* data, unsigned int len)override;
+
+	virtual void executeDisconnect()override;
+
+protected:
 	ikcpcb* m_kcp;
 	UDPSocket* m_socket;
 };
@@ -69,12 +76,18 @@ void KcpSession::recv(char* buffer, int len)
 	ikcp_recv(m_kcp, buffer, len);
 }
 
-UDPSocket* KcpSession::getSocket()
+UDPSocket* KcpSession::getUDPSocket()
 {
 	return m_socket;
 }
 
-void KcpSession::setSocket(UDPSocket* socket)
+unsigned int KcpSession::getPort()
 {
-	m_socket = socket;
+	return getUDPSocket()->getPort();
 }
+
+inline const std::string& KcpSession::getIp()
+{
+	return getUDPSocket()->getIp();
+}
+

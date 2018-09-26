@@ -5,21 +5,7 @@
 
 NS_NET_UV_BEGIN
 
-struct UDPBlockBuffer
-{
-	void* base;
-	int len;
-};
-
-enum udp_socket_call_type
-{
-	resolve_suc,	// 连接成功(解析地址成功)
-	resolve_fail,	// 连接失败(解析地址失败)
-	recv_stop,		// socket关闭回调
-};
-
-class TCPSocket;
-typedef void(*udp_socket_call)(udp_socket_call_type, UDPSocket*, void* userdata);
+using UDPReadCallback = std::function<void(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)>;
 
 class UDPSocket : public Socket
 {
@@ -28,57 +14,47 @@ public:
 
 	UDPSocket(const UDPSocket&) = delete;
 
-	UDPSocket(uv_loop_t* loop);
+	UDPSocket(uv_loop_t* loop, uv_udp_t* udp);
 
 	virtual ~UDPSocket();
 
-	virtual void listen(const char* ip, unsigned int port, bool isIPV6)override;
+	virtual bool bind(const char* ip, unsigned int port)override;
 
-	inline uv_udp_t* getUdp();
+	virtual bool bind6(const char* ip, unsigned int port)override;
 
-	void connect(const char* ip, unsigned int port);
+	virtual bool listen()override;
 
-	void send(void* data, int dataLen);
+	virtual bool connect(const char* ip, unsigned int port)override;
 
-	void close();
+	virtual bool send(char* data, int len)override;
 
-	inline bool isClosed();
+	virtual void disconnect()override;
 
-	void setSocketCall(udp_socket_call call, void* userdata);
+	inline void setReadCallback(const UDPReadCallback& call);
 
 protected:
 	inline void setUdp(uv_udp_t* tcp);
 
-	void udp_send(void* data, int len, struct sockaddr* addr);
-
-protected:
-	virtual void init()override;
-
-	virtual void onAsyncListen()override;
-
-	virtual void onAsyncConnet()override;
-
-	virtual void onAsyncWrite()override;
-
-	virtual void onAsyncClose()override;
-
-protected:
-	uv_udp_t* m_udp;
+	inline uv_udp_t* getUdp();
 	
-	std::list<UDPBlockBuffer> m_writeCache;
-	std::list<UDPBlockBuffer> m_readCache;
+	void setSocketAddr(struct sockaddr* addr);
+	
+	inline struct sockaddr* getSocketAddr();
 
-	struct sockaddr* m_connectSockaddr;
-	std::string m_connectIP;
-	unsigned int m_connectPort;
-
-	bool m_isClose;
-
-	udp_socket_call m_call;
-	void* m_userdata;
 protected:
 
-	static void server_on_after_new_connection(uv_stream_t *server, int status);
+	void checkUdp();
+
+	void shutdownSocket();
+
+protected:
+
+	uv_udp_t* m_udp;
+	struct sockaddr* m_socketAddr;
+	UDPReadCallback m_readCall;
+
+protected:
+	static void uv_on_close_socket(uv_handle_t* socket);
 	static void uv_on_udp_send(uv_udp_send_t *req, int status);
 	static void uv_on_after_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
 
@@ -94,9 +70,14 @@ uv_udp_t* UDPSocket::getUdp()
 	return m_udp;
 }
 
-bool UDPSocket::isClosed()
+struct sockaddr* UDPSocket::getSocketAddr()
 {
-	return m_isClose;
+	return m_socketAddr;
+}
+
+void UDPSocket::setReadCallback(const UDPReadCallback& call)
+{
+	m_readCall = std::move(call);
 }
 
 

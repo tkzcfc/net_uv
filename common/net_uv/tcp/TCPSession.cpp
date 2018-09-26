@@ -6,7 +6,7 @@ NS_NET_UV_BEGIN
 TCPSession* TCPSession::createSession(SessionManager* sessionManager, TCPSocket* socket, const TCPSessionRecvCall& call)
 {
 	TCPSession* session = (TCPSession*)fc_malloc(sizeof(TCPSession));
-	new(session)TCPSession(sessionManager, socket);
+	new(session)TCPSession(sessionManager);
 	
 	if (session == NULL)
 	{
@@ -29,14 +29,13 @@ TCPSession* TCPSession::createSession(SessionManager* sessionManager, TCPSocket*
 	return NULL;
 }
 
-TCPSession::TCPSession(SessionManager* sessionManager, TCPSocket* socket)
+TCPSession::TCPSession(SessionManager* sessionManager)
 	: Session(sessionManager)
 	, m_recvBuffer(NULL)
 	, m_socket(NULL)
 	, m_recvCallback(nullptr)
 {
 	assert(sessionManager != NULL);
-	assert(socket != NULL);
 }
 
 TCPSession::~TCPSession()
@@ -58,6 +57,8 @@ TCPSession::~TCPSession()
 
 bool TCPSession::initWithSocket(TCPSocket* socket)
 {
+	assert(socket != NULL);
+
 	m_recvBuffer = (Buffer*)fc_malloc(sizeof(Buffer));
 	if (m_recvBuffer == NULL)
 	{

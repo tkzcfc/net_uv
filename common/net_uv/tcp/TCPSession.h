@@ -27,7 +27,7 @@ protected:
 
 	static TCPSession* createSession(SessionManager* sessionManager, TCPSocket* socket, const TCPSessionRecvCall& call);
 
-	TCPSession(SessionManager* sessionManager, TCPSocket* socket);
+	TCPSession(SessionManager* sessionManager);
 
 protected:
 
