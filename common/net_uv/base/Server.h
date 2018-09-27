@@ -2,6 +2,8 @@
 
 #include "Common.h"
 #include "Session.h"
+#include "SessionManager.h"
+#include "Runnable.h"
 
 NS_NET_UV_BEGIN
 
@@ -12,7 +14,7 @@ using ServerNewConnectCall = std::function<void(Server*, Session*)>;
 using ServerRecvCall = std::function<void(Server*, Session*, char* data, unsigned int len)>;
 using ServerDisconnectCall = std::function<void(Server*, Session*)>;
 
-class NET_UV_EXTERN Server
+class NET_UV_EXTERN Server : public Runnable, public SessionManager
 {
 public:
 	Server();

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Common.h"
+#include "Runnable.h"
+#include "SessionManager.h"
 
 NS_NET_UV_BEGIN
 
@@ -12,20 +14,22 @@ using ClientDisconnectCall = std::function<void(Client*, Session*)>;
 using ClientRecvCall = std::function<void(Client*, Session*, char*, unsigned int)>;
 using ClientCloseCall = std::function<void(Client*)>;
 
-class NET_UV_EXTERN Client
+class NET_UV_EXTERN Client : public Runnable, public SessionManager
 {
 public:
 	Client();
 
 	virtual ~Client();
 
-	virtual void connect(const char* ip, unsigned int port, unsigned int key) = 0;
+	virtual void connect(const char* ip, unsigned int port, unsigned int sessionId) = 0;
 
-	virtual void disconnect(unsigned int key) = 0;
+	virtual void disconnect(unsigned int sessionId) = 0;
 
 	virtual void closeClient() = 0;
 
 	virtual void updateFrame() = 0;
+
+	virtual void send(unsigned int sessionId, char* data, unsigned int len) = 0;
 
 	inline void setConnectCallback(const ClientConnectCall& call);
 

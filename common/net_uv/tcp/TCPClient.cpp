@@ -101,7 +101,7 @@ void TCPClient::connect(const char* ip, unsigned int port, unsigned int sessionI
 	opData->ip = ip;
 	opData->port = port;
 	opData->sessionID = sessionId;
-	pushOperation(TCP_CLI_OP_CONNECT, opData, NULL, NULL);
+	pushOperation(TCP_CLI_OP_CONNECT, opData, 0U, 0U);
 }
 
 void TCPClient::disconnect(unsigned int sessionId)
@@ -109,7 +109,7 @@ void TCPClient::disconnect(unsigned int sessionId)
 	if (m_isStop)
 		return;
 
-	pushOperation(TCP_CLI_OP_DISCONNECT, NULL, NULL, sessionId);
+	pushOperation(TCP_CLI_OP_DISCONNECT, NULL, 0U, sessionId);
 }
 
 void TCPClient::disconnect(Session* session)
@@ -122,7 +122,7 @@ void TCPClient::closeClient()
 	if (m_isStop)
 		return;
 	m_isStop = true;
-	pushOperation(TCP_CLI_OP_CLIENT_CLOSE, NULL, NULL, NULL);
+	pushOperation(TCP_CLI_OP_CLIENT_CLOSE, NULL, 0U, 0U);
 }
 
 bool TCPClient::isCloseFinish()

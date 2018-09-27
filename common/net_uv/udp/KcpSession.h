@@ -41,10 +41,6 @@ protected:
 
 protected:
 
-	static int udp_output(const char *buf, int len, ikcpcb *kcp, void *user);
-
-protected:
-
 	bool init(UDPSocket* socket, IUINT32 conv);
 
 	virtual void executeSend(char* data, unsigned int len)override;
@@ -52,8 +48,15 @@ protected:
 	virtual void executeDisconnect()override;
 
 protected:
+
+	static int udp_output(const char *buf, int len, ikcpcb *kcp, void *user);
+
+	static void uv_on_idle_run(uv_idle_t* handle);
+
+protected:
 	ikcpcb* m_kcp;
 	UDPSocket* m_socket;
+	uv_idle_t m_idle;
 };
 
 void KcpSession::setWndSize(int sndwnd, int rcvwnd)

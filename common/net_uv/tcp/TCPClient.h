@@ -6,7 +6,7 @@
 
 NS_NET_UV_BEGIN
 
-class NET_UV_EXTERN TCPClient : public Client, public Runnable, public SessionManager
+class NET_UV_EXTERN TCPClient : public Client
 {
 public:
 	enum CONNECTSTATE
@@ -31,13 +31,14 @@ public:
 	
 	virtual void updateFrame()override;
 
+	virtual void send(unsigned int sessionId, char* data, unsigned int len)override;
+
 	/// SessionManager
 	virtual void send(Session* session, char* data, unsigned int len)override;
 
 	virtual void disconnect(Session* session)override;
 
-	void send(unsigned int sessionId, char* data, unsigned int len);
-
+	/// TCPClient
 	//查询客户端是否已经关闭完毕
 	//如果返回true，则可以进行该类的内存释放
 	//若返回false就进行内存释放时，该类将阻塞至线程完全退出
@@ -69,6 +70,7 @@ protected:
 	/// SessionManager
 	virtual void executeOperation()override;
 
+	/// TCPClient
 	void onSocketConnect(Socket* socket, bool isSuc);
 
 	void onSessionClose(Session* session);
@@ -110,10 +112,8 @@ protected:
 
 	struct clientSessionData
 	{
-		clientSessionData()
-		{}
-		~clientSessionData()
-		{}
+		clientSessionData() {}
+		~clientSessionData() {}
 		CONNECTSTATE connectState;
 		bool reconnect;
 		float curtime;
