@@ -121,6 +121,7 @@ void main()
 	while (!gServerStop)
 	{
 		svr->updateFrame();
+		ThreadSleep(1);
 	}
 	delete svr;
 	printf("-----------------------------\n");

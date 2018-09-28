@@ -538,11 +538,11 @@ void TCPClient::onSocketConnect(Socket* socket, int status)
 	{
 		if (status == 0)
 		{
-			pushThreadMsg(TCPThreadMsgType::CONNECT, pSession);
+			pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, pSession);
 		}
 		else if (status == 1)
 		{
-			pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, pSession);
+			pushThreadMsg(TCPThreadMsgType::CONNECT, pSession);
 		}
 		else if (status == 2)
 		{
