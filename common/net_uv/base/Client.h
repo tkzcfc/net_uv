@@ -13,6 +13,7 @@ using ClientConnectCall = std::function<void(Client*, Session*, int)>; // 0Ê§°Ü 
 using ClientDisconnectCall = std::function<void(Client*, Session*)>;
 using ClientRecvCall = std::function<void(Client*, Session*, char*, unsigned int)>;
 using ClientCloseCall = std::function<void(Client*)>;
+using ClientRemoveSessionCall = std::function<void(Client*, Session*)>;
 
 class NET_UV_EXTERN Client : public Runnable, public SessionManager
 {
@@ -31,6 +32,8 @@ public:
 
 	virtual void send(unsigned int sessionId, char* data, unsigned int len) = 0;
 
+	virtual void removeSession(unsigned int sessionId) = 0;
+
 	inline void setConnectCallback(const ClientConnectCall& call);
 
 	inline void setDisconnectCallback(const ClientDisconnectCall& call);
@@ -38,12 +41,15 @@ public:
 	inline void setRecvCallback(const ClientRecvCall& call);
 
 	inline void setClientCloseCallback(const ClientCloseCall& call);
+	
+	inline void setRemoveSessionCallback(const ClientRemoveSessionCall& call);
 
 protected:
 	ClientConnectCall m_connectCall;
 	ClientDisconnectCall m_disconnectCall;
 	ClientRecvCall m_recvCall;
 	ClientCloseCall m_clientCloseCall;
+	ClientRemoveSessionCall m_removeSessionCall;
 };
 
 void Client::setConnectCallback(const ClientConnectCall& call)
@@ -64,6 +70,11 @@ void Client::setRecvCallback(const ClientRecvCall& call)
 void Client::setClientCloseCallback(const ClientCloseCall& call)
 {
 	m_clientCloseCall = std::move(call);
+}
+
+void Client::setRemoveSessionCallback(const ClientRemoveSessionCall& call)
+{
+	m_removeSessionCall = std::move(call);
 }
 
 NS_NET_UV_END

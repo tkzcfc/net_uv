@@ -56,9 +56,15 @@ void main()
 		}
 	});
 
-	client->setDisconnectCallback([](Client*, Session* session) {
+	client->setDisconnectCallback([=](Client*, Session* session) {
 		printf("[%d]断开连接\n", session->getSessionID());
+		//client->removeSession(session->getSessionID());
 	});
+
+	client->setRemoveSessionCallback([](Client*, Session* session) {
+		printf("[%d]删除连接\n", session->getSessionID());
+	});
+
 	client->setRecvCallback([](Client*, Session* session, char* data, unsigned int len)
 	{
 		char* msg = (char*)fc_malloc(len + 1);

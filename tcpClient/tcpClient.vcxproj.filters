@@ -191,6 +191,9 @@
     <ClCompile Include="..\common\net_uv\udp\KcpSession.cpp">
       <Filter>net_uv\udp</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\net_uv\udp\UDPServer.cpp">
+      <Filter>net_uv\udp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\libuv\include\tree.h">
@@ -353,6 +356,9 @@
       <Filter>net_uv\tcp</Filter>
     </ClInclude>
     <ClInclude Include="..\common\net_uv\udp\UDPThreadMsg.h">
+      <Filter>net_uv\udp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\udp\UDPServer.h">
       <Filter>net_uv\udp</Filter>
     </ClInclude>
   </ItemGroup>

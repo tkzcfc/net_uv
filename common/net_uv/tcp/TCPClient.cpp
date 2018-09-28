@@ -5,19 +5,21 @@
 NS_NET_UV_BEGIN
 
 //断线重连定时器检测间隔
-#define CLIENT_TIMER_DELAY (0.2f)
+#define CLIENT_TIMER_DELAY (0.1f)
 
 
 enum 
 {
-	TCP_CLI_OP_CONNECT,	//	连接
-	TCP_CLI_OP_SENDDATA,	// 发送数据
-	TCP_CLI_OP_DISCONNECT,	// 断开连接
-	TCP_CLI_OP_SET_AUTO_CONNECT, //设置自动连接
-	TCP_CLI_OP_SET_RECON_TIME,//设置重连时间
-	TCP_CLI_OP_SET_KEEP_ALIVE,//设置心跳
-	TCP_CLI_OP_SET_NO_DELAY, //设置NoDelay
-	TCP_CLI_OP_CLIENT_CLOSE, //客户端退出
+	TCP_CLI_OP_CONNECT,			//	连接
+	TCP_CLI_OP_SENDDATA,		// 发送数据
+	TCP_CLI_OP_DISCONNECT,		// 断开连接
+	TCP_CLI_OP_SET_AUTO_CONNECT,//设置自动连接
+	TCP_CLI_OP_SET_RECON_TIME,	//设置重连时间
+	TCP_CLI_OP_SET_KEEP_ALIVE,	//设置心跳
+	TCP_CLI_OP_SET_NO_DELAY,	//设置NoDelay
+	TCP_CLI_OP_CLIENT_CLOSE,	//客户端退出
+	TCP_CLI_OP_REMOVE_SESSION,	//移除会话命令
+	TCP_CLI_OP_DELETE_SESSION,	//删除会话
 };
 
 // 连接操作
@@ -158,6 +160,11 @@ void TCPClient::send(Session* session, char* data, unsigned int len)
 	send(session->getSessionID(), data, len);
 }
 
+void TCPClient::removeSession(unsigned int sessionId)
+{
+	pushOperation(TCP_CLI_OP_REMOVE_SESSION, NULL, 0U, sessionId);
+}
+
 bool TCPClient::setSocketNoDelay(bool enable)
 {
 	if (m_isStop)
@@ -210,7 +217,7 @@ void TCPClient::executeOperation()
 		case TCP_CLI_OP_SENDDATA:		// 数据发送
 		{
 			auto sessionData = getClientSessionDataBySessionId(curOperation.sessionID);
-			if (sessionData)
+			if (sessionData && !sessionData->removeTag)
 			{
 				sessionData->session->executeSend((char*)curOperation.operationData, curOperation.operationDataLen);
 			}
@@ -290,7 +297,7 @@ void TCPClient::executeOperation()
 			for (auto& it : m_allSessionMap)
 			{
 				auto socket = it.second->session->getTCPSocket();
-				if (socket)
+				if (socket && !it.second->removeTag)
 				{
 					socket->setKeepAlive(m_keepAliveDelay, m_keepAliveDelay);
 				}
@@ -301,7 +308,7 @@ void TCPClient::executeOperation()
 			for (auto& it : m_allSessionMap)
 			{
 				auto socket = it.second->session->getTCPSocket();
-				if (socket)
+				if (socket && !it.second->removeTag)
 				{
 					socket->setNoDelay(m_enableNoDelay);
 				}
@@ -313,6 +320,34 @@ void TCPClient::executeOperation()
 			uv_timer_stop(&m_heartTimer);
 #endif
 			m_clientStage = clientStage::CLEAR_SOCKET;
+		}break;
+		case TCP_CLI_OP_REMOVE_SESSION:
+		{
+			auto sessionData = getClientSessionDataBySessionId(curOperation.sessionID);
+			if (sessionData)
+			{
+				sessionData->removeTag = true;
+				if (sessionData->connectState != DISCONNECT)
+				{
+					sessionData->session->executeDisconnect();
+				}
+				else
+				{
+					pushThreadMsg(TCPThreadMsgType::REMOVE_SESSION, sessionData->session);
+				}
+			}
+		}break;
+		case TCP_CLI_OP_DELETE_SESSION://删除会话
+		{
+			auto it = m_allSessionMap.find(curOperation.sessionID);
+			if (it != m_allSessionMap.end() && it->second->removeTag)
+			{
+				it->second->session->~TCPSession();
+				fc_free(it->second->session);
+				it->second->~clientSessionData();
+				fc_free(it->second);
+				m_allSessionMap.erase(it);
+			}
 		}break;
 		default:
 			break;
@@ -330,6 +365,9 @@ void TCPClient::createNewConnect(void* data)
 	auto it = m_allSessionMap.find(opData->sessionID);
 	if (it != m_allSessionMap.end())
 	{
+		if (it->second->removeTag)
+			return;
+
 		//对比端口和IP是否一致
 		if (strcmp(opData->ip.c_str(), it->second->ip.c_str()) != 0 && opData->port != it->second->port)
 		{
@@ -374,6 +412,7 @@ void TCPClient::createNewConnect(void* data)
 
 		clientSessionData* cs = (clientSessionData*)fc_malloc(sizeof(clientSessionData));
 		new (cs) clientSessionData();
+		cs->removeTag = false;
 		cs->ip = opData->ip;
 		cs->port = opData->port;
 		cs->session = session;
@@ -481,6 +520,14 @@ void TCPClient::updateFrame()
 		{
 			closeClientTag = true;
 		}break;
+		case TCPThreadMsgType::REMOVE_SESSION:
+		{
+			if (m_removeSessionCall != nullptr)
+			{
+				m_removeSessionCall(this, Msg.pSession);
+			}
+			pushOperation(TCP_CLI_OP_DELETE_SESSION, NULL, 0U, Msg.pSession->getSessionID());
+		}break;
 		default:
 			break;
 		}
@@ -526,8 +573,16 @@ void TCPClient::onSocketConnect(Socket* socket, int status)
 				}
 				else
 				{
-					it.second->session->getTCPSocket()->setNoDelay(m_enableNoDelay);
-					it.second->session->getTCPSocket()->setKeepAlive(m_enableKeepAlive, m_keepAliveDelay);
+					if (it.second->removeTag)
+					{
+						it.second->session->executeDisconnect();
+						pSession = NULL;
+					}
+					else
+					{
+						it.second->session->getTCPSocket()->setNoDelay(m_enableNoDelay);
+						it.second->session->getTCPSocket()->setKeepAlive(m_enableKeepAlive, m_keepAliveDelay);
+					}
 				}
 			}
 			break;
@@ -558,6 +613,11 @@ void TCPClient::onSessionClose(Session* session)
 	{
 		sessionData->connectState = CONNECTSTATE::DISCONNECT;
 		pushThreadMsg(TCPThreadMsgType::DIS_CONNECT, sessionData->session);
+
+		if (sessionData->removeTag)
+		{
+			pushThreadMsg(TCPThreadMsgType::REMOVE_SESSION, sessionData->session);
+		}
 	}
 }
 
@@ -728,6 +788,7 @@ void TCPClient::clearData()
 	{
 		it.second->session->~TCPSession();
 		fc_free(it.second->session);
+		it.second->~clientSessionData();
 		fc_free(it.second);
 	}
 	m_allSessionMap.clear();
@@ -795,7 +856,7 @@ void TCPClient::uv_timer_run(uv_timer_t* handle)
 		for (auto& it : c->m_allSessionMap)
 		{
 			data = it.second;
-			if (data->connectState == CONNECTSTATE::DISCONNECT && data->reconnect)
+			if (data->connectState == CONNECTSTATE::DISCONNECT && data->reconnect && data->removeTag == false)
 			{
 				data->curtime = data->curtime + CLIENT_TIMER_DELAY;
 

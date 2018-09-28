@@ -10,7 +10,6 @@ TCPSession* TCPSession::createSession(SessionManager* sessionManager, TCPSocket*
 	
 	if (session == NULL)
 	{
-		socket->disconnect();
 		socket->~TCPSocket();
 		fc_free(socket);
 		return NULL;

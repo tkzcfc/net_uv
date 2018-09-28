@@ -33,6 +33,8 @@ public:
 
 	virtual void send(unsigned int sessionId, char* data, unsigned int len)override;
 
+	virtual void removeSession(unsigned int sessionId)override;
+
 	/// SessionManager
 	virtual void send(Session* session, char* data, unsigned int len)override;
 
@@ -115,7 +117,8 @@ protected:
 		clientSessionData() {}
 		~clientSessionData() {}
 		CONNECTSTATE connectState;
-		bool reconnect;
+		bool removeTag; // 是否被标记移除
+		bool reconnect;	// 是否断线重连
 		float curtime;
 		float totaltime;
 		std::string ip;

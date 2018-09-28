@@ -1,11 +1,15 @@
 #include "UDPClient.h"
 
+NS_NET_UV_BEGIN
+
 enum
 {
 	UDP_CLI_OP_CONNECT,	//	连接
 	UDP_CLI_OP_SENDDATA,	// 发送数据
 	UDP_CLI_OP_DISCONNECT,	// 断开连接
 	UDP_CLI_OP_CLIENT_CLOSE, //客户端退出
+	UDP_CLI_OP_REMOVE_SESSION,//移除会话
+	UDP_CLI_OP_DELETE_SESSION,//删除会话
 };
 
 // 连接操作
@@ -127,6 +131,14 @@ void UDPClient::updateFrame()
 		{
 			closeClientTag = true;
 		}break;
+		case UDPThreadMsgType::REMOVE_SESSION:
+		{
+			if (m_removeSessionCall != nullptr)
+			{
+				m_removeSessionCall(this, Msg.pSession);
+			}
+			pushOperation(UDP_CLI_OP_DELETE_SESSION, NULL, 0U, Msg.pSession->getSessionID());
+		}break;
 		default:
 			break;
 		}
@@ -136,6 +148,11 @@ void UDPClient::updateFrame()
 	{
 		m_clientCloseCall(this);
 	}
+}
+
+void UDPClient::removeSession(unsigned int sessionId)
+{
+	pushOperation(UDP_CLI_OP_REMOVE_SESSION, NULL, 0U, sessionId);
 }
 
 /// SessionManager
@@ -220,7 +237,7 @@ void UDPClient::executeOperation()
 			if (sessionData->connectState == CONNECT)
 			{
 				sessionData->session->executeDisconnect();
-				sessionData->connectState = DISCONNECT;
+				sessionData->connectState = DISCONNECTING;
 			}
 		}break;
 		case UDP_CLI_OP_CONNECT:	// 连接
@@ -242,6 +259,29 @@ void UDPClient::executeOperation()
 				}
 			}
 			m_clientStage = clientStage::CLEAR_SESSION;
+		}break;
+		case UDP_CLI_OP_REMOVE_SESSION://移除
+		{
+			auto sessionData = getClientSessionDataBySessionId(curOperation.sessionID);
+			sessionData->removeTag = true;
+			if (sessionData->connectState != CONNECTSTATE::DISCONNECT)
+			{
+				sessionData->session->executeDisconnect();
+			}
+			else
+			{
+				pushThreadMsg(UDPThreadMsgType::REMOVE_SESSION, sessionData->session);
+			}
+		}break;
+		case UDP_CLI_OP_DELETE_SESSION://删除
+		{
+			auto it = m_allSessionMap.find(curOperation.sessionID);
+			if (it != m_allSessionMap.end() && it->second.removeTag)
+			{
+				it->second.session->~KcpSession();
+				fc_free(it->second.session);
+				m_allSessionMap.erase(it);
+			}
 		}break;
 		default:
 			break;
@@ -286,6 +326,7 @@ void UDPClient::clearData()
 		it.second.session->~KcpSession();
 		fc_free(it.second.session);
 	}
+	m_allSessionMap.clear();
 
 	m_msgMutex.lock();
 	while (!m_msgQue.empty())
@@ -356,6 +397,8 @@ void UDPClient::createNewConnect(void* data)
 	auto it = m_allSessionMap.find(opData->sessionID);
 	if (it != m_allSessionMap.end())
 	{
+		if (it->second.removeTag)
+			return;
 		//对比端口和IP是否一致
 		if (strcmp(opData->ip.c_str(), it->second.session->getIp().c_str()) != 0 &&
 			opData->port != it->second.session->getPort())
@@ -390,8 +433,10 @@ void UDPClient::createNewConnect(void* data)
 			return;
 		}
 		session->setSessionID(opData->sessionID);
+		session->setSessionClose(std::bind(&UDPClient::onSessionClose, this, std::placeholders::_1));
 
 		clientSessionData cs;
+		cs.removeTag = false;
 		cs.session = session;
 
 		if (socket->connect(opData->ip.c_str(), opData->port))
@@ -410,6 +455,32 @@ void UDPClient::createNewConnect(void* data)
 	}
 }
 
+void UDPClient::onSessionClose(Session* session)
+{
+	for (auto& it : m_allSessionMap)
+	{
+		if (it.second.session == session)
+		{
+			it.second.connectState = DISCONNECT;
+			if (it.second.removeTag)
+			{
+				pushThreadMsg(UDPThreadMsgType::REMOVE_SESSION, session);
+			}
+			break;
+		}
+	}
+}
+
+void UDPClient::onSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
+{
+	IUINT32 conv = ikcp_getconv(buf->base);
+	auto sessionData = getClientSessionDataBySessionId(conv);
+	if (sessionData)
+	{
+		sessionData->session->input(buf->base, nread);
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 void UDPClient::uv_on_idle_run(uv_idle_t* handle)
@@ -419,3 +490,4 @@ void UDPClient::uv_on_idle_run(uv_idle_t* handle)
 	ThreadSleep(1);
 }
 
+NS_NET_UV_END

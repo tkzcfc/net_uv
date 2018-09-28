@@ -4,13 +4,15 @@
 #include "UDPCommon.h"
 #include "UDPSocket.h"
 
+NS_NET_UV_BEGIN
+
 struct UDPBlockBuffer
 {
 	void* base;
 	int len;
 };
 
-class KcpSession : public Session
+class NET_UV_EXTERN KcpSession : public Session
 {
 public:
 	KcpSession() = delete;
@@ -56,6 +58,7 @@ protected:
 	static void uv_on_idle_run(uv_idle_t* handle);
 
 	friend class UDPClient;
+	friend class UDPServer;
 protected:
 	ikcpcb* m_kcp;
 	UDPSocket* m_socket;
@@ -97,3 +100,4 @@ inline const std::string& KcpSession::getIp()
 	return getUDPSocket()->getIp();
 }
 
+NS_NET_UV_END

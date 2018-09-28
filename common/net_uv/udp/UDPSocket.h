@@ -7,7 +7,7 @@ NS_NET_UV_BEGIN
 
 using UDPReadCallback = std::function<void(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)>;
 
-class UDPSocket : public Socket
+class NET_UV_EXTERN UDPSocket : public Socket
 {
 public:
 	UDPSocket() = delete;
@@ -52,6 +52,8 @@ protected:
 	uv_udp_t* m_udp;
 	struct sockaddr* m_socketAddr;
 	UDPReadCallback m_readCall;
+
+	friend class UDPServer;
 
 protected:
 	static void uv_on_close_socket(uv_handle_t* socket);

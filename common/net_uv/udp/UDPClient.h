@@ -6,12 +6,13 @@
 
 NS_NET_UV_BEGIN
 
-class UDPClient : public Client
+class NET_UV_EXTERN UDPClient : public Client
 {
 public:
 	enum CONNECTSTATE
 	{
 		CONNECT,		//已连接
+		DISCONNECTING,	//正在断开
 		DISCONNECT,		//已断开
 	};
 public:
@@ -27,6 +28,8 @@ public:
 	virtual void closeClient()override;
 
 	virtual void updateFrame()override;
+
+	virtual void removeSession(unsigned int sessionId)override;
 
 	/// SessionManager
 	virtual void send(Session* session, char* data, unsigned int len)override;
@@ -55,6 +58,10 @@ protected:
 
 	void createNewConnect(void* data);
 
+	void onSessionClose(Session* session);
+
+	void onSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
+
 protected:
 	struct clientSessionData
 	{
@@ -62,6 +69,7 @@ protected:
 		~clientSessionData() {}
 		CONNECTSTATE connectState;
 		KcpSession* session;
+		bool removeTag;
 	};
 	std::map<unsigned int, clientSessionData> m_allSessionMap;
 

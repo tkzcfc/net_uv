@@ -220,27 +220,30 @@ void UDPSocket::uv_on_udp_send(uv_udp_send_t *req, int status)
 
 void UDPSocket::uv_on_after_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
 {
-	//m_readCall
-
-	//UDPSocket* s = (UDPSocket*)handle->data;
-	//if (nread < 0) 
-	//{
-	//	UV_LOG(UV_L_ERROR, "Read error %s\n", uv_err_name(nread));
-	//	fc_free(buf->base);
-	//	return;
-	//}
-	//if (addr == NULL)
-	//{
-	//	fc_free(buf->base);
-	//	UV_LOG(UV_L_ERROR, "addr is null");
-	//	return;
-	//}
+	if (nread < 0)
+	{
+		NET_UV_LOG(NET_UV_L_ERROR, "udp read error %s\n", uv_err_name(nread));
+		fc_free(buf->base);
+		return;
+	}
+	if (addr == NULL)
+	{
+		fc_free(buf->base);
+		NET_UV_LOG(NET_UV_L_ERROR, "addr is null");
+		return;
+	}
 
 	//char sender[17] = { 0 };
 	//uv_ip4_name((const struct sockaddr_in*) addr, sender, 16);
 	//UV_LOG(UV_L_INFO, "[%p]Recv from %s\n", addr, sender);
-	
-	//fc_free(buf->base);
+
+	if (nread > 0)
+	{
+		UDPSocket* s = (UDPSocket*)handle->data;
+		s->m_readCall(handle, nread, buf, addr, flags);
+	}
+
+	fc_free(buf->base);
 }
 
 NS_NET_UV_END

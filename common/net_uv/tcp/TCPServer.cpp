@@ -38,7 +38,7 @@ TCPServer::~TCPServer()
 	fc_free(m_heartTimer);
 #endif
 
-	NET_UV_LOG(NET_UV_L_INFO, "服务器销毁");
+	NET_UV_LOG(NET_UV_L_INFO, "TCPServer destroy...");
 }
 
 void TCPServer::startServer(const char* ip, int port, bool isIPV6)
@@ -57,7 +57,7 @@ void TCPServer::startServer(const char* ip, int port, bool isIPV6)
 	m_start = true;
 	m_serverStage = ServerStage::START;
 
-	NET_UV_LOG(NET_UV_L_INFO, "服务器启动中...");
+	NET_UV_LOG(NET_UV_L_INFO, "TCPServer start-up...");
 	this->startThread();
 }
 
@@ -208,6 +208,10 @@ void TCPServer::run()
 
 	if (!suc)
 	{
+		m_server->~TCPSocket();
+		fc_free(m_server);
+		m_server = NULL;
+
 		m_serverStage = ServerStage::STOP;
 		pushThreadMsg(TCPThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
@@ -216,6 +220,10 @@ void TCPServer::run()
 	suc = m_server->listen();
 	if (!suc)
 	{
+		m_server->~TCPSocket();
+		fc_free(m_server);
+		m_server = NULL;
+
 		m_serverStage = ServerStage::STOP;
 		pushThreadMsg(TCPThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
@@ -227,6 +235,7 @@ void TCPServer::run()
 
 	uv_loop_close(&m_loop);
 	
+	m_server->~TCPSocket();
 	fc_free(m_server);
 	m_server = NULL;
 	

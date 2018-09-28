@@ -62,6 +62,7 @@ public:
 
 	virtual void disconnect(Session* session)override;
 
+	/// TCPServer
 	bool isCloseFinish();
 
 protected:
@@ -72,6 +73,7 @@ protected:
 	/// SessionManager
 	virtual void executeOperation()override;
 
+	/// TCPServer
 	void onNewConnect(uv_stream_t* server, int status);
 
 	void onServerSocketClose(Socket* svr);

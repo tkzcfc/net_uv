@@ -1,6 +1,8 @@
 #include "KcpSession.h"
 #include "UDPSocket.h"
 
+NS_NET_UV_BEGIN
+
 KcpSession* KcpSession::createSession(SessionManager* sessionManager, UDPSocket* socket, IUINT32 conv)
 {
 	KcpSession* session = (KcpSession*)fc_malloc(sizeof(KcpSession));
@@ -8,7 +10,6 @@ KcpSession* KcpSession::createSession(SessionManager* sessionManager, UDPSocket*
 
 	if (session == NULL)
 	{
-		socket->disconnect();
 		socket->~UDPSocket();
 		fc_free(socket);
 		return NULL;
@@ -16,7 +17,6 @@ KcpSession* KcpSession::createSession(SessionManager* sessionManager, UDPSocket*
 
 	if (session->init(socket, conv))
 	{
-		//session->setMsgCallback(call);
 		return session;
 	}
 	else
@@ -160,3 +160,5 @@ void KcpSession::on_socket_close(Socket* socket)
 		m_sessionCloseCallback(this);
 	}
 }
+
+NS_NET_UV_END

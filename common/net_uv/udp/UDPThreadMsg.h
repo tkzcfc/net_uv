@@ -15,7 +15,8 @@ enum class UDPThreadMsgType
 	NEW_CONNECT,		//新连接
 	DIS_CONNECT,		//断开连接
 	EXIT_LOOP,			//退出loop
-	RECV_DATA			//收到消息
+	RECV_DATA,			//收到消息
+	REMOVE_SESSION,		//移除会话
 };
 
 
