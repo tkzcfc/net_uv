@@ -248,12 +248,13 @@
     <ClInclude Include="..\common\net_uv\tcp\TCPSession.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPSocket.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPUtils.h" />
-    <ClInclude Include="..\common\net_uv\tcp\ThreadMsg.h" />
+    <ClInclude Include="..\common\net_uv\tcp\TCPThreadMsg.h" />
     <ClInclude Include="..\common\net_uv\udp\ikcp.h" />
     <ClInclude Include="..\common\net_uv\udp\KcpSession.h" />
     <ClInclude Include="..\common\net_uv\udp\UDPClient.h" />
     <ClInclude Include="..\common\net_uv\udp\UDPCommon.h" />
     <ClInclude Include="..\common\net_uv\udp\UDPSocket.h" />
+    <ClInclude Include="..\common\net_uv\udp\UDPThreadMsg.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

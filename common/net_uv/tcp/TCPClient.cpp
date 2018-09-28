@@ -333,6 +333,7 @@ void TCPClient::createNewConnect(void* data)
 		//对比端口和IP是否一致
 		if (strcmp(opData->ip.c_str(), it->second->ip.c_str()) != 0 && opData->port != it->second->port)
 		{
+			pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, NULL);
 			return;
 		}
 
@@ -346,7 +347,7 @@ void TCPClient::createNewConnect(void* data)
 			{
 				it->second->connectState = CONNECTSTATE::DISCONNECT;
 				it->second->session->executeDisconnect();
-				pushThreadMsg(CONNECT_FAIL, it->second->session);
+				pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, it->second->session);
 			}
 		}
 	}
@@ -393,7 +394,7 @@ void TCPClient::createNewConnect(void* data)
 		else
 		{
 			cs->connectState = CONNECTSTATE::DISCONNECT;
-			pushThreadMsg(CONNECT_FAIL, it->second->session);
+			pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, session);
 		}
 	}
 }
@@ -401,12 +402,12 @@ void TCPClient::createNewConnect(void* data)
 #if OPEN_UV_THREAD_HEARTBEAT == 1
 void TCPClient::onSessionRecvData(TCPSession* session, char* data, unsigned int len, TCPMsgTag tag)
 {
-	pushThreadMsg(RECV_DATA, session, data, len, tag);
+	pushThreadMsg(TCPThreadMsgType::RECV_DATA, session, data, len, tag);
 }
 #else
 void TCPClient::onSessionRecvData(TCPSession* session, char* data, unsigned int len)
 {
-	pushThreadMsg(RECV_DATA, session, data, len, TCPMsgTag::MT_DEFAULT);
+	pushThreadMsg(TCPThreadMsgType::RECV_DATA, session, data, len, TCPMsgTag::MT_DEFAULT);
 }
 #endif
 
@@ -430,48 +431,50 @@ void TCPClient::updateFrame()
 	}
 	m_msgMutex.unlock();
 
+	bool closeClientTag = false;
 	while (!m_msgDispatchQue.empty())
 	{
-		const ThreadMsg_C& Msg = m_msgDispatchQue.front();
+		const TCPThreadMsg_C& Msg = m_msgDispatchQue.front();
 		switch (Msg.msgType)
 		{
-		case ThreadMsgType::RECV_DATA:
+		case TCPThreadMsgType::RECV_DATA:
 		{
 			m_recvCall(this, Msg.pSession, Msg.data, Msg.dataLen);
 			fc_free(Msg.data);
 		}break;
-		case ThreadMsgType::CONNECT_FAIL:
+		case TCPThreadMsgType::CONNECT_FAIL:
 		{
 			if (m_connectCall != nullptr)
 			{
 				m_connectCall(this, Msg.pSession, false);
 			}
 		}break;
-		case ThreadMsgType::CONNECT:
+		case TCPThreadMsgType::CONNECT:
 		{
 			if (m_connectCall != nullptr)
 			{
 				m_connectCall(this, Msg.pSession, true);
 			}
 		}break;
-		case ThreadMsgType::DIS_CONNECT:
+		case TCPThreadMsgType::DIS_CONNECT:
 		{
 			if (m_disconnectCall != nullptr)
 			{
 				m_disconnectCall(this, Msg.pSession);
 			}
 		}break;
-		case ThreadMsgType::EXIT_LOOP:
+		case TCPThreadMsgType::EXIT_LOOP:
 		{
-			if (m_clientCloseCall != nullptr)
-			{
-				m_clientCloseCall(this);
-			}
+			closeClientTag = true;
 		}break;
 		default:
 			break;
 		}
 		m_msgDispatchQue.pop();
+	}
+	if (closeClientTag && m_clientCloseCall != nullptr)
+	{
+		m_clientCloseCall(this);
 	}
 }
 
@@ -485,7 +488,7 @@ void TCPClient::run()
 
 	m_clientStage = clientStage::STOP;
 
-	this->pushThreadMsg(ThreadMsgType::EXIT_LOOP, NULL);
+	this->pushThreadMsg(TCPThreadMsgType::EXIT_LOOP, NULL);
 }
 
 void TCPClient::onSocketConnect(Socket* socket, bool isSuc)
@@ -518,7 +521,7 @@ void TCPClient::onSocketConnect(Socket* socket, bool isSuc)
 
 	if (pSession)
 	{
-		pushThreadMsg(isSuc ? ThreadMsgType::CONNECT : ThreadMsgType::CONNECT_FAIL, pSession);
+		pushThreadMsg(isSuc ? TCPThreadMsgType::CONNECT : TCPThreadMsgType::CONNECT_FAIL, pSession);
 	}
 }
 
@@ -528,14 +531,14 @@ void TCPClient::onSessionClose(Session* session)
 	if (sessionData)
 	{
 		sessionData->connectState = CONNECTSTATE::DISCONNECT;
-		pushThreadMsg(ThreadMsgType::DIS_CONNECT, sessionData->session);
+		pushThreadMsg(TCPThreadMsgType::DIS_CONNECT, sessionData->session);
 	}
 }
 
-void TCPClient::pushThreadMsg(ThreadMsgType type, Session* session, char* data, unsigned int len, TCPMsgTag tag)
+void TCPClient::pushThreadMsg(TCPThreadMsgType type, Session* session, char* data, unsigned int len, TCPMsgTag tag)
 {
 #if OPEN_UV_THREAD_HEARTBEAT == 1
-	if (type == ThreadMsgType::RECV_DATA)
+	if (type == TCPThreadMsgType::RECV_DATA)
 	{
 		auto it = m_allSessionMap.find(session->getSessionID());
 		if (it != m_allSessionMap.end())
@@ -566,7 +569,7 @@ void TCPClient::pushThreadMsg(ThreadMsgType type, Session* session, char* data, 
 	}
 #endif
 
-	ThreadMsg_C msg;
+	TCPThreadMsg_C msg;
 	msg.msgType = type;
 	msg.data = data;
 	msg.dataLen = len;
@@ -720,12 +723,33 @@ void TCPClient::clearData()
 		switch (curOperation.operationType)
 		{
 		case TCP_CLI_OP_SENDDATA:			// 数据发送
+		{
+			if (curOperation.operationData)
+			{
+				fc_free(curOperation.operationData);
+			}
+		}break;
 		case TCP_CLI_OP_CONNECT:			// 连接
+		{
+			if (curOperation.operationData)
+			{
+				((TCPClientConnectOperation*)curOperation.operationData)->~TCPClientConnectOperation();
+				fc_free(curOperation.operationData);
+			}
+		}break;
 		case TCP_CLI_OP_SET_AUTO_CONNECT:	//设置自动连接
+		{
+			if (curOperation.operationData)
+			{
+				((TCPClientAutoConnectOperation*)curOperation.operationData)->~TCPClientAutoConnectOperation();
+				fc_free(curOperation.operationData);
+			}
+		}break;
 		case TCP_CLI_OP_SET_RECON_TIME:		//设置重连时间
 		{
 			if (curOperation.operationData)
 			{
+				((TCPClientReconnectTimeOperation*)curOperation.operationData)->~TCPClientReconnectTimeOperation();
 				fc_free(curOperation.operationData);
 			}
 		}break;

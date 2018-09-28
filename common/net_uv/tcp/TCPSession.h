@@ -1,7 +1,7 @@
 #pragma once
 
 #include "TCPSocket.h"
-#include "ThreadMsg.h"
+#include "TCPThreadMsg.h"
 
 NS_NET_UV_BEGIN
 

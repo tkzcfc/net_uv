@@ -3,7 +3,7 @@
 
 #include "TCPSocket.h"
 #include "TCPSession.h"
-#include "ThreadMsg.h"
+#include "TCPThreadMsg.h"
 #include <list>
 #include <map>
 #include <vector>
@@ -86,7 +86,7 @@ protected:
 	
 protected:
 
-	void pushThreadMsg(ThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0, const TCPMsgTag& tag = TCPMsgTag::MT_DEFAULT);
+	void pushThreadMsg(TCPThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0, const TCPMsgTag& tag = TCPMsgTag::MT_DEFAULT);
 
 	void addNewSession(TCPSession* session);
 
@@ -112,8 +112,8 @@ protected:
 
 	// 线程消息
 	Mutex m_msgMutex;
-	std::queue<ThreadMsg_S> m_msgQue;
-	std::queue<ThreadMsg_S> m_msgDispatchQue;
+	std::queue<TCPThreadMsg_S> m_msgQue;
+	std::queue<TCPThreadMsg_S> m_msgDispatchQue;
 
 	// 服务器所处阶段
 	ServerStage m_serverStage;

@@ -93,39 +93,39 @@ void TCPServer::updateFrame()
 	bool closeServerTag = false;
 	while (!m_msgDispatchQue.empty())
 	{
-		const ThreadMsg_S& Msg = m_msgDispatchQue.front();
+		const TCPThreadMsg_S& Msg = m_msgDispatchQue.front();
 
 		switch (Msg.msgType)
 		{
-		case RECV_DATA:
+		case TCPThreadMsgType::RECV_DATA:
 		{
 			m_recvCall(this, Msg.pSession, Msg.data, Msg.dataLen);
 			fc_free(Msg.data);
 		}break;
-		case START_SERVER_SUC:
+		case TCPThreadMsgType::START_SERVER_SUC:
 		{
 			if (m_startCall != nullptr)
 			{
 				m_startCall(this, true);
 			}
 		}break;
-		case START_SERVER_FAIL:
+		case TCPThreadMsgType::START_SERVER_FAIL:
 		{
 			if (m_startCall != nullptr)
 			{
 				m_startCall(this, false);
 			}
 		}break;
-		case NEW_CONNECT:
+		case TCPThreadMsgType::NEW_CONNECT:
 		{
 			m_newConnectCall(this, Msg.pSession);
 		}break;
-		case DIS_CONNECT:
+		case TCPThreadMsgType::DIS_CONNECT:
 		{
 			m_disconnectCall(this, Msg.pSession);
 			pushOperation(TCP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD, NULL, 0, Msg.pSession->getSessionID());
 		}break;
-		case EXIT_LOOP:
+		case TCPThreadMsgType::EXIT_LOOP:
 		{
 			closeServerTag = true;
 		}break;
@@ -189,7 +189,7 @@ void TCPServer::run()
 	if (m_server == NULL)
 	{
 		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(ThreadMsgType::START_SERVER_FAIL, NULL);
+		pushThreadMsg(TCPThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
 	}
 	new (m_server) TCPSocket(&m_loop);
@@ -209,7 +209,7 @@ void TCPServer::run()
 	if (!suc)
 	{
 		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(ThreadMsgType::START_SERVER_FAIL, NULL);
+		pushThreadMsg(TCPThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
 	}
 
@@ -217,11 +217,11 @@ void TCPServer::run()
 	if (!suc)
 	{
 		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(ThreadMsgType::START_SERVER_FAIL, NULL);
+		pushThreadMsg(TCPThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
 	}
 	m_serverStage = ServerStage::RUN;
-	pushThreadMsg(ThreadMsgType::START_SERVER_SUC, NULL);
+	pushThreadMsg(TCPThreadMsgType::START_SERVER_SUC, NULL);
 
 	uv_run(&m_loop, UV_RUN_DEFAULT);
 
@@ -231,7 +231,7 @@ void TCPServer::run()
 	m_server = NULL;
 	
 	m_serverStage = ServerStage::STOP;
-	pushThreadMsg(ThreadMsgType::EXIT_LOOP, NULL);
+	pushThreadMsg(TCPThreadMsgType::EXIT_LOOP, NULL);
 }
 
 
@@ -267,10 +267,10 @@ void TCPServer::onServerSocketClose(Socket* svr)
 	m_serverStage = ServerStage::CLEAR;
 }
 
-void TCPServer::pushThreadMsg(ThreadMsgType type, Session* session, char* data, unsigned int len, const TCPMsgTag& tag)
+void TCPServer::pushThreadMsg(TCPThreadMsgType type, Session* session, char* data, unsigned int len, const TCPMsgTag& tag)
 {
 #if OPEN_UV_THREAD_HEARTBEAT == 1
-	if (type == ThreadMsgType::RECV_DATA)
+	if (type == TCPThreadMsgType::RECV_DATA)
 	{
 		auto it = m_allSession.find(session->getSessionID());
 		if (it != m_allSession.end())
@@ -300,7 +300,7 @@ void TCPServer::pushThreadMsg(ThreadMsgType type, Session* session, char* data, 
 	}
 #endif
 
-	ThreadMsg_S msg;
+	TCPThreadMsg_S msg;
 	msg.msgType = type;
 	msg.data = data;
 	msg.dataLen = len;
@@ -330,7 +330,7 @@ void TCPServer::addNewSession(TCPSession* session)
 
 	m_sessionID++;
 
-	pushThreadMsg(ThreadMsgType::NEW_CONNECT, session);
+	pushThreadMsg(TCPThreadMsgType::NEW_CONNECT, session);
 	//NET_UV_LOG(NET_UV_L_INFO, "[%p] add", session);
 }
 
@@ -346,19 +346,19 @@ void TCPServer::removeSession(Session* session)
 		it->second.isInvalid = true;
 	}
 
-	pushThreadMsg(ThreadMsgType::DIS_CONNECT, session);
+	pushThreadMsg(TCPThreadMsgType::DIS_CONNECT, session);
 	//NET_UV_LOG(NET_UV_L_INFO, "[%p] remove", session);
 }
 
 #if OPEN_UV_THREAD_HEARTBEAT == 1
 void TCPServer::onSessionRecvData(TCPSession* session, char* data, unsigned int len, TCPMsgTag tag)
 {
-	pushThreadMsg(RECV_DATA, session, data, len, tag);
+	pushThreadMsg(TCPThreadMsgType::RECV_DATA, session, data, len, tag);
 }
 #else
 void TCPServer::onSessionRecvData(TCPSession* session, char* data, unsigned int len)
 {
-	pushThreadMsg(RECV_DATA, session, data, len, TCPMsgTag::MT_DEFAULT);
+	pushThreadMsg(TCPThreadMsgType::RECV_DATA, session, data, len, TCPMsgTag::MT_DEFAULT);
 }
 #endif
 

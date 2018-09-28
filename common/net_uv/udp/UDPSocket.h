@@ -14,7 +14,7 @@ public:
 
 	UDPSocket(const UDPSocket&) = delete;
 
-	UDPSocket(uv_loop_t* loop, uv_udp_t* udp);
+	UDPSocket(uv_loop_t* loop, uv_udp_t* udp = NULL);
 
 	virtual ~UDPSocket();
 

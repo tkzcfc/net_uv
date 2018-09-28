@@ -61,6 +61,7 @@ bool KcpSession::init(UDPSocket* socket, IUINT32 conv)
 {
 	assert(socket != 0);
 	m_socket = socket;
+	m_socket->setCloseCallback(std::bind(&KcpSession::on_socket_close, this, std::placeholders::_1));
 
 	m_idle.data = this;
 	uv_idle_init(socket->getLoop(), &m_idle);
@@ -151,3 +152,11 @@ void KcpSession::uv_on_idle_run(uv_idle_t* handle)
 	}
 }
 
+void KcpSession::on_socket_close(Socket* socket)
+{
+	this->setIsOnline(false);
+	if (m_sessionCloseCallback)
+	{
+		m_sessionCloseCallback(this);
+	}
+}

@@ -47,12 +47,15 @@ protected:
 
 	virtual void executeDisconnect()override;
 
+	void on_socket_close(Socket* socket);
+
 protected:
 
 	static int udp_output(const char *buf, int len, ikcpcb *kcp, void *user);
 
 	static void uv_on_idle_run(uv_idle_t* handle);
 
+	friend class UDPClient;
 protected:
 	ikcpcb* m_kcp;
 	UDPSocket* m_socket;

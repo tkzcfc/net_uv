@@ -2,11 +2,18 @@
 
 #include "UDPSocket.h"
 #include "KcpSession.h"
+#include "UDPThreadMsg.h"
 
 NS_NET_UV_BEGIN
 
 class UDPClient : public Client
 {
+public:
+	enum CONNECTSTATE
+	{
+		CONNECT,		//已连接
+		DISCONNECT,		//已断开
+	};
 public:
 	UDPClient();
 	UDPClient(const UDPClient&) = delete;
@@ -39,17 +46,43 @@ protected:
 	/// UDPClient
 	void idle_run();
 
-	void removeSessionBySocket(UDPSocket* socket);
-
 	void clearData();
 
-protected:
+	void pushThreadMsg(UDPThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0U);
 
-	std::map<unsigned int, KcpSession*> m_allSession;
+	struct clientSessionData;
+	UDPClient::clientSessionData* getClientSessionDataBySessionId(unsigned int sessionId);
+
+	void createNewConnect(void* data);
+
+protected:
+	struct clientSessionData
+	{
+		clientSessionData() {}
+		~clientSessionData() {}
+		CONNECTSTATE connectState;
+		KcpSession* session;
+	};
+	std::map<unsigned int, clientSessionData> m_allSessionMap;
 
 	uv_loop_t m_loop;
 	uv_idle_t m_idle;
 	bool m_isStop;
+
+	//客户端所处阶段
+	enum class clientStage
+	{
+		START,
+		CLEAR_SESSION,
+		STOP
+	};
+	clientStage m_clientStage;
+
+	//线程消息队列
+	Mutex m_msgMutex;
+	std::queue<UDPThreadMsg_C> m_msgQue;
+	std::queue<UDPThreadMsg_C> m_msgDispatchQue;
+
 protected:
 
 	static void uv_on_idle_run(uv_idle_t* handle);

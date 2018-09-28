@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ThreadMsg.h"
+#include "TCPThreadMsg.h"
 #include "TCPSocket.h"
 #include "TCPSession.h"
 
@@ -83,7 +83,7 @@ protected:
 
 	void createNewConnect(void* data);
 
-	void pushThreadMsg(ThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0, TCPMsgTag tag = TCPMsgTag::MT_DEFAULT);
+	void pushThreadMsg(TCPThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0U, TCPMsgTag tag = TCPMsgTag::MT_DEFAULT);
 
 	void clearData();
 
@@ -107,7 +107,7 @@ protected:
 	bool m_reconnect;		// 是否自动断线重连
 	float m_totalTime;		// 断线重连时间
 	bool m_enableNoDelay;	
-	bool m_enableKeepAlive; 
+	int m_enableKeepAlive; 
 	int m_keepAliveDelay;	
 
 	struct clientSessionData
@@ -132,8 +132,8 @@ protected:
 
 	//线程消息队列
 	Mutex m_msgMutex;
-	std::queue<ThreadMsg_C> m_msgQue;
-	std::queue<ThreadMsg_C> m_msgDispatchQue;
+	std::queue<TCPThreadMsg_C> m_msgQue;
+	std::queue<TCPThreadMsg_C> m_msgDispatchQue;
 
 	//客户端所处阶段
 	enum class clientStage

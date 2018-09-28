@@ -325,9 +325,6 @@
     <ClInclude Include="..\common\net_uv\tcp\TCPUtils.h">
       <Filter>net_uv\tcp</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\tcp\ThreadMsg.h">
-      <Filter>net_uv\tcp</Filter>
-    </ClInclude>
     <ClInclude Include="..\common\net_uv\tcp\TCPClient.h">
       <Filter>net_uv\tcp</Filter>
     </ClInclude>
@@ -350,6 +347,12 @@
       <Filter>net_uv\udp</Filter>
     </ClInclude>
     <ClInclude Include="..\common\net_uv\udp\ikcp.h">
+      <Filter>net_uv\udp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\tcp\TCPThreadMsg.h">
+      <Filter>net_uv\tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\udp\UDPThreadMsg.h">
       <Filter>net_uv\udp</Filter>
     </ClInclude>
   </ItemGroup>
