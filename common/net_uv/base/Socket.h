@@ -8,7 +8,7 @@
 NS_NET_UV_BEGIN
 
 class Socket;
-using SocketConnectCall = std::function<void(Socket*,bool)>;
+using SocketConnectCall = std::function<void(Socket*,int)>;	//0Ê§°Ü 1³É¹¦ 2³¬Ê±
 using SocketCloseCall = std::function<void(Socket*)>;
 using SocketNewConnectionCall = std::function<void(uv_stream_t*, int)>;
 

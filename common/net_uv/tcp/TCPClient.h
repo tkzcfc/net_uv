@@ -71,7 +71,7 @@ protected:
 	virtual void executeOperation()override;
 
 	/// TCPClient
-	void onSocketConnect(Socket* socket, bool isSuc);
+	void onSocketConnect(Socket* socket, int status);
 
 	void onSessionClose(Session* session);
 

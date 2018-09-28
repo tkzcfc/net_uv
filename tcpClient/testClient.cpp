@@ -40,15 +40,19 @@ void main()
 		printf("客户端已关闭\n");
 	});
 
-	client->setConnectCallback([=](Client*, Session* session, bool status) 
+	client->setConnectCallback([=](Client*, Session* session, int status) 
 	{
-		if (!status)
+		if (status == 0)
 		{
 			printf("[%d]连接失败\n", session->getSessionID());
 		}
-		else
+		else if(status == 1)
 		{
 			printf("[%d]连接成功\n", session->getSessionID());
+		}
+		else if (status == 2)
+		{
+			printf("[%d]连接超时\n", session->getSessionID());
 		}
 	});
 

@@ -60,16 +60,19 @@ void main()
 		printf("客户端已关闭\n");
 		exitloop = true;
 	});
-	instance->setConnectCallback([=](Client*, Session* session, bool status) {
-		if (!status)
+	instance->setConnectCallback([=](Client*, Session* session, int status) {
+		if (status == 0)
 		{
 			printf("[%d]连接失败\n", session->getSessionID());
 		}
-		else
+		else if (status == 1)
 		{
 			printf("[%d]连接成功\n", session->getSessionID());
 		}
-		instance->send(session, "123456789", 10);
+		else if (status == 2)
+		{
+			printf("[%d]连接超时\n", session->getSessionID());
+		}
 	});
 	instance->setDisconnectCallback([](Client*, Session* session) {
 		printf("[%d]断开连接\n", session->getSessionID());

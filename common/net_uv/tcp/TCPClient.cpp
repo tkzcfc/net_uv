@@ -333,7 +333,7 @@ void TCPClient::createNewConnect(void* data)
 		//对比端口和IP是否一致
 		if (strcmp(opData->ip.c_str(), it->second->ip.c_str()) != 0 && opData->port != it->second->port)
 		{
-			pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, NULL);
+			pushThreadMsg(TCPThreadMsgType::CONNECT_SESSIONID_EXIST, NULL);
 			return;
 		}
 
@@ -446,14 +446,28 @@ void TCPClient::updateFrame()
 		{
 			if (m_connectCall != nullptr)
 			{
-				m_connectCall(this, Msg.pSession, false);
+				m_connectCall(this, Msg.pSession, 0);
 			}
 		}break;
 		case TCPThreadMsgType::CONNECT:
 		{
 			if (m_connectCall != nullptr)
 			{
-				m_connectCall(this, Msg.pSession, true);
+				m_connectCall(this, Msg.pSession, 1);
+			}
+		}break;
+		case TCPThreadMsgType::CONNECT_TIMOUT:
+		{
+			if (m_connectCall != nullptr)
+			{
+				m_connectCall(this, Msg.pSession, 2);
+			}
+		}break;
+		case TCPThreadMsgType::CONNECT_SESSIONID_EXIST:
+		{
+			if (m_connectCall != nullptr)
+			{
+				m_connectCall(this, Msg.pSession, 3);
 			}
 		}break;
 		case TCPThreadMsgType::DIS_CONNECT:
@@ -491,9 +505,10 @@ void TCPClient::run()
 	this->pushThreadMsg(TCPThreadMsgType::EXIT_LOOP, NULL);
 }
 
-void TCPClient::onSocketConnect(Socket* socket, bool isSuc)
+void TCPClient::onSocketConnect(Socket* socket, int status)
 {
 	Session* pSession = NULL;
+	bool isSuc = (status == 1);
 
 	for (auto& it : m_allSessionMap)
 	{
@@ -521,7 +536,18 @@ void TCPClient::onSocketConnect(Socket* socket, bool isSuc)
 
 	if (pSession)
 	{
-		pushThreadMsg(isSuc ? TCPThreadMsgType::CONNECT : TCPThreadMsgType::CONNECT_FAIL, pSession);
+		if (status == 0)
+		{
+			pushThreadMsg(TCPThreadMsgType::CONNECT, pSession);
+		}
+		else if (status == 1)
+		{
+			pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, pSession);
+		}
+		else if (status == 2)
+		{
+			pushThreadMsg(TCPThreadMsgType::CONNECT_TIMOUT, pSession);
+		}
 	}
 }
 

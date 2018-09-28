@@ -297,17 +297,24 @@ void TCPSocket::uv_on_after_connect(uv_connect_t* handle, int status)
 		int r = uv_read_start(handle->handle, net_alloc_buffer, uv_on_after_read);
 		if (r == 0)
 		{
-			s->m_connectCall(s, true);
+			s->m_connectCall(s, 1);
 		}
 		else
 		{
-			s->m_connectCall(s, false);
+			s->m_connectCall(s, 0);
 		}
 	}
 	else
 	{
 		NET_UV_LOG(NET_UV_L_ERROR, "tcp connect error %s", uv_strerror(status));
-		s->m_connectCall(s, false);
+		if (status == ETIMEDOUT)
+		{
+			s->m_connectCall(s, 2);
+		}
+		else
+		{
+			s->m_connectCall(s, 0);
+		}
 	}
 	fc_free(handle);
 }

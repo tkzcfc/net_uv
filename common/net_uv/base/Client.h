@@ -9,7 +9,7 @@ NS_NET_UV_BEGIN
 class Client;
 class Session;
 
-using ClientConnectCall = std::function<void(Client*, Session*, bool)>;
+using ClientConnectCall = std::function<void(Client*, Session*, int)>; // 0失败 1成功 2超时 3会话ID已存在，且与现在的IP、端口不一致
 using ClientDisconnectCall = std::function<void(Client*, Session*)>;
 using ClientRecvCall = std::function<void(Client*, Session*, char*, unsigned int)>;
 using ClientCloseCall = std::function<void(Client*)>;
