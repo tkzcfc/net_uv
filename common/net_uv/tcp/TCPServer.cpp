@@ -261,7 +261,7 @@ void TCPServer::onNewConnect(uv_stream_t* server, int status)
 		else
 		{
 			session->setIsOnline(true);
-			session->setSessionClose(std::bind(&TCPServer::removeSession, this, std::placeholders::_1));
+			session->setSessionClose(std::bind(&TCPServer::onSessionClose, this, std::placeholders::_1));
 			addNewSession(session);
 		}
 	}
@@ -343,7 +343,7 @@ void TCPServer::addNewSession(TCPSession* session)
 	//NET_UV_LOG(NET_UV_L_INFO, "[%p] add", session);
 }
 
-void TCPServer::removeSession(Session* session)
+void TCPServer::onSessionClose(Session* session)
 {
 	if (session == NULL)
 	{
@@ -517,6 +517,7 @@ void TCPServer::heartRun()
 
 void TCPServer::clearData()
 {
+	m_msgMutex.lock();
 	while (!m_msgQue.empty())
 	{
 		if (m_msgQue.front().data)
@@ -525,6 +526,7 @@ void TCPServer::clearData()
 		}
 		m_msgQue.pop();
 	}
+	m_msgMutex.unlock();
 	while (!m_operationQue.empty())
 	{
 		if (m_operationQue.front().operationType == TCP_SVR_OP_SEND_DATA)

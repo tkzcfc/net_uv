@@ -65,6 +65,8 @@ protected:
 
 	void onServerSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
 
+	void onSessionClose(Session* session);
+
 protected:
 
 	static void uv_on_idle_run(uv_idle_t* handle);

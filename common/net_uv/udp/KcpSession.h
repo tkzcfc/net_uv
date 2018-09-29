@@ -23,7 +23,7 @@ public:
 
 	void setMode(int mode);
 
-	inline void update();
+	void update();
 	
 	inline void input(const char* data, long size);
 
@@ -63,16 +63,13 @@ protected:
 	ikcpcb* m_kcp;
 	UDPSocket* m_socket;
 	uv_idle_t m_idle;
+
+	char* m_recvBuf;
 };
 
 void KcpSession::setWndSize(int sndwnd, int rcvwnd)
 {
 	ikcp_wndsize(m_kcp, sndwnd, rcvwnd);
-}
-
-void KcpSession::update()
-{
-	ikcp_update(m_kcp, iclock());
 }
 
 void KcpSession::input(const char* data, long size)

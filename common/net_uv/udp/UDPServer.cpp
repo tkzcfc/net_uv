@@ -44,7 +44,7 @@ void UDPServer::startServer(const char* ip, int port, bool isIPV6)
 	m_start = true;
 	m_serverStage = ServerStage::START;
 
-	NET_UV_LOG(NET_UV_L_INFO, "TCPServer start-up...");
+	NET_UV_LOG(NET_UV_L_INFO, "UDPServer start-up...");
 	this->startThread();
 }
 
@@ -130,7 +130,11 @@ void UDPServer::updateFrame()
 
 /// SessionManager
 void UDPServer::send(Session* session, char* data, unsigned int len)
-{}
+{
+	char* pSendData = (char*)fc_malloc(len);
+	memcpy(pSendData, data, len);
+	pushOperation(UDP_SVR_OP_SEND_DATA, data, len, session->getSessionID());
+}
 
 void UDPServer::disconnect(Session* session)
 {
@@ -209,13 +213,132 @@ void UDPServer::run()
 
 /// SessionManager
 void UDPServer::executeOperation()
-{}
+{
+	if (m_operationMutex.trylock() != 0)
+	{
+		return;
+	}
+
+	if (m_operationQue.empty())
+	{
+		m_operationMutex.unlock();
+		return;
+	}
+
+	while (!m_operationQue.empty())
+	{
+		m_operationDispatchQue.push(m_operationQue.front());
+		m_operationQue.pop();
+	}
+	m_operationMutex.unlock();
+
+	while (!m_operationDispatchQue.empty())
+	{
+		auto & curOperation = m_operationDispatchQue.front();
+		switch (curOperation.operationType)
+		{
+		case UDP_SVR_OP_SEND_DATA:		// 数据发送
+		{
+			auto it = m_allSession.find(curOperation.sessionID);
+			if (it != m_allSession.end())
+			{
+				it->second.session->executeSend((char*)curOperation.operationData, curOperation.operationDataLen);
+			}
+			else//该会话已失效
+			{
+				fc_free(curOperation.operationData);
+			}
+		}break;
+		case UDP_SVR_OP_DIS_SESSION:	// 断开连接
+		{
+			auto it = m_allSession.find(curOperation.sessionID);
+			if (it != m_allSession.end())
+			{
+				it->second.session->executeDisconnect();
+			}
+		}break;
+		case UDP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD:
+		{
+			auto it = m_allSession.find(curOperation.sessionID);
+			if (it != m_allSession.end())
+			{
+				it->second.session->~KcpSession();
+				fc_free(it->second.session);
+				it = m_allSession.erase(it);
+			}
+		}break;
+		case UDP_SVR_OP_STOP_SERVER:
+		{
+			for (auto & it : m_allSession)
+			{
+				if (!it.second.isInvalid)
+				{
+					it.second.session->executeDisconnect();
+				}
+			}
+			m_server->disconnect();
+			m_serverStage = ServerStage::WAIT_CLOSE_SERVER_SOCKET;
+		}break;
+		default:
+			break;
+		}
+		m_operationDispatchQue.pop();
+	}
+}
 
 void UDPServer::idleRun()
-{}
+{
+	executeOperation();
+	switch (m_serverStage)
+	{
+	case UDPServer::ServerStage::CLEAR:
+	{
+		for (auto& it : m_allSession)
+		{
+			if (!it.second.isInvalid)
+			{
+				it.second.session->executeDisconnect();
+			}
+		}
+		m_serverStage = ServerStage::WAIT_SESSION_CLOSE;
+	}
+	break;
+	case UDPServer::ServerStage::WAIT_SESSION_CLOSE:
+	{
+		if (m_allSession.empty())
+		{
+			uv_stop(&m_loop);
+			m_serverStage = ServerStage::STOP;
+		}
+	}
+	break;
+	default:
+		break;
+	}
+	ThreadSleep(1);
+}
 
 void UDPServer::clearData()
-{}
+{
+	m_msgMutex.lock();
+	while (!m_msgQue.empty())
+	{
+		if (m_msgQue.front().data)
+		{
+			fc_free(m_msgQue.front().data);
+		}
+		m_msgQue.pop();
+	}
+	m_msgMutex.unlock();
+	while (!m_operationQue.empty())
+	{
+		if (m_operationQue.front().operationType == UDP_SVR_OP_SEND_DATA)
+		{
+			fc_free(m_operationQue.front().operationData);
+		}
+		m_operationQue.pop();
+	}
+}
 
 void UDPServer::pushThreadMsg(UDPThreadMsgType type, Session* session, char* data, unsigned int len)
 {
@@ -237,18 +360,19 @@ void UDPServer::onServerSocketClose(Socket* svr)
 
 void UDPServer::onServerSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
 {
+	printf("%d-->\n", nread);
 	IUINT32 conv = ikcp_getconv(buf->base);
 	auto it = m_allSession.find(conv);
 	if (it == m_allSession.end())
 	{
-		uv_udp_t* udp = (uv_udp_t*)fc_malloc(sizeof(uv_udp_t));
-		uv_udp_init(&m_loop, udp);
+		//uv_udp_t* udp = (uv_udp_t*)fc_malloc(sizeof(uv_udp_t));
+		//uv_udp_init(&m_loop, udp);
 
 		struct sockaddr* socketAddr = (struct sockaddr*)fc_malloc(sizeof(struct sockaddr));
 		memcpy(socketAddr, addr, sizeof(struct sockaddr));
 
 		UDPSocket* socket = (UDPSocket*)fc_malloc(sizeof(UDPSocket));
-		new (socket)UDPSocket(&m_loop, udp);
+		new (socket)UDPSocket(&m_loop, m_server->getUdp());
 		socket->setSocketAddr(socketAddr);
 		
 		KcpSession* session = KcpSession::createSession(this, socket, conv);
@@ -257,6 +381,8 @@ void UDPServer::onServerSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf
 			NET_UV_LOG(NET_UV_L_ERROR, "服务器创建新会话失败,可能是内存不足");
 			return;
 		}
+		session->setSessionClose(std::bind(&UDPServer::onSessionClose, this, std::placeholders::_1));
+		session->setSessionID(conv);
 
 		tcpSessionData data;
 		data.isInvalid = false;
@@ -264,11 +390,28 @@ void UDPServer::onServerSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf
 
 		m_allSession.insert(std::make_pair(conv, data));
 		pushThreadMsg(UDPThreadMsgType::NEW_CONNECT, session);
+
+		session->input(buf->base, nread);
 	}
 	else
 	{
 		it->second.session->input(buf->base, nread);
 	}
+}
+
+void UDPServer::onSessionClose(Session* session)
+{
+	if (session == NULL)
+	{
+		return;
+	}
+	auto it = m_allSession.find(session->getSessionID());
+	if (it != m_allSession.end())
+	{
+		it->second.isInvalid = true;
+	}
+
+	pushThreadMsg(UDPThreadMsgType::DIS_CONNECT, session);
 }
 
 //////////////////////////////////////////////////////////////////////////

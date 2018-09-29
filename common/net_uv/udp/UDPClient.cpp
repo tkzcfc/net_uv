@@ -110,14 +110,14 @@ void UDPClient::updateFrame()
 		{
 			if (m_connectCall != nullptr)
 			{
-				m_connectCall(this, Msg.pSession, false);
+				m_connectCall(this, Msg.pSession, 0);
 			}
 		}break;
 		case UDPThreadMsgType::CONNECT:
 		{
 			if (m_connectCall != nullptr)
 			{
-				m_connectCall(this, Msg.pSession, true);
+				m_connectCall(this, Msg.pSession, 1);
 			}
 		}break;
 		case UDPThreadMsgType::DIS_CONNECT:
@@ -177,7 +177,7 @@ void UDPClient::send(unsigned int sessionId, char* data, unsigned int len)
 
 	char* sendData = (char*)fc_malloc(len);
 	memcpy(sendData, data, len);
-	pushOperation(UDP_CLI_OP_SENDDATA, data, len, sessionId);
+	pushOperation(UDP_CLI_OP_SENDDATA, sendData, len, sessionId);
 }
 
 /// Runnable
@@ -292,6 +292,7 @@ void UDPClient::executeOperation()
 
 void UDPClient::idle_run()
 {
+	executeOperation();
 	if (m_clientStage == clientStage::CLEAR_SESSION)
 	{
 		bool hasConnect = false;
@@ -425,7 +426,9 @@ void UDPClient::createNewConnect(void* data)
 	else
 	{
 		UDPSocket* socket = (UDPSocket*)fc_malloc(sizeof(UDPSocket));
-		new (socket) UDPSocket(&m_loop);
+		new (socket) UDPSocket(&m_loop);	
+		socket->setReadCallback(std::bind(&UDPClient::onSocketRead, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+
 		KcpSession* session = KcpSession::createSession(this, socket, opData->sessionID);
 		if (session == NULL)
 		{
@@ -473,6 +476,7 @@ void UDPClient::onSessionClose(Session* session)
 
 void UDPClient::onSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
 {
+	printf("client %d -->\n", nread);
 	IUINT32 conv = ikcp_getconv(buf->base);
 	auto sessionData = getClientSessionDataBySessionId(conv);
 	if (sessionData)

@@ -92,7 +92,7 @@ protected:
 
 	void addNewSession(TCPSession* session);
 
-	void removeSession(Session* session);
+	void onSessionClose(Session* session);
 
 	void clearData();
 

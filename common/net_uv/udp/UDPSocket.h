@@ -31,7 +31,7 @@ public:
 	virtual void disconnect()override;
 
 	inline void setReadCallback(const UDPReadCallback& call);
-
+	
 protected:
 	inline void setUdp(uv_udp_t* tcp);
 
@@ -42,9 +42,7 @@ protected:
 	inline struct sockaddr* getSocketAddr();
 
 protected:
-
-	void checkUdp();
-
+	
 	void shutdownSocket();
 
 protected:

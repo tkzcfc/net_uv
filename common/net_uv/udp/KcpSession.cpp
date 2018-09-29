@@ -31,6 +31,7 @@ KcpSession::KcpSession(SessionManager* sessionManager)
 	: Session(sessionManager)
 	, m_kcp(NULL)
 	, m_socket(NULL)
+	, m_recvBuf(NULL)
 {
 	m_idle.data = NULL;
 }
@@ -54,6 +55,12 @@ KcpSession::~KcpSession()
 	{
 		ikcp_release(m_kcp);
 		m_kcp = NULL;
+	}
+
+	if (m_recvBuf)
+	{
+		fc_free(m_recvBuf);
+		m_recvBuf = NULL;
 	}
 }
 
@@ -106,6 +113,21 @@ void KcpSession::setMode(int mode)
 	}
 }
 
+void KcpSession::update()
+{
+	ikcp_update(m_kcp, iclock());
+
+	if (m_recvBuf = NULL)
+	{
+		m_recvBuf = (char*)fc_malloc(1024 * 1024 * 10);
+	}
+	int recvLen = ikcp_recv(m_kcp, m_recvBuf, 1024 * 1024 * 10);
+	if (recvLen > 0)
+	{
+		NET_UV_LOG(NET_UV_L_INFO, "[%d]受到%d个字节", getSessionID(), recvLen);
+	}
+}
+
 int KcpSession::udp_output(const char *buf, int len, ikcpcb *kcp, void *user)
 {
 	KcpSession* s = (KcpSession*)user;
@@ -128,10 +150,7 @@ void KcpSession::executeSend(char* data, unsigned int len)
 			executeDisconnect();
 		}
 	}
-	else
-	{
-		fc_free(data);
-	}
+	fc_free(data);
 }
 
 void KcpSession::executeDisconnect()
