@@ -12,44 +12,50 @@ struct UDPBlockBuffer
 	int len;
 };
 
+class KcpSession;
+using KcpSessionConnectCallback = std::function<void(KcpSession* session, int status)>;
+
 class NET_UV_EXTERN KcpSession : public Session
 {
 public:
 	KcpSession() = delete;
 	KcpSession(const KcpSession&) = delete;
 	virtual ~KcpSession();
-		
-	inline void setWndSize(int sndwnd, int rcvwnd);
 
-	void setMode(int mode);
-
-	void update();
-	
-	inline void input(const char* data, long size);
-
-	inline void recv(char* buffer, int len);
-
-	inline UDPSocket* getUDPSocket();
-
+	/// Session
 	virtual inline unsigned int getPort()override;
 
 	virtual inline const std::string& getIp()override;
 	
 protected:
 
-	static KcpSession* createSession(SessionManager* sessionManager, UDPSocket* socket, IUINT32 conv);
+	static KcpSession* createSession(SessionManager* sessionManager, uv_udp_t* udp = NULL);
 
 	KcpSession(SessionManager* sessionManager);
 
 protected:
+	/// kcp
+	inline void setWndSize(int sndwnd, int rcvwnd);
 
-	bool init(UDPSocket* socket, IUINT32 conv);
+	void setMode(int mode);
 
+	void update();
+
+	inline void input(const char* data, long size);
+
+	inline void recv(char* buffer, int len);
+
+	/// Session
 	virtual void executeSend(char* data, unsigned int len)override;
 
 	virtual void executeDisconnect()override;
 
-	void on_socket_close(Socket* socket);
+	/// KcpSession
+	bool executeConnect(const char* ip, unsigned int port);
+
+	bool udp_send(char* data, unsigned int len);
+
+	inline void setConnectCallback(const KcpSessionConnectCallback& call);
 
 protected:
 
@@ -61,10 +67,18 @@ protected:
 	friend class UDPServer;
 protected:
 	ikcpcb* m_kcp;
-	UDPSocket* m_socket;
 	uv_idle_t m_idle;
 
 	char* m_recvBuf;
+
+	IUINT32 m_connectStartTime;
+	IUINT32 m_sendStartTime;
+
+	std::string m_ip;
+	unsigned int m_port;
+	bool m_weakRefUdp;
+
+	KcpSessionConnectCallback m_connectCall;
 };
 
 void KcpSession::setWndSize(int sndwnd, int rcvwnd)
@@ -82,19 +96,18 @@ void KcpSession::recv(char* buffer, int len)
 	ikcp_recv(m_kcp, buffer, len);
 }
 
-UDPSocket* KcpSession::getUDPSocket()
-{
-	return m_socket;
-}
-
 unsigned int KcpSession::getPort()
 {
-	return getUDPSocket()->getPort();
+	return m_port;
 }
 
 inline const std::string& KcpSession::getIp()
 {
-	return getUDPSocket()->getIp();
+	return m_ip;
+}
+void KcpSession::setConnectCallback(const KcpSessionConnectCallback& call)
+{
+	m_connectCall = std::move(call);
 }
 
 NS_NET_UV_END

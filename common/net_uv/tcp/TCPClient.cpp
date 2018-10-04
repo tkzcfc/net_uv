@@ -114,11 +114,6 @@ void TCPClient::disconnect(unsigned int sessionId)
 	pushOperation(TCP_CLI_OP_DISCONNECT, NULL, 0U, sessionId);
 }
 
-void TCPClient::disconnect(Session* session)
-{
-	disconnect(session->getSessionID());
-}
-
 void TCPClient::closeClient()
 {
 	if (m_isStop)
@@ -127,9 +122,93 @@ void TCPClient::closeClient()
 	pushOperation(TCP_CLI_OP_CLIENT_CLOSE, NULL, 0U, 0U);
 }
 
-bool TCPClient::isCloseFinish()
+void TCPClient::updateFrame()
 {
-	return (m_clientStage == clientStage::STOP);
+	if (m_msgMutex.trylock() != 0)
+	{
+		return;
+	}
+
+	if (m_msgQue.empty())
+	{
+		m_msgMutex.unlock();
+		return;
+	}
+
+	while (!m_msgQue.empty())
+	{
+		m_msgDispatchQue.push(m_msgQue.front());
+		m_msgQue.pop();
+	}
+	m_msgMutex.unlock();
+
+	bool closeClientTag = false;
+	while (!m_msgDispatchQue.empty())
+	{
+		const TCPThreadMsg_C& Msg = m_msgDispatchQue.front();
+		switch (Msg.msgType)
+		{
+		case TCPThreadMsgType::RECV_DATA:
+		{
+			m_recvCall(this, Msg.pSession, Msg.data, Msg.dataLen);
+			fc_free(Msg.data);
+		}break;
+		case TCPThreadMsgType::CONNECT_FAIL:
+		{
+			if (m_connectCall != nullptr)
+			{
+				m_connectCall(this, Msg.pSession, 0);
+			}
+		}break;
+		case TCPThreadMsgType::CONNECT:
+		{
+			if (m_connectCall != nullptr)
+			{
+				m_connectCall(this, Msg.pSession, 1);
+			}
+		}break;
+		case TCPThreadMsgType::CONNECT_TIMOUT:
+		{
+			if (m_connectCall != nullptr)
+			{
+				m_connectCall(this, Msg.pSession, 2);
+			}
+		}break;
+		case TCPThreadMsgType::CONNECT_SESSIONID_EXIST:
+		{
+			if (m_connectCall != nullptr)
+			{
+				m_connectCall(this, Msg.pSession, 3);
+			}
+		}break;
+		case TCPThreadMsgType::DIS_CONNECT:
+		{
+			if (m_disconnectCall != nullptr)
+			{
+				m_disconnectCall(this, Msg.pSession);
+			}
+		}break;
+		case TCPThreadMsgType::EXIT_LOOP:
+		{
+			closeClientTag = true;
+		}break;
+		case TCPThreadMsgType::REMOVE_SESSION:
+		{
+			if (m_removeSessionCall != nullptr)
+			{
+				m_removeSessionCall(this, Msg.pSession);
+			}
+			pushOperation(TCP_CLI_OP_DELETE_SESSION, NULL, 0U, Msg.pSession->getSessionID());
+		}break;
+		default:
+			break;
+		}
+		m_msgDispatchQue.pop();
+	}
+	if (closeClientTag && m_clientCloseCall != nullptr)
+	{
+		m_clientCloseCall(this);
+	}
 }
 
 void TCPClient::send(unsigned int sessionId, char* data, unsigned int len)
@@ -155,14 +234,26 @@ void TCPClient::send(unsigned int sessionId, char* data, unsigned int len)
 	fc_free(bufArr);
 }
 
+void TCPClient::removeSession(unsigned int sessionId)
+{
+	pushOperation(TCP_CLI_OP_REMOVE_SESSION, NULL, 0U, sessionId);
+}
+
+/// SessionManager
 void TCPClient::send(Session* session, char* data, unsigned int len)
 {
 	send(session->getSessionID(), data, len);
 }
 
-void TCPClient::removeSession(unsigned int sessionId)
+void TCPClient::disconnect(Session* session)
 {
-	pushOperation(TCP_CLI_OP_REMOVE_SESSION, NULL, 0U, sessionId);
+	disconnect(session->getSessionID());
+}
+
+/// TCPClient
+bool TCPClient::isCloseFinish()
+{
+	return (m_clientStage == clientStage::STOP);
 }
 
 bool TCPClient::setSocketNoDelay(bool enable)
@@ -175,7 +266,6 @@ bool TCPClient::setSocketNoDelay(bool enable)
 	return true;
 }
 
-
 bool TCPClient::setSocketKeepAlive(int enable, unsigned int delay)
 {
 	if (m_isStop)
@@ -185,10 +275,82 @@ bool TCPClient::setSocketKeepAlive(int enable, unsigned int delay)
 	m_keepAliveDelay = delay;
 	
 	pushOperation(TCP_CLI_OP_SET_KEEP_ALIVE, NULL, 0U, 0U);
-
 	return true;
 }
 
+void TCPClient::setAutoReconnect(bool isAuto)
+{
+	if (m_isStop)
+		return;
+
+	m_reconnect = isAuto;
+
+	TCPClientAutoConnectOperation* opData = (TCPClientAutoConnectOperation*)fc_malloc(sizeof(TCPClientAutoConnectOperation));
+	new(opData) TCPClientAutoConnectOperation();
+
+	opData->isAuto = isAuto;
+	opData->sessionID = -1;
+
+	pushOperation(TCP_CLI_OP_SET_AUTO_CONNECT, opData, NULL, NULL);
+}
+
+void TCPClient::setAutoReconnectTime(float time)
+{
+	if (m_isStop)
+		return;
+
+	m_totalTime = time;
+
+	TCPClientReconnectTimeOperation* opData = (TCPClientReconnectTimeOperation*)fc_malloc(sizeof(TCPClientReconnectTimeOperation));
+	new(opData) TCPClientReconnectTimeOperation();
+
+	opData->sessionID = -1;
+	opData->time = time;
+
+	pushOperation(TCP_CLI_OP_SET_RECON_TIME, opData, NULL, NULL);
+}
+
+void TCPClient::setAutoReconnectBySessionID(unsigned int sessionID, bool isAuto)
+{
+	if (m_isStop)
+		return;
+
+	TCPClientAutoConnectOperation* opData = (TCPClientAutoConnectOperation*)fc_malloc(sizeof(TCPClientAutoConnectOperation));
+	new(opData) TCPClientAutoConnectOperation();
+
+	opData->isAuto = isAuto;
+	opData->sessionID = sessionID;
+
+	pushOperation(TCP_CLI_OP_SET_AUTO_CONNECT, opData, NULL, NULL);
+}
+
+void TCPClient::setAutoReconnectTimeBySessionID(unsigned int sessionID, float time)
+{
+	if (m_isStop)
+		return;
+
+	TCPClientReconnectTimeOperation* opData = (TCPClientReconnectTimeOperation*)fc_malloc(sizeof(TCPClientReconnectTimeOperation));
+	new(opData) TCPClientReconnectTimeOperation();
+
+	opData->sessionID = sessionID;
+	opData->time = time;
+
+	pushOperation(TCP_CLI_OP_SET_RECON_TIME, opData, NULL, NULL);
+}
+
+/// Runnable
+void TCPClient::run()
+{
+	uv_run(&m_loop, UV_RUN_DEFAULT);
+
+	uv_loop_close(&m_loop);
+
+	m_clientStage = clientStage::STOP;
+
+	this->pushThreadMsg(TCPThreadMsgType::EXIT_LOOP, NULL);
+}
+
+/// SessionManager
 void TCPClient::executeOperation()
 {
 	if (m_operationMutex.trylock() != 0)
@@ -319,21 +481,25 @@ void TCPClient::executeOperation()
 #if OPEN_UV_THREAD_HEARTBEAT == 1
 			uv_timer_stop(&m_heartTimer);
 #endif
-			m_clientStage = clientStage::CLEAR_SOCKET;
+			m_clientStage = clientStage::CLEAR_SESSION;
 		}break;
 		case TCP_CLI_OP_REMOVE_SESSION:
 		{
 			auto sessionData = getClientSessionDataBySessionId(curOperation.sessionID);
 			if (sessionData)
 			{
-				sessionData->removeTag = true;
 				if (sessionData->connectState != DISCONNECT)
 				{
+					sessionData->removeTag = true;
 					sessionData->session->executeDisconnect();
 				}
 				else
 				{
-					pushThreadMsg(TCPThreadMsgType::REMOVE_SESSION, sessionData->session);
+					if (!sessionData->removeTag)
+					{
+						sessionData->removeTag = true;
+						pushThreadMsg(TCPThreadMsgType::REMOVE_SESSION, sessionData->session);
+					}
 				}
 			}
 		}break;
@@ -353,6 +519,76 @@ void TCPClient::executeOperation()
 			break;
 		}
 		m_operationDispatchQue.pop();
+	}
+}
+
+/// TCPClient
+void TCPClient::onSocketConnect(Socket* socket, int status)
+{
+	Session* pSession = NULL;
+	bool isSuc = (status == 1);
+
+	for (auto& it : m_allSessionMap)
+	{
+		if (it.second->session->getTCPSocket() == socket)
+		{
+			pSession = it.second->session;
+			it.second->session->setIsOnline(isSuc);
+			it.second->connectState = isSuc ? CONNECTSTATE::CONNECT : CONNECTSTATE::DISCONNECT;
+			if (isSuc)
+			{
+				if (m_clientStage != clientStage::START)
+				{
+					it.second->session->executeDisconnect();
+					pSession = NULL;
+				}
+				else
+				{
+					if (it.second->removeTag)
+					{
+						it.second->session->executeDisconnect();
+						pSession = NULL;
+					}
+					else
+					{
+						it.second->session->getTCPSocket()->setNoDelay(m_enableNoDelay);
+						it.second->session->getTCPSocket()->setKeepAlive(m_enableKeepAlive, m_keepAliveDelay);
+					}
+				}
+			}
+			break;
+		}
+	}
+
+	if (pSession)
+	{
+		if (status == 0)
+		{
+			pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, pSession);
+		}
+		else if (status == 1)
+		{
+			pushThreadMsg(TCPThreadMsgType::CONNECT, pSession);
+		}
+		else if (status == 2)
+		{
+			pushThreadMsg(TCPThreadMsgType::CONNECT_TIMOUT, pSession);
+		}
+	}
+}
+
+void TCPClient::onSessionClose(Session* session)
+{
+	auto sessionData = getClientSessionDataBySession(session);
+	if (sessionData)
+	{
+		sessionData->connectState = CONNECTSTATE::DISCONNECT;
+		pushThreadMsg(TCPThreadMsgType::DIS_CONNECT, sessionData->session);
+
+		if (sessionData->removeTag)
+		{
+			pushThreadMsg(TCPThreadMsgType::REMOVE_SESSION, sessionData->session);
+		}
 	}
 }
 
@@ -449,177 +685,6 @@ void TCPClient::onSessionRecvData(TCPSession* session, char* data, unsigned int 
 	pushThreadMsg(TCPThreadMsgType::RECV_DATA, session, data, len, TCPMsgTag::MT_DEFAULT);
 }
 #endif
-
-void TCPClient::updateFrame()
-{
-	if (m_msgMutex.trylock() != 0)
-	{
-		return;
-	}
-
-	if (m_msgQue.empty())
-	{
-		m_msgMutex.unlock();
-		return;
-	}
-	
-	while (!m_msgQue.empty())
-	{
-		m_msgDispatchQue.push(m_msgQue.front());
-		m_msgQue.pop();
-	}
-	m_msgMutex.unlock();
-
-	bool closeClientTag = false;
-	while (!m_msgDispatchQue.empty())
-	{
-		const TCPThreadMsg_C& Msg = m_msgDispatchQue.front();
-		switch (Msg.msgType)
-		{
-		case TCPThreadMsgType::RECV_DATA:
-		{
-			m_recvCall(this, Msg.pSession, Msg.data, Msg.dataLen);
-			fc_free(Msg.data);
-		}break;
-		case TCPThreadMsgType::CONNECT_FAIL:
-		{
-			if (m_connectCall != nullptr)
-			{
-				m_connectCall(this, Msg.pSession, 0);
-			}
-		}break;
-		case TCPThreadMsgType::CONNECT:
-		{
-			if (m_connectCall != nullptr)
-			{
-				m_connectCall(this, Msg.pSession, 1);
-			}
-		}break;
-		case TCPThreadMsgType::CONNECT_TIMOUT:
-		{
-			if (m_connectCall != nullptr)
-			{
-				m_connectCall(this, Msg.pSession, 2);
-			}
-		}break;
-		case TCPThreadMsgType::CONNECT_SESSIONID_EXIST:
-		{
-			if (m_connectCall != nullptr)
-			{
-				m_connectCall(this, Msg.pSession, 3);
-			}
-		}break;
-		case TCPThreadMsgType::DIS_CONNECT:
-		{
-			if (m_disconnectCall != nullptr)
-			{
-				m_disconnectCall(this, Msg.pSession);
-			}
-		}break;
-		case TCPThreadMsgType::EXIT_LOOP:
-		{
-			closeClientTag = true;
-		}break;
-		case TCPThreadMsgType::REMOVE_SESSION:
-		{
-			if (m_removeSessionCall != nullptr)
-			{
-				m_removeSessionCall(this, Msg.pSession);
-			}
-			pushOperation(TCP_CLI_OP_DELETE_SESSION, NULL, 0U, Msg.pSession->getSessionID());
-		}break;
-		default:
-			break;
-		}
-		m_msgDispatchQue.pop();
-	}
-	if (closeClientTag && m_clientCloseCall != nullptr)
-	{
-		m_clientCloseCall(this);
-	}
-}
-
-void TCPClient::run()
-{
-	m_loop.data = NULL;
-
-	uv_run(&m_loop, UV_RUN_DEFAULT);
-
-	uv_loop_close(&m_loop);
-
-	m_clientStage = clientStage::STOP;
-
-	this->pushThreadMsg(TCPThreadMsgType::EXIT_LOOP, NULL);
-}
-
-void TCPClient::onSocketConnect(Socket* socket, int status)
-{
-	Session* pSession = NULL;
-	bool isSuc = (status == 1);
-
-	for (auto& it : m_allSessionMap)
-	{
-		if (it.second->session->getTCPSocket() == socket)
-		{
-			pSession = it.second->session;
-			it.second->session->setIsOnline(isSuc);
-			it.second->connectState = isSuc ? CONNECTSTATE::CONNECT : CONNECTSTATE::DISCONNECT;
-			if (isSuc)
-			{
-				if (m_clientStage != clientStage::START)
-				{
-					it.second->session->executeDisconnect();
-					pSession = NULL;
-				}
-				else
-				{
-					if (it.second->removeTag)
-					{
-						it.second->session->executeDisconnect();
-						pSession = NULL;
-					}
-					else
-					{
-						it.second->session->getTCPSocket()->setNoDelay(m_enableNoDelay);
-						it.second->session->getTCPSocket()->setKeepAlive(m_enableKeepAlive, m_keepAliveDelay);
-					}
-				}
-			}
-			break;
-		}
-	}
-
-	if (pSession)
-	{
-		if (status == 0)
-		{
-			pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, pSession);
-		}
-		else if (status == 1)
-		{
-			pushThreadMsg(TCPThreadMsgType::CONNECT, pSession);
-		}
-		else if (status == 2)
-		{
-			pushThreadMsg(TCPThreadMsgType::CONNECT_TIMOUT, pSession);
-		}
-	}
-}
-
-void TCPClient::onSessionClose(Session* session)
-{
-	auto sessionData = getClientSessionDataBySession(session);
-	if (sessionData)
-	{
-		sessionData->connectState = CONNECTSTATE::DISCONNECT;
-		pushThreadMsg(TCPThreadMsgType::DIS_CONNECT, sessionData->session);
-
-		if (sessionData->removeTag)
-		{
-			pushThreadMsg(TCPThreadMsgType::REMOVE_SESSION, sessionData->session);
-		}
-	}
-}
 
 void TCPClient::pushThreadMsg(TCPThreadMsgType type, Session* session, char* data, unsigned int len, TCPMsgTag tag)
 {
@@ -722,65 +787,6 @@ void TCPClient::heartRun()
 }
 #endif
 
-void TCPClient::setAutoReconnect(bool isAuto)
-{
-	if (m_isStop)
-		return;
-
-	m_reconnect = isAuto;
-
-	TCPClientAutoConnectOperation* opData = (TCPClientAutoConnectOperation*)fc_malloc(sizeof(TCPClientAutoConnectOperation));
-	new(opData) TCPClientAutoConnectOperation();
-
-	opData->isAuto = isAuto;
-	opData->sessionID = -1;
-
-	pushOperation(TCP_CLI_OP_SET_AUTO_CONNECT, opData, NULL, NULL);
-}
-
-void TCPClient::setAutoReconnectTime(float time)
-{
-	if (m_isStop)
-		return;
-
-	m_totalTime = time;
-
-	TCPClientReconnectTimeOperation* opData = (TCPClientReconnectTimeOperation*)fc_malloc(sizeof(TCPClientReconnectTimeOperation));
-	new(opData) TCPClientReconnectTimeOperation();
-
-	opData->sessionID = -1;
-	opData->time = time;
-
-	pushOperation(TCP_CLI_OP_SET_RECON_TIME, opData, NULL, NULL);
-}
-
-void TCPClient::setAutoReconnectBySessionID(unsigned int sessionID, bool isAuto)
-{
-	if (m_isStop)
-		return;
-
-	TCPClientAutoConnectOperation* opData = (TCPClientAutoConnectOperation*)fc_malloc(sizeof(TCPClientAutoConnectOperation));
-	new(opData) TCPClientAutoConnectOperation();
-
-	opData->isAuto = isAuto;
-	opData->sessionID = sessionID;
-
-	pushOperation(TCP_CLI_OP_SET_AUTO_CONNECT, opData, NULL, NULL);
-}
-
-void TCPClient::setAutoReconnectTimeBySessionID(unsigned int sessionID, float time)
-{
-	if (m_isStop)
-		return;
-
-	TCPClientReconnectTimeOperation* opData = (TCPClientReconnectTimeOperation*)fc_malloc(sizeof(TCPClientReconnectTimeOperation));
-	new(opData) TCPClientReconnectTimeOperation();
-
-	opData->sessionID = sessionID;
-	opData->time = time;
-
-	pushOperation(TCP_CLI_OP_SET_RECON_TIME, opData, NULL, NULL);
-}
 
 void TCPClient::clearData()
 {
@@ -875,36 +881,29 @@ void TCPClient::uv_timer_run(uv_timer_t* handle)
 			}
 		}
 	}
-	else if(c->m_clientStage == clientStage::CLEAR_SOCKET)
+	else if(c->m_clientStage == clientStage::CLEAR_SESSION)
 	{
-		//检测所有是否已经断开
-		bool isConnect = false;
 		clientSessionData* data = NULL;
 		for (auto& it : c->m_allSessionMap)
 		{
 			data = it.second;
-			if (data->connectState != CONNECTSTATE::DISCONNECT)
+
+			if (data->connectState != DISCONNECT)
 			{
-				isConnect = true;
-				if (data->connectState == CONNECTSTATE::CONNECT)
+				data->removeTag = true;
+				data->session->executeDisconnect();
+			}
+			else
+			{
+				if (!data->removeTag)
 				{
-					data->connectState = CONNECTSTATE::DISCONNECTING;
-					data->session->executeDisconnect();
+					data->removeTag = true;
+					c->pushThreadMsg(TCPThreadMsgType::REMOVE_SESSION, data->session);
 				}
 			}
 		}
-		
-		if (!isConnect)
+		if (c->m_allSessionMap.empty())
 		{
-			for (auto & it : c->m_allSessionMap)
-			{
-				it.second->session->~TCPSession();
-				fc_free(it.second->session);
-				it.second->~clientSessionData();
-				fc_free(it.second);
-			}
-
-			c->m_allSessionMap.clear();
 			c->m_clientStage = clientStage::WAIT_EXIT;
 		}
 	}

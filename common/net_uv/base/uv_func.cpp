@@ -48,4 +48,20 @@ NET_UV_EXTERN void net_adjustBuffSize(uv_handle_t* handle, int minRecvBufSize, i
 	}
 }
 
+// hash
+NET_UV_EXTERN unsigned int net_getBufHash(const void *buf, unsigned int len)
+{
+	unsigned int seed = 131; // 31 131 1313 13131 131313 etc..
+	unsigned int hash = 0;
+	unsigned int i = 0;
+	char *str = (char *)buf;
+	while (i < len)
+	{
+		hash = hash * seed + (*str++);
+		++i;
+	}
+
+	return (hash & 0x7FFFFFFF);
+}
+
 NS_NET_UV_END

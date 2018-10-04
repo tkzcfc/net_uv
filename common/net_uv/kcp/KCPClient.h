@@ -1,12 +1,11 @@
 #pragma once
 
-#include "UDPSocket.h"
-#include "KcpSession.h"
-#include "UDPThreadMsg.h"
+#include "KCPSession.h"
+#include "KCPThreadMsg.h"
 
 NS_NET_UV_BEGIN
 
-class NET_UV_EXTERN UDPClient : public Client
+class NET_UV_EXTERN KCPClient : public Client
 {
 public:
 	enum CONNECTSTATE
@@ -16,9 +15,9 @@ public:
 		DISCONNECT,		//ÒÑ¶Ï¿ª
 	};
 public:
-	UDPClient();
-	UDPClient(const UDPClient&) = delete;
-	virtual ~UDPClient();
+	KCPClient();
+	KCPClient(const KCPClient&) = delete;
+	virtual ~KCPClient();
 
 	/// Client
 	virtual void connect(const char* ip, unsigned int port, unsigned int sessionId)override;
@@ -36,7 +35,7 @@ public:
 
 	virtual void disconnect(Session* session)override;
 
-	/// UDPClient
+	/// KCPClient
 	void send(unsigned int sessionId, char* data, unsigned int len);
 
 protected:
@@ -46,15 +45,15 @@ protected:
 	/// SessionManager
 	virtual void executeOperation()override;
 
-	/// UDPClient
+	/// KCPClient
 	void idle_run();
 
 	void clearData();
 
-	void pushThreadMsg(UDPThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0U);
+	void pushThreadMsg(KCPThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0U);
 
 	struct clientSessionData;
-	UDPClient::clientSessionData* getClientSessionDataBySessionId(unsigned int sessionId);
+	KCPClient::clientSessionData* getClientSessionDataBySessionId(unsigned int sessionId);
 
 	void createNewConnect(void* data);
 
@@ -68,7 +67,7 @@ protected:
 		clientSessionData() {}
 		~clientSessionData() {}
 		CONNECTSTATE connectState;
-		KcpSession* session;
+		KCPSession* session;
 		bool removeTag;
 	};
 	std::map<unsigned int, clientSessionData> m_allSessionMap;

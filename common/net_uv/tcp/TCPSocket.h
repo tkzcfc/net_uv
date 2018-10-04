@@ -5,7 +5,8 @@
 NS_NET_UV_BEGIN
 
 
-using TCPSocketRecvCall = std::function<void(char*, ssize_t)>;
+t)>;
+using TCPSocketNewConnectionCall = std::function<void(uv_stream_t*, int)>;
 
 class NET_UV_EXTERN TCPSocket : public Socket
 {
@@ -33,8 +34,8 @@ public:
 	bool setNoDelay(bool enable);
 
 	bool setKeepAlive(int enable, unsigned int delay);
-
-	inline void setRecvCallback(const TCPSocketRecvCall& call);
+	
+	inline void setNewConnectionCallback(const TCPSocketNewConnectionCall& call);
 
 protected:
 	void shutdownSocket();
@@ -57,7 +58,7 @@ protected:
 
 protected:
 	uv_tcp_t* m_tcp;
-	TCPSocketRecvCall m_recvCall;
+	TCPSocketNewConnectionCall m_newConnectionCall;
 };
 
 void TCPSocket::setTcp(uv_tcp_t* tcp)
@@ -75,9 +76,9 @@ uv_loop_t* TCPSocket::getLoop()
 	return m_loop;
 }
 
-void TCPSocket::setRecvCallback(const TCPSocketRecvCall& call)
+void TCPSocket::setNewConnectionCallback(const TCPSocketNewConnectionCall& call)
 {
-	m_recvCall = std::move(call);
+	m_newConnectionCall = std::move(call);
 }
 
 NS_NET_UV_END

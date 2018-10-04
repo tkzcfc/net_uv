@@ -8,7 +8,8 @@ NS_NET_UV_BEGIN
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 TCPSocket::TCPSocket(uv_loop_t* loop, uv_tcp_t* tcp)
-	: m_recvCall(nullptr)
+	: m_newConnectionCall(nullptr)
+	, m_tcp(NULL)
 {
 	m_loop = loop;
 	m_tcp = tcp;
@@ -306,7 +307,7 @@ void TCPSocket::uv_on_after_connect(uv_connect_t* handle, int status)
 	}
 	else
 	{
-		NET_UV_LOG(NET_UV_L_ERROR, "tcp connect error %s", uv_strerror(status));
+		//NET_UV_LOG(NET_UV_L_ERROR, "tcp connect error %s", uv_strerror(status));
 		if (status == ETIMEDOUT)
 		{
 			s->m_connectCall(s, 2);
@@ -323,7 +324,7 @@ void TCPSocket::server_on_after_new_connection(uv_stream_t *server, int status)
 {
 	if (status != 0)
 	{
-		NET_UV_LOG(NET_UV_L_ERROR, "tcp new connection error %s", uv_strerror(status));
+		//NET_UV_LOG(NET_UV_L_ERROR, "tcp new connection error %s", uv_strerror(status));
 		return;
 	}
 	TCPSocket* s = (TCPSocket*)server->data;
@@ -350,7 +351,7 @@ void TCPSocket::uv_on_after_write(uv_write_t* req, int status)
 {
 	if (status != 0)
 	{
-		NET_UV_LOG(NET_UV_L_ERROR, "tcp write error %s", uv_strerror(status));
+		//NET_UV_LOG(NET_UV_L_ERROR, "tcp write error %s", uv_strerror(status));
 	}
 	uv_buf_t* buf = (uv_buf_t*)req->data;
 	fc_free(buf->base);

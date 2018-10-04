@@ -9,8 +9,8 @@ NS_NET_UV_BEGIN
 
 class Socket;
 using SocketConnectCall = std::function<void(Socket*,int)>;	//0Ê§°Ü 1³É¹¦ 2³¬Ê±
-using SocketCloseCall = std::function<void(Socket*)>;
-using SocketNewConnectionCall = std::function<void(uv_stream_t*, int)>;
+using SocketCloseCall = std::function<void(Socket*)>; 
+using SocketRecvCall = std::function<void(char*, ssize_t)>;
 
 class NET_UV_EXTERN Socket
 {
@@ -34,8 +34,7 @@ public:
 
 	inline void setCloseCallback(const SocketCloseCall& call);
 
-	inline void setNewConnectionCallback(const SocketNewConnectionCall& call);
-	
+	inline void setRecvCallback(const SocketRecvCall& call);
 public:
 
 	inline const std::string& getIp();
@@ -67,7 +66,7 @@ protected:
 
 	SocketConnectCall m_connectCall;
 	SocketCloseCall m_closeCall;
-	SocketNewConnectionCall m_newConnectionCall;
+	SocketRecvCall m_recvCall;
 };
 
 const std::string& Socket::getIp()
@@ -110,10 +109,11 @@ void Socket::setCloseCallback(const SocketCloseCall& call)
 	m_closeCall = std::move(call);
 }
 
-void Socket::setNewConnectionCallback(const SocketNewConnectionCall& call)
+void Socket::setRecvCallback(const SocketRecvCall& call)
 {
-	m_newConnectionCall = std::move(call);
+	m_recvCall = std::move(call);
 }
+
 void Socket::setUserdata(void* userdata)
 {
 	m_userdata = userdata;

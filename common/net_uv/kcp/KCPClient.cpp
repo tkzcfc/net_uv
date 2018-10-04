@@ -1,28 +1,28 @@
-#include "UDPClient.h"
+#include "KCPClient.h"
 
 NS_NET_UV_BEGIN
 
 enum
 {
-	UDP_CLI_OP_CONNECT,	//	连接
-	UDP_CLI_OP_SENDDATA,	// 发送数据
-	UDP_CLI_OP_DISCONNECT,	// 断开连接
-	UDP_CLI_OP_CLIENT_CLOSE, //客户端退出
-	UDP_CLI_OP_REMOVE_SESSION,//移除会话
-	UDP_CLI_OP_DELETE_SESSION,//删除会话
+	KCP_CLI_OP_CONNECT,	//	连接
+	KCP_CLI_OP_SENDDATA,	// 发送数据
+	KCP_CLI_OP_DISCONNECT,	// 断开连接
+	KCP_CLI_OP_CLIENT_CLOSE, //客户端退出
+	KCP_CLI_OP_REMOVE_SESSION,//移除会话
+	KCP_CLI_OP_DELETE_SESSION,//删除会话
 };
 
 // 连接操作
-struct UDPClientConnectOperation
+struct KCPClientConnectOperation
 {
-	UDPClientConnectOperation() {}
-	~UDPClientConnectOperation() {}
+	KCPClientConnectOperation() {}
+	~KCPClientConnectOperation() {}
 	std::string ip;
 	unsigned int port;
 	unsigned int sessionID;
 };
 
-UDPClient::UDPClient()
+KCPClient::KCPClient()
 	: m_isStop(false)
 {
 	uv_loop_init(&m_loop);
@@ -36,7 +36,7 @@ UDPClient::UDPClient()
 	this->startThread();
 }
 
-UDPClient::~UDPClient()
+KCPClient::~KCPClient()
 {
 	this->closeClient();
 	this->join();
@@ -44,38 +44,38 @@ UDPClient::~UDPClient()
 }
 
 /// Client
-void UDPClient::connect(const char* ip, unsigned int port, unsigned int sessionId)
+void KCPClient::connect(const char* ip, unsigned int port, unsigned int sessionId)
 {
 	if (m_isStop)
 		return;
 
-	UDPClientConnectOperation* opData = (UDPClientConnectOperation*)fc_malloc(sizeof(UDPClientConnectOperation));
-	new (opData)UDPClientConnectOperation();
+	KCPClientConnectOperation* opData = (KCPClientConnectOperation*)fc_malloc(sizeof(KCPClientConnectOperation));
+	new (opData)KCPClientConnectOperation();
 
 	opData->ip = ip;
 	opData->port = port;
 	opData->sessionID = sessionId;
 
-	pushOperation(UDP_CLI_OP_CONNECT, opData, 0U, 0U);
+	pushOperation(KCP_CLI_OP_CONNECT, opData, 0U, 0U);
 }
 
-void UDPClient::disconnect(unsigned int sessionId)
+void KCPClient::disconnect(unsigned int sessionId)
 {
 	if (m_isStop)
 		return;
 
-	pushOperation(UDP_CLI_OP_DISCONNECT, NULL, 0U, sessionId);
+	pushOperation(KCP_CLI_OP_DISCONNECT, NULL, 0U, sessionId);
 }
 
-void UDPClient::closeClient()
+void KCPClient::closeClient()
 {
 	if (m_isStop)
 		return;
 	m_isStop = true;
-	pushOperation(UDP_CLI_OP_CLIENT_CLOSE, NULL, 0U, 0U);
+	pushOperation(KCP_CLI_OP_CLIENT_CLOSE, NULL, 0U, 0U);
 }
 
-void UDPClient::updateFrame()
+void KCPClient::updateFrame()
 {
 	if (m_msgMutex.trylock() != 0)
 	{
@@ -98,46 +98,46 @@ void UDPClient::updateFrame()
 	bool closeClientTag = false;
 	while (!m_msgDispatchQue.empty())
 	{
-		const UDPThreadMsg_C& Msg = m_msgDispatchQue.front();
+		const KCPThreadMsg_C& Msg = m_msgDispatchQue.front();
 		switch (Msg.msgType)
 		{
-		case UDPThreadMsgType::RECV_DATA:
+		case KCPThreadMsgType::RECV_DATA:
 		{
 			m_recvCall(this, Msg.pSession, Msg.data, Msg.dataLen);
 			fc_free(Msg.data);
 		}break;
-		case UDPThreadMsgType::CONNECT_FAIL:
+		case KCPThreadMsgType::CONNECT_FAIL:
 		{
 			if (m_connectCall != nullptr)
 			{
 				m_connectCall(this, Msg.pSession, 0);
 			}
 		}break;
-		case UDPThreadMsgType::CONNECT:
+		case KCPThreadMsgType::CONNECT:
 		{
 			if (m_connectCall != nullptr)
 			{
 				m_connectCall(this, Msg.pSession, 1);
 			}
 		}break;
-		case UDPThreadMsgType::DIS_CONNECT:
+		case KCPThreadMsgType::DIS_CONNECT:
 		{
 			if (m_disconnectCall != nullptr)
 			{
 				m_disconnectCall(this, Msg.pSession);
 			}
 		}break;
-		case UDPThreadMsgType::EXIT_LOOP:
+		case KCPThreadMsgType::EXIT_LOOP:
 		{
 			closeClientTag = true;
 		}break;
-		case UDPThreadMsgType::REMOVE_SESSION:
+		case KCPThreadMsgType::REMOVE_SESSION:
 		{
 			if (m_removeSessionCall != nullptr)
 			{
 				m_removeSessionCall(this, Msg.pSession);
 			}
-			pushOperation(UDP_CLI_OP_DELETE_SESSION, NULL, 0U, Msg.pSession->getSessionID());
+			pushOperation(KCP_CLI_OP_DELETE_SESSION, NULL, 0U, Msg.pSession->getSessionID());
 		}break;
 		default:
 			break;
@@ -150,24 +150,24 @@ void UDPClient::updateFrame()
 	}
 }
 
-void UDPClient::removeSession(unsigned int sessionId)
+void KCPClient::removeSession(unsigned int sessionId)
 {
-	pushOperation(UDP_CLI_OP_REMOVE_SESSION, NULL, 0U, sessionId);
+	pushOperation(KCP_CLI_OP_REMOVE_SESSION, NULL, 0U, sessionId);
 }
 
 /// SessionManager
-void UDPClient::send(Session* session, char* data, unsigned int len)
+void KCPClient::send(Session* session, char* data, unsigned int len)
 {
 	send(session->getSessionID(), data, len);
 }
 
-void UDPClient::disconnect(Session* session)
+void KCPClient::disconnect(Session* session)
 {
 	disconnect(session->getSessionID());
 }
 
-/// UDPClient
-void UDPClient::send(unsigned int sessionId, char* data, unsigned int len)
+/// KCPClient
+void KCPClient::send(unsigned int sessionId, char* data, unsigned int len)
 {
 	if (m_isStop)
 		return;
@@ -177,11 +177,11 @@ void UDPClient::send(unsigned int sessionId, char* data, unsigned int len)
 
 	char* sendData = (char*)fc_malloc(len);
 	memcpy(sendData, data, len);
-	pushOperation(UDP_CLI_OP_SENDDATA, sendData, len, sessionId);
+	pushOperation(KCP_CLI_OP_SENDDATA, sendData, len, sessionId);
 }
 
 /// Runnable
-void UDPClient::run()
+void KCPClient::run()
 {
 	m_loop.data = NULL;
 
@@ -190,11 +190,11 @@ void UDPClient::run()
 	uv_loop_close(&m_loop);
 
 	m_clientStage = clientStage::STOP;
-	this->pushThreadMsg(UDPThreadMsgType::EXIT_LOOP, NULL);
+	this->pushThreadMsg(KCPThreadMsgType::EXIT_LOOP, NULL);
 }
 
 	/// SessionManager
-void UDPClient::executeOperation()
+void KCPClient::executeOperation()
 {
 	if (m_operationMutex.trylock() != 0)
 	{
@@ -219,7 +219,7 @@ void UDPClient::executeOperation()
 		auto & curOperation = m_operationDispatchQue.front();
 		switch (curOperation.operationType)
 		{
-		case UDP_CLI_OP_SENDDATA:		// 数据发送
+		case KCP_CLI_OP_SENDDATA:		// 数据发送
 		{
 			auto sessionData = getClientSessionDataBySessionId(curOperation.sessionID);
 			if (sessionData)
@@ -231,7 +231,7 @@ void UDPClient::executeOperation()
 				fc_free(curOperation.operationData);
 			}
 		}break;
-		case UDP_CLI_OP_DISCONNECT:	// 断开连接
+		case KCP_CLI_OP_DISCONNECT:	// 断开连接
 		{
 			auto sessionData = getClientSessionDataBySessionId(curOperation.sessionID);
 			if (sessionData->connectState == CONNECT)
@@ -240,16 +240,16 @@ void UDPClient::executeOperation()
 				sessionData->connectState = DISCONNECTING;
 			}
 		}break;
-		case UDP_CLI_OP_CONNECT:	// 连接
+		case KCP_CLI_OP_CONNECT:	// 连接
 		{
 			if (curOperation.operationData)
 			{
 				createNewConnect(curOperation.operationData);
-				((UDPClientConnectOperation*)curOperation.operationData)->~UDPClientConnectOperation();
+				((KCPClientConnectOperation*)curOperation.operationData)->~KCPClientConnectOperation();
 				fc_free(curOperation.operationData);
 			}
 		}break;
-		case UDP_CLI_OP_CLIENT_CLOSE://客户端关闭
+		case KCP_CLI_OP_CLIENT_CLOSE://客户端关闭
 		{
 			if (m_clientStage == clientStage::START)
 			{
@@ -260,7 +260,7 @@ void UDPClient::executeOperation()
 			}
 			m_clientStage = clientStage::CLEAR_SESSION;
 		}break;
-		case UDP_CLI_OP_REMOVE_SESSION://移除
+		case KCP_CLI_OP_REMOVE_SESSION://移除
 		{
 			auto sessionData = getClientSessionDataBySessionId(curOperation.sessionID);
 			sessionData->removeTag = true;
@@ -270,10 +270,10 @@ void UDPClient::executeOperation()
 			}
 			else
 			{
-				pushThreadMsg(UDPThreadMsgType::REMOVE_SESSION, sessionData->session);
+				pushThreadMsg(KCPThreadMsgType::REMOVE_SESSION, sessionData->session);
 			}
 		}break;
-		case UDP_CLI_OP_DELETE_SESSION://删除
+		case KCP_CLI_OP_DELETE_SESSION://删除
 		{
 			auto it = m_allSessionMap.find(curOperation.sessionID);
 			if (it != m_allSessionMap.end() && it->second.removeTag)
@@ -290,7 +290,7 @@ void UDPClient::executeOperation()
 	}
 }
 
-void UDPClient::idle_run()
+void KCPClient::idle_run()
 {
 	executeOperation();
 	if (m_clientStage == clientStage::CLEAR_SESSION)
@@ -307,7 +307,7 @@ void UDPClient::idle_run()
 				if (!it.second.removeTag)
 				{
 					it.second.removeTag = true;
-					pushThreadMsg(UDPThreadMsgType::REMOVE_SESSION, it.second.session);
+					pushThreadMsg(KCPThreadMsgType::REMOVE_SESSION, it.second.session);
 				}
 			}
 		}
@@ -324,7 +324,7 @@ void UDPClient::idle_run()
 	ThreadSleep(1);
 }
 
-void UDPClient::clearData()
+void KCPClient::clearData()
 {
 	for (auto& it : m_allSessionMap)
 	{
@@ -349,18 +349,18 @@ void UDPClient::clearData()
 		auto & curOperation = m_operationQue.front();
 		switch (curOperation.operationType)
 		{
-		case UDP_CLI_OP_SENDDATA:			// 数据发送
+		case KCP_CLI_OP_SENDDATA:			// 数据发送
 		{
 			if (curOperation.operationData)
 			{
 				fc_free(curOperation.operationData);
 			}
 		}break;
-		case UDP_CLI_OP_CONNECT:			// 连接
+		case KCP_CLI_OP_CONNECT:			// 连接
 		{
 			if (curOperation.operationData)
 			{
-				((UDPClientConnectOperation*)curOperation.operationData)->~UDPClientConnectOperation();
+				((KCPClientConnectOperation*)curOperation.operationData)->~KCPClientConnectOperation();
 				fc_free(curOperation.operationData);
 			}
 		}break;
@@ -369,9 +369,9 @@ void UDPClient::clearData()
 	}
 }
 
-void UDPClient::pushThreadMsg(UDPThreadMsgType type, Session* session, char* data/* = NULL*/, unsigned int len/* = 0U*/)
+void KCPClient::pushThreadMsg(KCPThreadMsgType type, Session* session, char* data/* = NULL*/, unsigned int len/* = 0U*/)
 {
-	UDPThreadMsg_C msg;
+	KCPThreadMsg_C msg;
 	msg.msgType = type;
 	msg.data = data;
 	msg.dataLen = len;
@@ -382,7 +382,7 @@ void UDPClient::pushThreadMsg(UDPThreadMsgType type, Session* session, char* dat
 	m_msgMutex.unlock();
 }
 
-UDPClient::clientSessionData* UDPClient::getClientSessionDataBySessionId(unsigned int sessionId)
+KCPClient::clientSessionData* KCPClient::getClientSessionDataBySessionId(unsigned int sessionId)
 {
 	auto it = m_allSessionMap.find(sessionId);
 	if (it != m_allSessionMap.end())
@@ -392,12 +392,12 @@ UDPClient::clientSessionData* UDPClient::getClientSessionDataBySessionId(unsigne
 	return NULL;
 }
 
-void UDPClient::createNewConnect(void* data)
+void KCPClient::createNewConnect(void* data)
 {
 	if (data == NULL)
 		return;
 
-	UDPClientConnectOperation* opData = (UDPClientConnectOperation*)data;
+	KCPClientConnectOperation* opData = (KCPClientConnectOperation*)data;
 
 	auto it = m_allSessionMap.find(opData->sessionID);
 	if (it != m_allSessionMap.end())
@@ -408,7 +408,7 @@ void UDPClient::createNewConnect(void* data)
 		if (strcmp(opData->ip.c_str(), it->second.session->getIp().c_str()) != 0 &&
 			opData->port != it->second.session->getPort())
 		{
-			pushThreadMsg(UDPThreadMsgType::CONNECT_FAIL, NULL);
+			pushThreadMsg(KCPThreadMsgType::CONNECT_FAIL, NULL);
 			return;
 		}
 
@@ -417,13 +417,13 @@ void UDPClient::createNewConnect(void* data)
 			if (it->second.session->getUDPSocket()->connect(opData->ip.c_str(), opData->port))
 			{
 				it->second.connectState = CONNECTSTATE::CONNECT;
-				pushThreadMsg(UDPThreadMsgType::CONNECT, it->second.session);
+				pushThreadMsg(KCPThreadMsgType::CONNECT, it->second.session);
 			}
 			else
 			{
 				it->second.connectState = CONNECTSTATE::DISCONNECT;
 				it->second.session->executeDisconnect();
-				pushThreadMsg(UDPThreadMsgType::CONNECT_FAIL, it->second.session);
+				pushThreadMsg(KCPThreadMsgType::CONNECT_FAIL, it->second.session);
 			}
 		}
 	}
@@ -431,7 +431,7 @@ void UDPClient::createNewConnect(void* data)
 	{
 		UDPSocket* socket = (UDPSocket*)fc_malloc(sizeof(UDPSocket));
 		new (socket) UDPSocket(&m_loop);	
-		socket->setReadCallback(std::bind(&UDPClient::onSocketRead, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+		socket->setReadCallback(std::bind(&KCPClient::onSocketRead, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
 		KcpSession* session = KcpSession::createSession(this, socket, opData->sessionID);
 		if (session == NULL)
@@ -440,7 +440,7 @@ void UDPClient::createNewConnect(void* data)
 			return;
 		}
 		session->setSessionID(opData->sessionID);
-		session->setSessionClose(std::bind(&UDPClient::onSessionClose, this, std::placeholders::_1));
+		session->setSessionClose(std::bind(&KCPClient::onSessionClose, this, std::placeholders::_1));
 
 		clientSessionData cs;
 		cs.removeTag = false;
@@ -450,19 +450,19 @@ void UDPClient::createNewConnect(void* data)
 		{
 			session->setIsOnline(true);
 			cs.connectState = CONNECTSTATE::CONNECT;
-			pushThreadMsg(UDPThreadMsgType::CONNECT, session);
+			pushThreadMsg(KCPThreadMsgType::CONNECT, session);
 		}
 		else
 		{
 			session->setIsOnline(false);
 			cs.connectState = CONNECTSTATE::DISCONNECT;
-			pushThreadMsg(UDPThreadMsgType::CONNECT_FAIL, session);
+			pushThreadMsg(KCPThreadMsgType::CONNECT_FAIL, session);
 		}
 		m_allSessionMap.insert(std::make_pair(opData->sessionID, cs));
 	}
 }
 
-void UDPClient::onSessionClose(Session* session)
+void KCPClient::onSessionClose(Session* session)
 {
 	for (auto& it : m_allSessionMap)
 	{
@@ -471,14 +471,14 @@ void UDPClient::onSessionClose(Session* session)
 			it.second.connectState = DISCONNECT;
 			if (it.second.removeTag)
 			{
-				pushThreadMsg(UDPThreadMsgType::REMOVE_SESSION, session);
+				pushThreadMsg(KCPThreadMsgType::REMOVE_SESSION, session);
 			}
 			break;
 		}
 	}
 }
 
-void UDPClient::onSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
+void KCPClient::onSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
 {
 	IUINT32 conv = ikcp_getconv(buf->base);
 	auto sessionData = getClientSessionDataBySessionId(conv);
@@ -490,9 +490,9 @@ void UDPClient::onSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* bu
 
 //////////////////////////////////////////////////////////////////////////
 
-void UDPClient::uv_on_idle_run(uv_idle_t* handle)
+void KCPClient::uv_on_idle_run(uv_idle_t* handle)
 {
-	UDPClient* c = (UDPClient*)handle->data;
+	KCPClient* c = (KCPClient*)handle->data;
 	c->idle_run();
 	ThreadSleep(1);
 }

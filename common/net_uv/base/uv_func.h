@@ -13,4 +13,7 @@ NET_UV_EXTERN void net_closeHandle(uv_handle_t* handle, uv_close_cb closecb);
 // 调整socket缓冲区大小
 NET_UV_EXTERN void net_adjustBuffSize(uv_handle_t* handle, int minRecvBufSize, int minSendBufSize);
 
+//hash
+NET_UV_EXTERN unsigned int net_getBufHash(const void *buf, unsigned int len);
+
 NS_NET_UV_END

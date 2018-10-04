@@ -1,16 +1,16 @@
-#include "UDPServer.h"
+#include "KCPServer.h"
 
 NS_NET_UV_BEGIN
 
 enum
 {
-	UDP_SVR_OP_STOP_SERVER,	// 停止服务器
-	UDP_SVR_OP_SEND_DATA,	// 发送消息给某个会话
-	UDP_SVR_OP_DIS_SESSION,	// 断开某个会话
-	UDP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD,//向主线程发送会话已断开
+	KCP_SVR_OP_STOP_SERVER,	// 停止服务器
+	KCP_SVR_OP_SEND_DATA,	// 发送消息给某个会话
+	KCP_SVR_OP_DIS_SESSION,	// 断开某个会话
+	KCP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD,//向主线程发送会话已断开
 };
 
-UDPServer::UDPServer()
+KCPServer::KCPServer()
 	: m_start(false)
 	, m_server(NULL)
 	, m_isIPV6(false)
@@ -18,17 +18,17 @@ UDPServer::UDPServer()
 	m_serverStage = ServerStage::STOP;
 }
 
-UDPServer::~UDPServer()
+KCPServer::~KCPServer()
 {
 	stopServer();
 	this->join();
 	clearData();
 
-	NET_UV_LOG(NET_UV_L_INFO, "UDPServer destroy...");
+	NET_UV_LOG(NET_UV_L_INFO, "KCPServer destroy...");
 }
 
-///UDPServer
-void UDPServer::startServer(const char* ip, int port, bool isIPV6)
+///KCPServer
+void KCPServer::startServer(const char* ip, int port, bool isIPV6)
 {
 	if (m_serverStage != ServerStage::STOP)
 		return;
@@ -44,21 +44,21 @@ void UDPServer::startServer(const char* ip, int port, bool isIPV6)
 	m_start = true;
 	m_serverStage = ServerStage::START;
 
-	NET_UV_LOG(NET_UV_L_INFO, "UDPServer start-up...");
+	NET_UV_LOG(NET_UV_L_INFO, "KCPServer start-up...");
 	this->startThread();
 }
 
-bool UDPServer::stopServer()
+bool KCPServer::stopServer()
 {
 	if (!m_start)
 		return false;
 	m_start = false;
-	pushOperation(UDP_SVR_OP_STOP_SERVER, NULL, NULL, 0U);
+	pushOperation(KCP_SVR_OP_STOP_SERVER, NULL, NULL, 0U);
 	return true;
 }
 
 // 主线程轮询
-void UDPServer::updateFrame()
+void KCPServer::updateFrame()
 {
 	if (m_msgMutex.trylock() != 0)
 	{
@@ -111,7 +111,7 @@ void UDPServer::updateFrame()
 		case UDPThreadMsgType::DIS_CONNECT:
 		{
 			m_disconnectCall(this, Msg.pSession);
-			pushOperation(UDP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD, NULL, 0, Msg.pSession->getSessionID());
+			pushOperation(KCP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD, NULL, 0, Msg.pSession->getSessionID());
 		}break;
 		case UDPThreadMsgType::EXIT_LOOP:
 		{
@@ -129,20 +129,20 @@ void UDPServer::updateFrame()
 }
 
 /// SessionManager
-void UDPServer::send(Session* session, char* data, unsigned int len)
+void KCPServer::send(Session* session, char* data, unsigned int len)
 {
 	char* pSendData = (char*)fc_malloc(len);
 	memcpy(pSendData, data, len);
-	pushOperation(UDP_SVR_OP_SEND_DATA, data, len, session->getSessionID());
+	pushOperation(KCP_SVR_OP_SEND_DATA, data, len, session->getSessionID());
 }
 
-void UDPServer::disconnect(Session* session)
+void KCPServer::disconnect(Session* session)
 {
-	pushOperation(UDP_SVR_OP_DIS_SESSION, NULL, 0, session->getSessionID());
+	pushOperation(KCP_SVR_OP_DIS_SESSION, NULL, 0, session->getSessionID());
 }
 
 /// Runnable
-void UDPServer::run()
+void KCPServer::run()
 {
 	int r = uv_loop_init(&m_loop);
 	CHECK_UV_ASSERT(r);
@@ -161,8 +161,8 @@ void UDPServer::run()
 		return;
 	}
 	new (m_server) UDPSocket(&m_loop);
-	m_server->setCloseCallback(std::bind(&UDPServer::onServerSocketClose, this, std::placeholders::_1));
-	m_server->setReadCallback(std::bind(&UDPServer::onServerSocketRead, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+	m_server->setCloseCallback(std::bind(&KCPServer::onServerSocketClose, this, std::placeholders::_1));
+	m_server->setReadCallback(std::bind(&KCPServer::onServerSocketRead, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
 	bool suc = false;
 	if (m_isIPV6)
@@ -212,7 +212,7 @@ void UDPServer::run()
 }
 
 /// SessionManager
-void UDPServer::executeOperation()
+void KCPServer::executeOperation()
 {
 	if (m_operationMutex.trylock() != 0)
 	{
@@ -237,7 +237,7 @@ void UDPServer::executeOperation()
 		auto & curOperation = m_operationDispatchQue.front();
 		switch (curOperation.operationType)
 		{
-		case UDP_SVR_OP_SEND_DATA:		// 数据发送
+		case KCP_SVR_OP_SEND_DATA:		// 数据发送
 		{
 			auto it = m_allSession.find(curOperation.sessionID);
 			if (it != m_allSession.end())
@@ -249,7 +249,7 @@ void UDPServer::executeOperation()
 				fc_free(curOperation.operationData);
 			}
 		}break;
-		case UDP_SVR_OP_DIS_SESSION:	// 断开连接
+		case KCP_SVR_OP_DIS_SESSION:	// 断开连接
 		{
 			auto it = m_allSession.find(curOperation.sessionID);
 			if (it != m_allSession.end())
@@ -257,7 +257,7 @@ void UDPServer::executeOperation()
 				it->second.session->executeDisconnect();
 			}
 		}break;
-		case UDP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD:
+		case KCP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD:
 		{
 			auto it = m_allSession.find(curOperation.sessionID);
 			if (it != m_allSession.end())
@@ -267,7 +267,7 @@ void UDPServer::executeOperation()
 				it = m_allSession.erase(it);
 			}
 		}break;
-		case UDP_SVR_OP_STOP_SERVER:
+		case KCP_SVR_OP_STOP_SERVER:
 		{
 			for (auto & it : m_allSession)
 			{
@@ -286,12 +286,12 @@ void UDPServer::executeOperation()
 	}
 }
 
-void UDPServer::idleRun()
+void KCPServer::idleRun()
 {
 	executeOperation();
 	switch (m_serverStage)
 	{
-	case UDPServer::ServerStage::CLEAR:
+	case KCPServer::ServerStage::CLEAR:
 	{
 		for (auto& it : m_allSession)
 		{
@@ -303,7 +303,7 @@ void UDPServer::idleRun()
 		m_serverStage = ServerStage::WAIT_SESSION_CLOSE;
 	}
 	break;
-	case UDPServer::ServerStage::WAIT_SESSION_CLOSE:
+	case KCPServer::ServerStage::WAIT_SESSION_CLOSE:
 	{
 		if (m_allSession.empty())
 		{
@@ -318,7 +318,7 @@ void UDPServer::idleRun()
 	ThreadSleep(1);
 }
 
-void UDPServer::clearData()
+void KCPServer::clearData()
 {
 	m_msgMutex.lock();
 	while (!m_msgQue.empty())
@@ -332,7 +332,7 @@ void UDPServer::clearData()
 	m_msgMutex.unlock();
 	while (!m_operationQue.empty())
 	{
-		if (m_operationQue.front().operationType == UDP_SVR_OP_SEND_DATA)
+		if (m_operationQue.front().operationType == KCP_SVR_OP_SEND_DATA)
 		{
 			fc_free(m_operationQue.front().operationData);
 		}
@@ -340,7 +340,7 @@ void UDPServer::clearData()
 	}
 }
 
-void UDPServer::pushThreadMsg(UDPThreadMsgType type, Session* session, char* data, unsigned int len)
+void KCPServer::pushThreadMsg(UDPThreadMsgType type, Session* session, char* data, unsigned int len)
 {
 	UDPThreadMsg_S msg;
 	msg.msgType = type;
@@ -353,12 +353,12 @@ void UDPServer::pushThreadMsg(UDPThreadMsgType type, Session* session, char* dat
 	m_msgMutex.unlock();
 }
 
-void UDPServer::onServerSocketClose(Socket* svr)
+void KCPServer::onServerSocketClose(Socket* svr)
 {
 	m_serverStage = ServerStage::CLEAR;
 }
 
-void UDPServer::onServerSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
+void KCPServer::onServerSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
 {
 	IUINT32 conv = ikcp_getconv(buf->base);
 	auto it = m_allSession.find(conv);
@@ -385,7 +385,7 @@ void UDPServer::onServerSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf
 			NET_UV_LOG(NET_UV_L_ERROR, "服务器创建新会话失败,可能是内存不足");
 			return;
 		}
-		session->setSessionClose(std::bind(&UDPServer::onSessionClose, this, std::placeholders::_1));
+		session->setSessionClose(std::bind(&KCPServer::onSessionClose, this, std::placeholders::_1));
 		session->setSessionID(conv);
 
 		tcpSessionData data;
@@ -403,7 +403,7 @@ void UDPServer::onServerSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf
 	}
 }
 
-void UDPServer::onSessionClose(Session* session)
+void KCPServer::onSessionClose(Session* session)
 {
 	if (session == NULL)
 	{
@@ -419,9 +419,9 @@ void UDPServer::onSessionClose(Session* session)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void UDPServer::uv_on_idle_run(uv_idle_t* handle)
+void KCPServer::uv_on_idle_run(uv_idle_t* handle)
 {
-	UDPServer* svr = (UDPServer*)handle->data;
+	KCPServer* svr = (KCPServer*)handle->data;
 	svr->idleRun();
 }
 

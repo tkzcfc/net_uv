@@ -8,8 +8,8 @@ Socket::Socket()
 	, m_loop(nullptr)
 	, m_connectCall(nullptr)
 	, m_closeCall(nullptr)
-	, m_newConnectionCall(nullptr)
 	, m_userdata(nullptr)
+	, m_recvCall(nullptr)
 {
 }
 

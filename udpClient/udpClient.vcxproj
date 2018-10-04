@@ -183,6 +183,16 @@
     <ClInclude Include="..\common\net_uv\base\SessionManager.h" />
     <ClInclude Include="..\common\net_uv\base\Socket.h" />
     <ClInclude Include="..\common\net_uv\base\uv_func.h" />
+    <ClInclude Include="..\common\net_uv\common\NetUVThreadMsg.h" />
+    <ClInclude Include="..\common\net_uv\kcp\ikcp.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPSession.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPSocketManager.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPUtils.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPClient.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPCommon.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPServer.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPSocket.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPThreadMsg.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPClient.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPCommon.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h" />
@@ -191,13 +201,6 @@
     <ClInclude Include="..\common\net_uv\tcp\TCPSocket.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPThreadMsg.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPUtils.h" />
-    <ClInclude Include="..\common\net_uv\udp\ikcp.h" />
-    <ClInclude Include="..\common\net_uv\udp\KcpSession.h" />
-    <ClInclude Include="..\common\net_uv\udp\UDPClient.h" />
-    <ClInclude Include="..\common\net_uv\udp\UDPCommon.h" />
-    <ClInclude Include="..\common\net_uv\udp\UDPServer.h" />
-    <ClInclude Include="..\common\net_uv\udp\UDPSocket.h" />
-    <ClInclude Include="..\common\net_uv\udp\UDPThreadMsg.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\common\libuv\src\fs-poll.c" />
@@ -243,16 +246,18 @@
     <ClCompile Include="..\common\net_uv\base\SessionManager.cpp" />
     <ClCompile Include="..\common\net_uv\base\Socket.cpp" />
     <ClCompile Include="..\common\net_uv\base\uv_func.cpp" />
+    <ClCompile Include="..\common\net_uv\kcp\ikcp.c" />
+    <ClCompile Include="..\common\net_uv\kcp\KCPSession.cpp" />
+    <ClCompile Include="..\common\net_uv\kcp\KCPSocketManager.cpp" />
+    <ClCompile Include="..\common\net_uv\kcp\KCPUtils.cpp" />
+    <ClCompile Include="..\common\net_uv\kcp\KCPClient.cpp" />
+    <ClCompile Include="..\common\net_uv\kcp\KCPServer.cpp" />
+    <ClCompile Include="..\common\net_uv\kcp\KCPSocket.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPClient.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPSession.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPSocket.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPUtils.cpp" />
-    <ClCompile Include="..\common\net_uv\udp\ikcp.c" />
-    <ClCompile Include="..\common\net_uv\udp\KcpSession.cpp" />
-    <ClCompile Include="..\common\net_uv\udp\UDPClient.cpp" />
-    <ClCompile Include="..\common\net_uv\udp\UDPServer.cpp" />
-    <ClCompile Include="..\common\net_uv\udp\UDPSocket.cpp" />
     <ClCompile Include="testClient.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

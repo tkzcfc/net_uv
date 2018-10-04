@@ -41,9 +41,6 @@ public:
 	virtual void disconnect(Session* session)override;
 
 	/// TCPClient
-	//查询客户端是否已经关闭完毕
-	//如果返回true，则可以进行该类的内存释放
-	//若返回false就进行内存释放时，该类将阻塞至线程完全退出
 	bool isCloseFinish();
 
 	//是否启用TCP_NODELAY
@@ -142,7 +139,7 @@ protected:
 	enum class clientStage
 	{
 		START,
-		CLEAR_SOCKET,//即将销毁socket
+		CLEAR_SESSION,//清理会话
 		WAIT_EXIT,//即将退出
 		STOP
 	};

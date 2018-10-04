@@ -3,7 +3,7 @@
 
 NS_NET_UV_BEGIN
 
-KcpSession* KcpSession::createSession(SessionManager* sessionManager, UDPSocket* socket, IUINT32 conv)
+KcpSession* KcpSession::createSession(SessionManager* sessionManager, uv_udp_t* udp/* = NULL*/)
 {
 	KcpSession* session = (KcpSession*)fc_malloc(sizeof(KcpSession));
 	new(session)KcpSession(sessionManager);
@@ -30,7 +30,7 @@ KcpSession* KcpSession::createSession(SessionManager* sessionManager, UDPSocket*
 KcpSession::KcpSession(SessionManager* sessionManager)
 	: Session(sessionManager)
 	, m_kcp(NULL)
-	, m_socket(NULL)
+	, m_connectCall(nullptr)
 	, m_recvBuf(NULL)
 {
 	m_idle.data = NULL;
