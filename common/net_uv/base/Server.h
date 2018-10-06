@@ -43,6 +43,12 @@ protected:
 	ServerNewConnectCall m_newConnectCall;
 	ServerRecvCall m_recvCall;
 	ServerDisconnectCall m_disconnectCall;
+
+
+	// 线程消息
+	Mutex m_msgMutex;
+	std::queue<NetThreadMsg_S> m_msgQue;
+	std::queue<NetThreadMsg_S> m_msgDispatchQue;
 };
 
 void Server::setCloseCallback(const ServerCloseCall& call)

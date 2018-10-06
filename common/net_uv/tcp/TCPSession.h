@@ -1,17 +1,11 @@
 #pragma once
 
 #include "TCPSocket.h"
-#include "TCPThreadMsg.h"
 
 NS_NET_UV_BEGIN
 
 class TCPSession;
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-using TCPSessionRecvCall = std::function<void(TCPSession* session, char* data, unsigned int len, TCPMsgTag tag)>;
-#else
-using TCPSessionRecvCall = std::function<void(TCPSession* session, char* data, unsigned int len)>;
-#endif
 class NET_UV_EXTERN TCPSession : public Session
 {
 public:
@@ -25,7 +19,7 @@ public:
 	
 protected:
 
-	static TCPSession* createSession(SessionManager* sessionManager, TCPSocket* socket, const TCPSessionRecvCall& call);
+	static TCPSession* createSession(SessionManager* sessionManager, TCPSocket* socket, const SessionRecvCall& call);
 
 	TCPSession(SessionManager* sessionManager);
 
@@ -35,14 +29,14 @@ protected:
 
 	virtual void executeDisconnect() override;
 
+	virtual bool executeConnect(const char* ip, unsigned int port)override;
+
 	virtual void setIsOnline(bool isOnline)override;
 
 protected:
 
 	bool initWithSocket(TCPSocket* socket);
 	
-	inline void setMsgCallback(const TCPSessionRecvCall& call);
-
 	inline TCPSocket* getTCPSocket();
 
 protected:
@@ -55,17 +49,10 @@ protected:
 	friend class TCPClient;
 
 protected:	
-	TCPSessionRecvCall m_recvCallback;
 
 	Buffer* m_recvBuffer;
 	TCPSocket* m_socket;
 };
-
-
-void TCPSession::setMsgCallback(const TCPSessionRecvCall& call)
-{
-	m_recvCallback = std::move(call);
-}
 
 TCPSocket* TCPSession::getTCPSocket()
 {

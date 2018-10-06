@@ -3,11 +3,6 @@
 
 #include "TCPSocket.h"
 #include "TCPSession.h"
-#include "TCPThreadMsg.h"
-#include <list>
-#include <map>
-#include <vector>
-#include <queue>
 
 NS_NET_UV_BEGIN
 
@@ -28,7 +23,7 @@ class NET_UV_EXTERN TCPServer : public Server
 	{
 		tcpSessionData()
 		{
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 			curHeartTime = 0;
 			curHeartCount = 0;
 #endif
@@ -37,7 +32,7 @@ class NET_UV_EXTERN TCPServer : public Server
 		}
 		TCPSession* session;
 		bool isInvalid;
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 		int curHeartTime;
 		int curHeartCount;
 #endif
@@ -80,15 +75,11 @@ protected:
 
 	void onServerIdleRun();
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-	void onSessionRecvData(TCPSession* session, char* data, unsigned int len, TCPMsgTag tag);
-#else
-	void onSessionRecvData(TCPSession* session, char* data, unsigned int len);
-#endif
+	void onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag);
 	
 protected:
 
-	void pushThreadMsg(TCPThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0, const TCPMsgTag& tag = TCPMsgTag::MT_DEFAULT);
+	void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0, const NetMsgTag& tag = NetMsgTag::MT_DEFAULT);
 
 	void addNewSession(TCPSession* session);
 
@@ -96,7 +87,7 @@ protected:
 
 	void clearData();
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 	void heartRun();
 #endif
 
@@ -111,16 +102,11 @@ protected:
 
 	uv_idle_t m_idle;
 	uv_loop_t m_loop;
-
-	// 线程消息
-	Mutex m_msgMutex;
-	std::queue<TCPThreadMsg_S> m_msgQue;
-	std::queue<TCPThreadMsg_S> m_msgDispatchQue;
-
+	
 	// 服务器所处阶段
 	ServerStage m_serverStage;
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 	uv_timer_t* m_heartTimer;
 #endif
 
@@ -132,7 +118,7 @@ protected:
 
 	static void uv_on_idle_run(uv_idle_t* handle);
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 	static void uv_heart_timer_callback(uv_timer_t* handle);
 #endif
 };

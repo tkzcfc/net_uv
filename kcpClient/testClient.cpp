@@ -1,6 +1,6 @@
-#include "net_uv/tcp/TCPServer.h"
-#include "net_uv/tcp/TCPClient.h"
-#include "net_uv/tcp/TCPSession.h"
+#include "net_uv/kcp/KCPServer.h"
+#include "net_uv/kcp/KCPClient.h"
+#include "net_uv/kcp/KCPSession.h"
 
 NS_NET_UV_OPEN
 
@@ -13,18 +13,19 @@ LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
 
 #define CONNECT_IP "127.0.0.1"
 //#define CONNECT_IP "www.kurumi.xin"
-#define CONNECT_PORT 1001
+#define CONNECT_PORT 1234
 
 bool autosend = true;
 unsigned int keyIndex = 0;
 char *szWriteBuf = new char[1024];
 
+bool clientClose = false;
 
 
 // 命令解析
 bool cmdResolve(char* cmd, unsigned int key);
 
-TCPClient* client = new TCPClient();
+KCPClient* client = new KCPClient();
 
 void main()
 {
@@ -32,21 +33,20 @@ void main()
 	// 注册异常处理函数
 	SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)ApplicationCrashHandler);
 #endif
-	// 开启自动连接
-	client->setAutoReconnect(true);
 
-	client->setClientCloseCallback([](Client*) 
+	client->setClientCloseCallback([](Client*)
 	{
+		clientClose = true;
 		printf("客户端已关闭\n");
 	});
 
-	client->setConnectCallback([=](Client*, Session* session, int status) 
+	client->setConnectCallback([=](Client*, Session* session, int status)
 	{
 		if (status == 0)
 		{
 			printf("[%d]连接失败\n", session->getSessionID());
 		}
-		else if(status == 1)
+		else if (status == 1)
 		{
 			printf("[%d]连接成功\n", session->getSessionID());
 		}
@@ -99,15 +99,15 @@ void main()
 	}
 
 	int curCount = 0;
-	while (!client->isCloseFinish())
+	while (!clientClose)
 	{
 		client->updateFrame();
-		
+
 		//自动发送
 		if (autosend)
 		{
 			curCount++;
-			if (curCount > 40)
+			if (curCount > 200)
 			{
 				for (int i = 0; i < keyIndex; ++i)
 				{
@@ -151,14 +151,6 @@ bool cmdResolve(char* cmd, unsigned int key)
 		//新添加连接
 		client->connect(CONNECT_IP, CONNECT_PORT, keyIndex++);
 	}
-	else if (CMD_STRCMP("closea"))
-	{
-		client->setAutoReconnect(false);
-	}
-	else if (CMD_STRCMP("opena"))
-	{
-		client->setAutoReconnect(true);
-	}
 	else if (CMD_STRCMP("close"))
 	{
 		client->closeClient();
@@ -177,7 +169,7 @@ bool cmdResolve(char* cmd, unsigned int key)
 	}
 	else if (CMD_STRCMP("big"))
 	{
-		int msgLen = TCP_WRITE_MAX_LEN * 100;
+		int msgLen = KCP_WRITE_MAX_LEN * 100;
 		char* szMsg = (char*)fc_malloc(msgLen);
 		for (int i = 0; i < msgLen; ++i)
 		{
@@ -212,7 +204,7 @@ void CreateDempFile(LPCWSTR lpstrDumpFilePathName, EXCEPTION_POINTERS* pExceptio
 
 LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException)
 {
-	CreateDempFile(TEXT("tcpClient.dmp"), pException);
+	CreateDempFile(TEXT("udpClient.dmp"), pException);
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 #endif

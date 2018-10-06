@@ -23,7 +23,7 @@ TCPServer::TCPServer()
 {
 	m_serverStage = ServerStage::STOP;
 	
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 	m_heartTimer = (uv_timer_t*)fc_malloc(sizeof(uv_timer_t));
 #endif
 }
@@ -34,7 +34,7 @@ TCPServer::~TCPServer()
 	this->join();
 	clearData();
 	
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 	fc_free(m_heartTimer);
 #endif
 
@@ -93,39 +93,39 @@ void TCPServer::updateFrame()
 	bool closeServerTag = false;
 	while (!m_msgDispatchQue.empty())
 	{
-		const TCPThreadMsg_S& Msg = m_msgDispatchQue.front();
+		const NetThreadMsg_S& Msg = m_msgDispatchQue.front();
 
 		switch (Msg.msgType)
 		{
-		case TCPThreadMsgType::RECV_DATA:
+		case NetThreadMsgType::RECV_DATA:
 		{
 			m_recvCall(this, Msg.pSession, Msg.data, Msg.dataLen);
 			fc_free(Msg.data);
 		}break;
-		case TCPThreadMsgType::START_SERVER_SUC:
+		case NetThreadMsgType::START_SERVER_SUC:
 		{
 			if (m_startCall != nullptr)
 			{
 				m_startCall(this, true);
 			}
 		}break;
-		case TCPThreadMsgType::START_SERVER_FAIL:
+		case NetThreadMsgType::START_SERVER_FAIL:
 		{
 			if (m_startCall != nullptr)
 			{
 				m_startCall(this, false);
 			}
 		}break;
-		case TCPThreadMsgType::NEW_CONNECT:
+		case NetThreadMsgType::NEW_CONNECT:
 		{
 			m_newConnectCall(this, Msg.pSession);
 		}break;
-		case TCPThreadMsgType::DIS_CONNECT:
+		case NetThreadMsgType::DIS_CONNECT:
 		{
 			m_disconnectCall(this, Msg.pSession);
 			pushOperation(TCP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD, NULL, 0, Msg.pSession->getSessionID());
 		}break;
-		case TCPThreadMsgType::EXIT_LOOP:
+		case NetThreadMsgType::EXIT_LOOP:
 		{
 			closeServerTag = true;
 		}break;
@@ -143,10 +143,10 @@ void TCPServer::updateFrame()
 void TCPServer::send(Session* session, char* data, unsigned int len)
 {
 	int bufCount = 0;
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-	uv_buf_t* bufArr = packageData(data, len, &bufCount, TCPMsgTag::MT_DEFAULT);
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	uv_buf_t* bufArr = tcp_packageData(data, len, &bufCount, NetMsgTag::MT_DEFAULT);
 #else
-	uv_buf_t* bufArr = packageData(data, len, &bufCount);
+	uv_buf_t* bufArr = tcp_packageData(data, len, &bufCount);
 #endif
 	if (bufArr == NULL)
 		return;
@@ -179,17 +179,17 @@ void TCPServer::run()
 
 	uv_idle_start(&m_idle, uv_on_idle_run);
 	
-#if OPEN_UV_THREAD_HEARTBEAT == 1 
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1 
 	m_heartTimer->data = this;
 	uv_timer_init(&m_loop, m_heartTimer);
-	uv_timer_start(m_heartTimer, TCPServer::uv_heart_timer_callback, HEARTBEAT_TIMER_DELAY, HEARTBEAT_TIMER_DELAY);
+	uv_timer_start(m_heartTimer, TCPServer::uv_heart_timer_callback, TCP_HEARTBEAT_TIMER_DELAY, TCP_HEARTBEAT_TIMER_DELAY);
 #endif
 
 	m_server = (TCPSocket*)fc_malloc(sizeof(TCPSocket));
 	if (m_server == NULL)
 	{
 		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(TCPThreadMsgType::START_SERVER_FAIL, NULL);
+		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
 	}
 	new (m_server) TCPSocket(&m_loop);
@@ -213,7 +213,7 @@ void TCPServer::run()
 		m_server = NULL;
 
 		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(TCPThreadMsgType::START_SERVER_FAIL, NULL);
+		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
 	}
 
@@ -225,22 +225,22 @@ void TCPServer::run()
 		m_server = NULL;
 
 		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(TCPThreadMsgType::START_SERVER_FAIL, NULL);
+		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
 	}
 	m_serverStage = ServerStage::RUN;
-	pushThreadMsg(TCPThreadMsgType::START_SERVER_SUC, NULL);
+	pushThreadMsg(NetThreadMsgType::START_SERVER_SUC, NULL);
 
 	uv_run(&m_loop, UV_RUN_DEFAULT);
 
-	uv_loop_close(&m_loop);
-	
 	m_server->~TCPSocket();
 	fc_free(m_server);
 	m_server = NULL;
+
+	uv_loop_close(&m_loop);
 	
 	m_serverStage = ServerStage::STOP;
-	pushThreadMsg(TCPThreadMsgType::EXIT_LOOP, NULL);
+	pushThreadMsg(NetThreadMsgType::EXIT_LOOP, NULL);
 }
 
 
@@ -249,11 +249,7 @@ void TCPServer::onNewConnect(uv_stream_t* server, int status)
 	TCPSocket* client = m_server->accept(server, status);
 	if (client != NULL)
 	{
-#if OPEN_UV_THREAD_HEARTBEAT == 1
 		TCPSession* session = TCPSession::createSession(this, client, std::bind(&TCPServer::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
-#else
-		TCPSession* session = TCPSession::createSession(this, client, std::bind(&TCPServer::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-#endif
 		if (session == NULL)
 		{
 			NET_UV_LOG(NET_UV_L_ERROR, "服务器创建新会话失败,可能是内存不足");
@@ -276,24 +272,24 @@ void TCPServer::onServerSocketClose(Socket* svr)
 	m_serverStage = ServerStage::CLEAR;
 }
 
-void TCPServer::pushThreadMsg(TCPThreadMsgType type, Session* session, char* data, unsigned int len, const TCPMsgTag& tag)
+void TCPServer::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, unsigned int len, const NetMsgTag& tag)
 {
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-	if (type == TCPThreadMsgType::RECV_DATA)
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	if (type == NetThreadMsgType::RECV_DATA)
 	{
 		auto it = m_allSession.find(session->getSessionID());
 		if (it != m_allSession.end())
 		{
-			it->second.curHeartCount = HEARTBEAT_COUNT_RESET_VALUE_SERVER;
+			it->second.curHeartCount = TCP_HEARTBEAT_COUNT_RESET_VALUE_SERVER;
 			it->second.curHeartTime = 0;
-			if (tag == TCPMsgTag::MT_HEARTBEAT)
+			if (tag == NetMsgTag::MT_HEARTBEAT)
 			{
-				if (len == HEARTBEAT_MSG_SIZE)
+				if (len == TCP_HEARTBEAT_MSG_SIZE)
 				{
-					if (*((char*)data) == HEARTBEAT_MSG_C2S)
+					if (*((char*)data) == TCP_HEARTBEAT_MSG_C2S)
 					{
 						unsigned int sendlen = 0;
-						char* senddata = packageHeartMsgData(HEARTBEAT_RET_MSG_S2C, &sendlen);
+						char* senddata = tcp_packageHeartMsgData(TCP_HEARTBEAT_RET_MSG_S2C, &sendlen);
 						it->second.session->executeSend(senddata, sendlen);
 						NET_UV_LOG(NET_UV_L_HEART, "recv heart c->s");
 					}
@@ -309,7 +305,7 @@ void TCPServer::pushThreadMsg(TCPThreadMsgType type, Session* session, char* dat
 	}
 #endif
 
-	TCPThreadMsg_S msg;
+	NetThreadMsg_S msg;
 	msg.msgType = type;
 	msg.data = data;
 	msg.dataLen = len;
@@ -330,8 +326,8 @@ void TCPServer::addNewSession(TCPSession* session)
 	tcpSessionData data;
 	data.isInvalid = false;
 	data.session = session;
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-	data.curHeartCount = HEARTBEAT_COUNT_RESET_VALUE_SERVER;
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	data.curHeartCount = TCP_HEARTBEAT_COUNT_RESET_VALUE_SERVER;
 	data.curHeartTime = 0;
 #endif
 	session->setSessionID(m_sessionID);
@@ -339,7 +335,7 @@ void TCPServer::addNewSession(TCPSession* session)
 
 	m_sessionID++;
 
-	pushThreadMsg(TCPThreadMsgType::NEW_CONNECT, session);
+	pushThreadMsg(NetThreadMsgType::NEW_CONNECT, session);
 	//NET_UV_LOG(NET_UV_L_INFO, "[%p] add", session);
 }
 
@@ -355,21 +351,14 @@ void TCPServer::onSessionClose(Session* session)
 		it->second.isInvalid = true;
 	}
 
-	pushThreadMsg(TCPThreadMsgType::DIS_CONNECT, session);
+	pushThreadMsg(NetThreadMsgType::DIS_CONNECT, session);
 	//NET_UV_LOG(NET_UV_L_INFO, "[%p] remove", session);
 }
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-void TCPServer::onSessionRecvData(TCPSession* session, char* data, unsigned int len, TCPMsgTag tag)
+void TCPServer::onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag)
 {
-	pushThreadMsg(TCPThreadMsgType::RECV_DATA, session, data, len, tag);
+	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len, tag);
 }
-#else
-void TCPServer::onSessionRecvData(TCPSession* session, char* data, unsigned int len)
-{
-	pushThreadMsg(TCPThreadMsgType::RECV_DATA, session, data, len, TCPMsgTag::MT_DEFAULT);
-}
-#endif
 
 
 void TCPServer::onServerIdleRun()
@@ -461,7 +450,7 @@ void TCPServer::executeOperation()
 		}break;
 		case TCP_SVR_OP_STOP_SERVER:
 		{
-#if OPEN_UV_THREAD_HEARTBEAT == 1 
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1 
 			uv_timer_stop(m_heartTimer);
 #endif
 			for (auto & it : m_allSession)
@@ -481,21 +470,21 @@ void TCPServer::executeOperation()
 	}
 }
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 void TCPServer::heartRun()
 {
 	for (auto &it : m_allSession)
 	{
 		if (!it.second.isInvalid)
 		{
-			it.second.curHeartTime += HEARTBEAT_TIMER_DELAY;
-			if (it.second.curHeartTime >= HEARTBEAT_CHECK_DELAY)
+			it.second.curHeartTime += TCP_HEARTBEAT_TIMER_DELAY;
+			if (it.second.curHeartTime >= TCP_HEARTBEAT_CHECK_DELAY)
 			{
 				it.second.curHeartTime = 0;
 				it.second.curHeartCount++;
 				if (it.second.curHeartCount > 0)
 				{
-					if (it.second.curHeartCount > HEARTBEAT_MAX_COUNT_SERVER)
+					if (it.second.curHeartCount > TCP_HEARTBEAT_MAX_COUNT_SERVER)
 					{
 						it.second.curHeartCount = 0;
 						it.second.session->executeDisconnect();
@@ -503,7 +492,7 @@ void TCPServer::heartRun()
 					else
 					{
 						unsigned int sendlen = 0;
-						char* senddata = packageHeartMsgData(HEARTBEAT_MSG_S2C, &sendlen);
+						char* senddata = tcp_packageHeartMsgData(TCP_HEARTBEAT_MSG_S2C, &sendlen);
 						it.second.session->executeSend(senddata, sendlen);
 						NET_UV_LOG(NET_UV_L_HEART, "send heart s->c");
 					}
@@ -545,7 +534,7 @@ void TCPServer::uv_on_idle_run(uv_idle_t* handle)
 	s->onServerIdleRun();
 }
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 void TCPServer::uv_heart_timer_callback(uv_timer_t* handle)
 {
 	TCPServer* s = (TCPServer*)handle->data;

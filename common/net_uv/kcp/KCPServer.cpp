@@ -1,4 +1,5 @@
 #include "KCPServer.h"
+#include "KCPUtils.h"
 
 NS_NET_UV_BEGIN
 
@@ -10,12 +11,21 @@ enum
 	KCP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD,//向主线程发送会话已断开
 };
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 KCPServer::KCPServer()
 	: m_start(false)
+	, m_port(0)
 	, m_server(NULL)
 	, m_isIPV6(false)
+	, m_sessionID(0)
 {
 	m_serverStage = ServerStage::STOP;
+
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	m_heartTimer = (uv_timer_t*)fc_malloc(sizeof(uv_timer_t));
+#endif
 }
 
 KCPServer::~KCPServer()
@@ -24,10 +34,13 @@ KCPServer::~KCPServer()
 	this->join();
 	clearData();
 
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	fc_free(m_heartTimer);
+#endif
+
 	NET_UV_LOG(NET_UV_L_INFO, "KCPServer destroy...");
 }
 
-///KCPServer
 void KCPServer::startServer(const char* ip, int port, bool isIPV6)
 {
 	if (m_serverStage != ServerStage::STOP)
@@ -57,7 +70,6 @@ bool KCPServer::stopServer()
 	return true;
 }
 
-// 主线程轮询
 void KCPServer::updateFrame()
 {
 	if (m_msgMutex.trylock() != 0)
@@ -81,39 +93,39 @@ void KCPServer::updateFrame()
 	bool closeServerTag = false;
 	while (!m_msgDispatchQue.empty())
 	{
-		const UDPThreadMsg_S& Msg = m_msgDispatchQue.front();
+		const NetThreadMsg_S& Msg = m_msgDispatchQue.front();
 
 		switch (Msg.msgType)
 		{
-		case UDPThreadMsgType::RECV_DATA:
+		case NetThreadMsgType::RECV_DATA:
 		{
 			m_recvCall(this, Msg.pSession, Msg.data, Msg.dataLen);
 			fc_free(Msg.data);
 		}break;
-		case UDPThreadMsgType::START_SERVER_SUC:
+		case NetThreadMsgType::START_SERVER_SUC:
 		{
 			if (m_startCall != nullptr)
 			{
 				m_startCall(this, true);
 			}
 		}break;
-		case UDPThreadMsgType::START_SERVER_FAIL:
+		case NetThreadMsgType::START_SERVER_FAIL:
 		{
 			if (m_startCall != nullptr)
 			{
 				m_startCall(this, false);
 			}
 		}break;
-		case UDPThreadMsgType::NEW_CONNECT:
+		case NetThreadMsgType::NEW_CONNECT:
 		{
 			m_newConnectCall(this, Msg.pSession);
 		}break;
-		case UDPThreadMsgType::DIS_CONNECT:
+		case NetThreadMsgType::DIS_CONNECT:
 		{
 			m_disconnectCall(this, Msg.pSession);
 			pushOperation(KCP_SVR_OP_SEND_DIS_SESSION_MSG_TO_MAIN_THREAD, NULL, 0, Msg.pSession->getSessionID());
 		}break;
-		case UDPThreadMsgType::EXIT_LOOP:
+		case NetThreadMsgType::EXIT_LOOP:
 		{
 			closeServerTag = true;
 		}break;
@@ -128,12 +140,22 @@ void KCPServer::updateFrame()
 	}
 }
 
-/// SessionManager
 void KCPServer::send(Session* session, char* data, unsigned int len)
 {
-	char* pSendData = (char*)fc_malloc(len);
-	memcpy(pSendData, data, len);
-	pushOperation(KCP_SVR_OP_SEND_DATA, data, len, session->getSessionID());
+	int bufCount = 0;
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	uv_buf_t* bufArr = kcp_packageData(data, len, &bufCount, NetMsgTag::MT_DEFAULT);
+#else
+	uv_buf_t* bufArr = kcp_packageData(data, len, &bufCount);
+#endif
+	if (bufArr == NULL)
+		return;
+
+	for (int i = 0; i < bufCount; ++i)
+	{
+		pushOperation(KCP_SVR_OP_SEND_DATA, (bufArr + i)->base, (bufArr + i)->len, session->getSessionID());
+	}
+	fc_free(bufArr);
 }
 
 void KCPServer::disconnect(Session* session)
@@ -141,7 +163,11 @@ void KCPServer::disconnect(Session* session)
 	pushOperation(KCP_SVR_OP_DIS_SESSION, NULL, 0, session->getSessionID());
 }
 
-/// Runnable
+bool KCPServer::isCloseFinish()
+{
+	return (m_serverStage == ServerStage::STOP);
+}
+
 void KCPServer::run()
 {
 	int r = uv_loop_init(&m_loop);
@@ -153,16 +179,23 @@ void KCPServer::run()
 
 	uv_idle_start(&m_idle, uv_on_idle_run);
 
-	m_server = (UDPSocket*)fc_malloc(sizeof(UDPSocket));
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1 
+	m_heartTimer->data = this;
+	uv_timer_init(&m_loop, m_heartTimer);
+	uv_timer_start(m_heartTimer, KCPServer::uv_heart_timer_callback, KCP_HEARTBEAT_TIMER_DELAY, KCP_HEARTBEAT_TIMER_DELAY);
+#endif
+
+	m_server = (KCPSocket*)fc_malloc(sizeof(KCPSocket));
 	if (m_server == NULL)
 	{
 		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(UDPThreadMsgType::START_SERVER_FAIL, NULL);
+		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
 	}
-	new (m_server) UDPSocket(&m_loop);
+	new (m_server) KCPSocket(&m_loop);
 	m_server->setCloseCallback(std::bind(&KCPServer::onServerSocketClose, this, std::placeholders::_1));
-	m_server->setReadCallback(std::bind(&KCPServer::onServerSocketRead, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+	m_server->setNewConnectionCallback(std::bind(&KCPServer::onNewConnect, this, std::placeholders::_1));
+	m_server->setConnectFilterCallback(std::bind(&KCPServer::onServerSocketConnectFilter, this, std::placeholders::_1));
 
 	bool suc = false;
 	if (m_isIPV6)
@@ -176,42 +209,196 @@ void KCPServer::run()
 
 	if (!suc)
 	{
-		m_server->~UDPSocket();
+		m_server->~KCPSocket();
 		fc_free(m_server);
 		m_server = NULL;
 
 		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(UDPThreadMsgType::START_SERVER_FAIL, NULL);
+		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
 	}
 
 	suc = m_server->listen();
 	if (!suc)
 	{
-		m_server->~UDPSocket();
+		m_server->~KCPSocket();
 		fc_free(m_server);
 		m_server = NULL;
 
 		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(UDPThreadMsgType::START_SERVER_FAIL, NULL);
+		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
 		return;
 	}
 	m_serverStage = ServerStage::RUN;
-	pushThreadMsg(UDPThreadMsgType::START_SERVER_SUC, NULL);
+	pushThreadMsg(NetThreadMsgType::START_SERVER_SUC, NULL);
 
 	uv_run(&m_loop, UV_RUN_DEFAULT);
 
-	uv_loop_close(&m_loop);
-
-	m_server->~UDPSocket();
+	m_server->~KCPSocket();
 	fc_free(m_server);
 	m_server = NULL;
 
+	uv_loop_close(&m_loop);
+
 	m_serverStage = ServerStage::STOP;
-	pushThreadMsg(UDPThreadMsgType::EXIT_LOOP, NULL);
+	pushThreadMsg(NetThreadMsgType::EXIT_LOOP, NULL);
 }
 
-/// SessionManager
+
+void KCPServer::onNewConnect(Socket* socket)
+{
+	if (socket != NULL)
+	{
+		KCPSession* session = KCPSession::createSession(this, (KCPSocket*)socket, std::bind(&KCPServer::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+		if (session == NULL)
+		{
+			NET_UV_LOG(NET_UV_L_ERROR, "服务器创建新会话失败,可能是内存不足");
+		}
+		else
+		{
+			session->setIsOnline(true);
+			session->setSessionClose(std::bind(&KCPServer::onSessionClose, this, std::placeholders::_1));
+			session->setSessionID(((KCPSocket*)socket)->getConv());
+			addNewSession(session);
+		}
+	}
+	else
+	{
+		NET_UV_LOG(NET_UV_L_ERROR, "接受新连接失败");
+	}
+}
+
+void KCPServer::onServerSocketClose(Socket* svr)
+{
+	m_serverStage = ServerStage::CLEAR;
+}
+
+bool KCPServer::onServerSocketConnectFilter(const struct sockaddr* addr)
+{
+	return true;
+}
+
+void KCPServer::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, unsigned int len, const NetMsgTag& tag)
+{
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	if (type == NetThreadMsgType::RECV_DATA)
+	{
+		auto it = m_allSession.find(session->getSessionID());
+		if (it != m_allSession.end())
+		{
+			it->second.curHeartCount = KCP_HEARTBEAT_COUNT_RESET_VALUE_SERVER;
+			it->second.curHeartTime = 0;
+			if (tag == NetMsgTag::MT_HEARTBEAT)
+			{
+				if (len == KCP_HEARTBEAT_MSG_SIZE)
+				{
+					if (*((char*)data) == KCP_HEARTBEAT_MSG_C2S)
+					{
+						unsigned int sendlen = 0;
+						char* senddata = kcp_packageHeartMsgData(KCP_HEARTBEAT_RET_MSG_S2C, &sendlen);
+						it->second.session->executeSend(senddata, sendlen);
+						NET_UV_LOG(NET_UV_L_HEART, "recv heart c->s");
+					}
+				}
+				else// 不合法心跳
+				{
+					it->second.session->disconnect();
+				}
+				fc_free(data);
+				return;
+			}
+		}
+	}
+#endif
+
+	NetThreadMsg_S msg;
+	msg.msgType = type;
+	msg.data = data;
+	msg.dataLen = len;
+	msg.pSession = session;
+	msg.tag = tag;
+
+	m_msgMutex.lock();
+	m_msgQue.push(msg);
+	m_msgMutex.unlock();
+}
+
+void KCPServer::addNewSession(KCPSession* session)
+{
+	if (session == NULL)
+	{
+		return;
+	}
+	kcpSessionData data;
+	data.isInvalid = false;
+	data.session = session;
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	data.curHeartCount = KCP_HEARTBEAT_COUNT_RESET_VALUE_SERVER;
+	data.curHeartTime = 0;
+#endif
+	session->setSessionID(m_sessionID);
+	m_allSession.insert(std::make_pair(m_sessionID, data));
+
+	m_sessionID++;
+
+	pushThreadMsg(NetThreadMsgType::NEW_CONNECT, session);
+	//NET_UV_LOG(NET_UV_L_INFO, "[%p] add", session);
+}
+
+void KCPServer::onSessionClose(Session* session)
+{
+	if (session == NULL)
+	{
+		return;
+	}
+	auto it = m_allSession.find(session->getSessionID());
+	if (it != m_allSession.end())
+	{
+		it->second.isInvalid = true;
+	}
+
+	pushThreadMsg(NetThreadMsgType::DIS_CONNECT, session);
+	//NET_UV_LOG(NET_UV_L_INFO, "[%p] remove", session);
+}
+
+void KCPServer::onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag)
+{
+	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len, tag);
+}
+
+
+void KCPServer::onServerIdleRun()
+{
+	executeOperation();
+	switch (m_serverStage)
+	{
+	case KCPServer::ServerStage::CLEAR:
+	{
+		for (auto& it : m_allSession)
+		{
+			if (!it.second.isInvalid)
+			{
+				it.second.session->executeDisconnect();
+			}
+		}
+		m_serverStage = ServerStage::WAIT_SESSION_CLOSE;
+	}
+	break;
+	case KCPServer::ServerStage::WAIT_SESSION_CLOSE:
+	{
+		if (m_allSession.empty())
+		{
+			uv_stop(&m_loop);
+			m_serverStage = ServerStage::STOP;
+		}
+	}
+	break;
+	default:
+		break;
+	}
+	ThreadSleep(1);
+}
+
 void KCPServer::executeOperation()
 {
 	if (m_operationMutex.trylock() != 0)
@@ -262,13 +449,16 @@ void KCPServer::executeOperation()
 			auto it = m_allSession.find(curOperation.sessionID);
 			if (it != m_allSession.end())
 			{
-				it->second.session->~KcpSession();
+				it->second.session->~KCPSession();
 				fc_free(it->second.session);
 				it = m_allSession.erase(it);
 			}
 		}break;
 		case KCP_SVR_OP_STOP_SERVER:
 		{
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1 
+			uv_timer_stop(m_heartTimer);
+#endif
 			for (auto & it : m_allSession)
 			{
 				if (!it.second.isInvalid)
@@ -286,37 +476,39 @@ void KCPServer::executeOperation()
 	}
 }
 
-void KCPServer::idleRun()
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+void KCPServer::heartRun()
 {
-	executeOperation();
-	switch (m_serverStage)
+	for (auto &it : m_allSession)
 	{
-	case KCPServer::ServerStage::CLEAR:
-	{
-		for (auto& it : m_allSession)
+		if (!it.second.isInvalid)
 		{
-			if (!it.second.isInvalid)
+			it.second.curHeartTime += KCP_HEARTBEAT_TIMER_DELAY;
+			if (it.second.curHeartTime >= KCP_HEARTBEAT_CHECK_DELAY)
 			{
-				it.second.session->executeDisconnect();
+				it.second.curHeartTime = 0;
+				it.second.curHeartCount++;
+				if (it.second.curHeartCount > 0)
+				{
+					if (it.second.curHeartCount > KCP_HEARTBEAT_MAX_COUNT_SERVER)
+					{
+						it.second.curHeartCount = 0;
+						it.second.session->executeDisconnect();
+					}
+					else
+					{
+						unsigned int sendlen = 0;
+						char* senddata = kcp_packageHeartMsgData(KCP_HEARTBEAT_MSG_S2C, &sendlen);
+						it.second.session->executeSend(senddata, sendlen);
+						NET_UV_LOG(NET_UV_L_HEART, "send heart s->c");
+					}
+				}
 			}
 		}
-		m_serverStage = ServerStage::WAIT_SESSION_CLOSE;
 	}
-	break;
-	case KCPServer::ServerStage::WAIT_SESSION_CLOSE:
-	{
-		if (m_allSession.empty())
-		{
-			uv_stop(&m_loop);
-			m_serverStage = ServerStage::STOP;
-		}
-	}
-	break;
-	default:
-		break;
-	}
-	ThreadSleep(1);
 }
+#endif
+
 
 void KCPServer::clearData()
 {
@@ -340,89 +532,20 @@ void KCPServer::clearData()
 	}
 }
 
-void KCPServer::pushThreadMsg(UDPThreadMsgType type, Session* session, char* data, unsigned int len)
-{
-	UDPThreadMsg_S msg;
-	msg.msgType = type;
-	msg.data = data;
-	msg.dataLen = len;
-	msg.pSession = session;
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	m_msgMutex.lock();
-	m_msgQue.push(msg);
-	m_msgMutex.unlock();
-}
-
-void KCPServer::onServerSocketClose(Socket* svr)
-{
-	m_serverStage = ServerStage::CLEAR;
-}
-
-void KCPServer::onServerSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
-{
-	IUINT32 conv = ikcp_getconv(buf->base);
-	auto it = m_allSession.find(conv);
-	if (it == m_allSession.end())
-	{
-		char szIp[17] = { 0 };
-		int r = uv_ip4_name((const struct sockaddr_in*) addr, szIp, 16);
-		if (r != 0)
-		{
-			NET_UV_LOG(NET_UV_L_ERROR, "服务器创建新会话失败,地址解析失败");
-			return;
-		}
-		struct sockaddr* socketAddr = (struct sockaddr*)fc_malloc(sizeof(struct sockaddr));
-		memcpy(socketAddr, addr, sizeof(struct sockaddr));
-
-		UDPSocket* socket = (UDPSocket*)fc_malloc(sizeof(UDPSocket));
-		new (socket)UDPSocket(&m_loop, m_server->getUdp());
-		socket->setSocketAddr(socketAddr);
-		socket->setIp(szIp);
-		
-		KcpSession* session = KcpSession::createSession(this, socket, conv);
-		if (session == NULL)
-		{
-			NET_UV_LOG(NET_UV_L_ERROR, "服务器创建新会话失败,可能是内存不足");
-			return;
-		}
-		session->setSessionClose(std::bind(&KCPServer::onSessionClose, this, std::placeholders::_1));
-		session->setSessionID(conv);
-
-		tcpSessionData data;
-		data.isInvalid = false;
-		data.session = session;
-
-		m_allSession.insert(std::make_pair(conv, data));
-		pushThreadMsg(UDPThreadMsgType::NEW_CONNECT, session);
-
-		session->input(buf->base, nread);
-	}
-	else
-	{
-		it->second.session->input(buf->base, nread);
-	}
-}
-
-void KCPServer::onSessionClose(Session* session)
-{
-	if (session == NULL)
-	{
-		return;
-	}
-	auto it = m_allSession.find(session->getSessionID());
-	if (it != m_allSession.end())
-	{
-		it->second.isInvalid = true;
-	}
-
-	pushThreadMsg(UDPThreadMsgType::DIS_CONNECT, session);
-}
-
-//////////////////////////////////////////////////////////////////////////
 void KCPServer::uv_on_idle_run(uv_idle_t* handle)
 {
-	KCPServer* svr = (KCPServer*)handle->data;
-	svr->idleRun();
+	KCPServer* s = (KCPServer*)handle->data;
+	s->onServerIdleRun();
 }
+
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+void KCPServer::uv_heart_timer_callback(uv_timer_t* handle)
+{
+	KCPServer* s = (KCPServer*)handle->data;
+	s->heartRun();
+}
+#endif
 
 NS_NET_UV_END

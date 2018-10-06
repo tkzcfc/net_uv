@@ -5,48 +5,39 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="资源文件">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="libuv">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="net_uv">
-      <UniqueIdentifier>{d6bd00ad-bfce-4974-8826-4d5bebefe476}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="net_uv\base">
-      <UniqueIdentifier>{58768b2d-e518-4e97-821a-a853266915db}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="net_uv\tcp">
-      <UniqueIdentifier>{003f9083-7baa-41d8-a878-035cf7072f94}</UniqueIdentifier>
-    </Filter>
     <Filter Include="libuv\include">
-      <UniqueIdentifier>{ea224fee-a07d-4e00-9489-ac8c95bb719a}</UniqueIdentifier>
+      <UniqueIdentifier>{8b2545c9-85e1-43f1-80e6-685baddc22a4}</UniqueIdentifier>
     </Filter>
     <Filter Include="libuv\src">
-      <UniqueIdentifier>{73221f5b-12be-404d-aca5-af2aa10f3c49}</UniqueIdentifier>
+      <UniqueIdentifier>{7b603699-acaf-43e0-b6a9-58699a1ac19c}</UniqueIdentifier>
     </Filter>
     <Filter Include="libuv\src\win">
-      <UniqueIdentifier>{18170d6e-77a2-4bfb-9632-2756447159ff}</UniqueIdentifier>
+      <UniqueIdentifier>{21f20581-e7af-4679-aa41-bf679b88ebcd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="net_uv">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="net_uv\base">
+      <UniqueIdentifier>{a6d662b3-df80-4d75-bd3a-2ed6f1b7aaa1}</UniqueIdentifier>
     </Filter>
     <Filter Include="net_uv\common">
-      <UniqueIdentifier>{192209fc-4b13-4853-a79a-5941717e0976}</UniqueIdentifier>
+      <UniqueIdentifier>{6aab4886-372b-4426-bbef-bb0e1a8e8a10}</UniqueIdentifier>
     </Filter>
     <Filter Include="net_uv\kcp">
-      <UniqueIdentifier>{1da113de-da8f-4497-9041-026e01dd456f}</UniqueIdentifier>
+      <UniqueIdentifier>{eec17ce5-578c-44cc-8163-e38caaff24d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="net_uv\tcp">
+      <UniqueIdentifier>{bfe87ce4-1aa5-438a-8d84-41ba8060fc26}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="testControl.cpp">
+    <ClCompile Include="testServer.cpp">
       <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\libuv\src\threadpool.c">
-      <Filter>libuv\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\libuv\src\uv-common.c">
-      <Filter>libuv\src</Filter>
     </ClCompile>
     <ClCompile Include="..\common\libuv\src\uv-data-getter-setters.c">
       <Filter>libuv\src</Filter>
@@ -59,6 +50,18 @@
     </ClCompile>
     <ClCompile Include="..\common\libuv\src\inet.c">
       <Filter>libuv\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\libuv\src\threadpool.c">
+      <Filter>libuv\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\libuv\src\uv-common.c">
+      <Filter>libuv\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\libuv\src\win\core.c">
+      <Filter>libuv\src\win</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\libuv\src\win\detect-wakeup.c">
+      <Filter>libuv\src\win</Filter>
     </ClCompile>
     <ClCompile Include="..\common\libuv\src\win\dl.c">
       <Filter>libuv\src\win</Filter>
@@ -135,21 +138,6 @@
     <ClCompile Include="..\common\libuv\src\win\async.c">
       <Filter>libuv\src\win</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\libuv\src\win\core.c">
-      <Filter>libuv\src\win</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\libuv\src\win\detect-wakeup.c">
-      <Filter>libuv\src\win</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\base\Mutex.cpp">
-      <Filter>net_uv\base</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\base\Runnable.cpp">
-      <Filter>net_uv\base</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\base\Server.cpp">
-      <Filter>net_uv\base</Filter>
-    </ClCompile>
     <ClCompile Include="..\common\net_uv\base\Session.cpp">
       <Filter>net_uv\base</Filter>
     </ClCompile>
@@ -171,23 +159,14 @@
     <ClCompile Include="..\common\net_uv\base\md5.cpp">
       <Filter>net_uv\base</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\tcp\TCPSocket.cpp">
-      <Filter>net_uv\tcp</Filter>
+    <ClCompile Include="..\common\net_uv\base\Mutex.cpp">
+      <Filter>net_uv\base</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\tcp\TCPUtils.cpp">
-      <Filter>net_uv\tcp</Filter>
+    <ClCompile Include="..\common\net_uv\base\Runnable.cpp">
+      <Filter>net_uv\base</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\tcp\TCPClient.cpp">
-      <Filter>net_uv\tcp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp">
-      <Filter>net_uv\tcp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\tcp\TCPSession.cpp">
-      <Filter>net_uv\tcp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\kcp\KCPSession.cpp">
-      <Filter>net_uv\kcp</Filter>
+    <ClCompile Include="..\common\net_uv\base\Server.cpp">
+      <Filter>net_uv\base</Filter>
     </ClCompile>
     <ClCompile Include="..\common\net_uv\kcp\KCPSocket.cpp">
       <Filter>net_uv\kcp</Filter>
@@ -207,23 +186,26 @@
     <ClCompile Include="..\common\net_uv\kcp\KCPServer.cpp">
       <Filter>net_uv\kcp</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\net_uv\kcp\KCPSession.cpp">
+      <Filter>net_uv\kcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\tcp\TCPSession.cpp">
+      <Filter>net_uv\tcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\tcp\TCPSocket.cpp">
+      <Filter>net_uv\tcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\tcp\TCPUtils.cpp">
+      <Filter>net_uv\tcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\tcp\TCPClient.cpp">
+      <Filter>net_uv\tcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp">
+      <Filter>net_uv\tcp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\common\libuv\include\uv.h">
-      <Filter>libuv\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\libuv\include\uv-aix.h">
-      <Filter>libuv\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\libuv\include\uv-bsd.h">
-      <Filter>libuv\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\libuv\include\uv-darwin.h">
-      <Filter>libuv\include</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\libuv\include\uv-errno.h">
-      <Filter>libuv\include</Filter>
-    </ClInclude>
     <ClInclude Include="..\common\libuv\include\uv-linux.h">
       <Filter>libuv\include</Filter>
     </ClInclude>
@@ -260,6 +242,21 @@
     <ClInclude Include="..\common\libuv\include\tree.h">
       <Filter>libuv\include</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\libuv\include\uv.h">
+      <Filter>libuv\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\libuv\include\uv-aix.h">
+      <Filter>libuv\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\libuv\include\uv-bsd.h">
+      <Filter>libuv\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\libuv\include\uv-darwin.h">
+      <Filter>libuv\include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\libuv\include\uv-errno.h">
+      <Filter>libuv\include</Filter>
+    </ClInclude>
     <ClInclude Include="..\common\libuv\src\uv-common.h">
       <Filter>libuv\src</Filter>
     </ClInclude>
@@ -289,12 +286,6 @@
     </ClInclude>
     <ClInclude Include="..\common\libuv\src\win\atomicops-inl.h">
       <Filter>libuv\src\win</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\base\Mutex.h">
-      <Filter>net_uv\base</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\base\Runnable.h">
-      <Filter>net_uv\base</Filter>
     </ClInclude>
     <ClInclude Include="..\common\net_uv\base\Server.h">
       <Filter>net_uv\base</Filter>
@@ -329,29 +320,14 @@
     <ClInclude Include="..\common\net_uv\base\md5.h">
       <Filter>net_uv\base</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\tcp\TCPSession.h">
-      <Filter>net_uv\tcp</Filter>
+    <ClInclude Include="..\common\net_uv\base\Mutex.h">
+      <Filter>net_uv\base</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\tcp\TCPSocket.h">
-      <Filter>net_uv\tcp</Filter>
+    <ClInclude Include="..\common\net_uv\base\Runnable.h">
+      <Filter>net_uv\base</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\tcp\TCPUtils.h">
-      <Filter>net_uv\tcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\tcp\ThreadMsg.h">
-      <Filter>net_uv\tcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\tcp\TCPClient.h">
-      <Filter>net_uv\tcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\tcp\TCPCommon.h">
-      <Filter>net_uv\tcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h">
-      <Filter>net_uv\tcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\tcp\TCPServer.h">
-      <Filter>net_uv\tcp</Filter>
+    <ClInclude Include="..\common\net_uv\common\NetUVThreadMsg.h">
+      <Filter>net_uv\common</Filter>
     </ClInclude>
     <ClInclude Include="..\common\net_uv\kcp\KCPSession.h">
       <Filter>net_uv\kcp</Filter>
@@ -380,8 +356,26 @@
     <ClInclude Include="..\common\net_uv\kcp\KCPServer.h">
       <Filter>net_uv\kcp</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\common\NetUVThreadMsg.h">
-      <Filter>net_uv\common</Filter>
+    <ClInclude Include="..\common\net_uv\tcp\TCPServer.h">
+      <Filter>net_uv\tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\tcp\TCPSession.h">
+      <Filter>net_uv\tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\tcp\TCPSocket.h">
+      <Filter>net_uv\tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\tcp\TCPUtils.h">
+      <Filter>net_uv\tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\tcp\TCPClient.h">
+      <Filter>net_uv\tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\tcp\TCPCommon.h">
+      <Filter>net_uv\tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h">
+      <Filter>net_uv\tcp</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

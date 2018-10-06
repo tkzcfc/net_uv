@@ -1,6 +1,5 @@
 #pragma once
 
-#include "TCPThreadMsg.h"
 #include "TCPSocket.h"
 #include "TCPSession.h"
 
@@ -74,15 +73,11 @@ protected:
 
 	void onSessionClose(Session* session);
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-	void onSessionRecvData(TCPSession* session, char* data, unsigned int len, TCPMsgTag tag);
-#else
-	void onSessionRecvData(TCPSession* session, char* data, unsigned int len);
-#endif
+	void onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag);
 
 	void createNewConnect(void* data);
 
-	void pushThreadMsg(TCPThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0U, TCPMsgTag tag = TCPMsgTag::MT_DEFAULT);
+	void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0U, NetMsgTag tag = NetMsgTag::MT_DEFAULT);
 
 	void clearData();
 
@@ -90,7 +85,7 @@ protected:
 	TCPClient::clientSessionData* getClientSessionDataBySessionId(unsigned int sessionId);
 	TCPClient::clientSessionData* getClientSessionDataBySession(Session* session);
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 	void heartRun();
 #endif
 
@@ -99,7 +94,7 @@ protected:
 	uv_idle_t m_idle;
 	uv_timer_t m_timer;
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 	uv_timer_t m_heartTimer;
 #endif
 
@@ -121,7 +116,7 @@ protected:
 		std::string ip;
 		unsigned int port;
 		TCPSession* session;
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 		int curHeartTime;
 		int curHeartCount;
 #endif
@@ -129,12 +124,7 @@ protected:
 
 	// 所有会话
 	std::map<unsigned int, clientSessionData*> m_allSessionMap;
-
-	//线程消息队列
-	Mutex m_msgMutex;
-	std::queue<TCPThreadMsg_C> m_msgQue;
-	std::queue<TCPThreadMsg_C> m_msgDispatchQue;
-
+	
 	//客户端所处阶段
 	enum class clientStage
 	{
@@ -149,7 +139,7 @@ protected:
 
 	static void uv_timer_run(uv_timer_t* handle);
 	static void uv_on_idle_run(uv_idle_t* handle);
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 	static void uv_heart_timer_callback(uv_timer_t* handle);
 #endif
 };

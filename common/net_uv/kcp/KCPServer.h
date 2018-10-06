@@ -1,8 +1,8 @@
 #pragma once
 
-#include "KCPCommon.h"
+
+#include "KCPSocket.h"
 #include "KCPSession.h"
-#include "KCPThreadMsg.h"
 
 NS_NET_UV_BEGIN
 
@@ -18,23 +18,34 @@ class NET_UV_EXTERN KCPServer : public Server
 		WAIT_SESSION_CLOSE,// 等待会话关闭
 		STOP		//退出
 	};
-	struct tcpSessionData
+
+	struct kcpSessionData
 	{
-		tcpSessionData()
+		kcpSessionData()
 		{
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+			curHeartTime = 0;
+			curHeartCount = 0;
+#endif
 			isInvalid = false;
 			session = NULL;
 		}
-		KcpSession* session;
+		KCPSession* session;
 		bool isInvalid;
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+		int curHeartTime;
+		int curHeartCount;
+#endif
 	};
+
 public:
 
 	KCPServer();
+	KCPServer(const KCPServer&) = delete;
 
 	virtual ~KCPServer();
 
-	///KCPServer
+	/// Server
 	virtual void startServer(const char* ip, int port, bool isIPV6)override;
 
 	virtual bool stopServer()override;
@@ -46,7 +57,11 @@ public:
 
 	virtual void disconnect(Session* session)override;
 
+	/// KCPServer
+	bool isCloseFinish();
+
 protected:
+
 	/// Runnable
 	virtual void run()override;
 
@@ -54,21 +69,29 @@ protected:
 	virtual void executeOperation()override;
 
 	/// KCPServer
-	void idleRun();
-
-	void clearData();
-
-	void pushThreadMsg(UDPThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0U);
+	void onNewConnect(Socket* socket);
 
 	void onServerSocketClose(Socket* svr);
 
-	void onServerSocketRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
+	bool onServerSocketConnectFilter(const struct sockaddr* addr);
+
+	void onServerIdleRun();
+
+	void onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag);
+	
+protected:
+
+	void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0, const NetMsgTag& tag = NetMsgTag::MT_DEFAULT);
+
+	void addNewSession(KCPSession* session);
 
 	void onSessionClose(Session* session);
 
-protected:
+	void clearData();
 
-	static void uv_on_idle_run(uv_idle_t* handle);
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	void heartRun();
+#endif
 
 protected:
 	bool m_start;
@@ -77,23 +100,31 @@ protected:
 	int m_port;
 	bool m_isIPV6;
 
-	UDPSocket* m_server;
+	KCPSocket* m_server;
+
+	uv_idle_t m_idle;
+	uv_loop_t m_loop;
 
 	// 服务器所处阶段
 	ServerStage m_serverStage;
 
-	// 线程消息
-	Mutex m_msgMutex;
-	std::queue<UDPThreadMsg_S> m_msgQue;
-	std::queue<UDPThreadMsg_S> m_msgDispatchQue;
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	uv_timer_t* m_heartTimer;
+#endif
 
 	// 会话管理
-	std::map<unsigned int, tcpSessionData> m_allSession;
+	std::map<unsigned int, kcpSessionData> m_allSession;
 
-	uv_loop_t m_loop;
-	uv_idle_t m_idle;
+	unsigned int m_sessionID;
+protected:
+
+	static void uv_on_idle_run(uv_idle_t* handle);
+
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	static void uv_heart_timer_callback(uv_timer_t* handle);
+#endif
 };
 
 
-NS_NET_UV_END
 
+NS_NET_UV_END

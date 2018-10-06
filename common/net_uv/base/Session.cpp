@@ -7,6 +7,8 @@ Session::Session(SessionManager* manager)
 	: m_sessionManager(manager)
 	, m_isOnline(false)
 	, m_sessionID(-1)
+	, m_sessionRecvCallback(nullptr)
+	, m_sessionCloseCallback(nullptr)
 {}
 
 Session::~Session()

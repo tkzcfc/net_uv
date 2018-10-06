@@ -19,7 +19,7 @@ public:
 	
 protected:
 
-	static KCPSession* createSession(SessionManager* sessionManager, KCPSocket* socket);
+	static KCPSession* createSession(SessionManager* sessionManager, KCPSocket* socket, const SessionRecvCall& call);
 
 	KCPSession(SessionManager* sessionManager);
 
@@ -29,6 +29,10 @@ protected:
 	virtual void executeSend(char* data, unsigned int len)override;
 
 	virtual void executeDisconnect()override;
+
+	virtual bool executeConnect(const char* ip, unsigned int port)override;
+
+	virtual void setIsOnline(bool isOnline)override;
 
 	/// KCPSession
 	inline void setKCPSocket(KCPSocket* socket);
@@ -43,10 +47,10 @@ protected:
 
 protected:
 
-	friend class UDPClient;
-	friend class UDPServer;
+	friend class KCPClient;
+	friend class KCPServer;
 protected:
-	Buffer* m_recvBuf;
+	Buffer* m_recvBuffer;
 	KCPSocket* m_socket;
 };
 

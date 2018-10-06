@@ -4,8 +4,8 @@
 
 NS_NET_UV_BEGIN
 
-#if OPEN_NET_UV_DEBUG == 1
-#include<mutex>
+#if OPEN_NET_MEM_CHECK == 1
+#include "Mutex.h"
 #endif
 
 typedef void(*uvOutputLoggerType)(int, const char*);
@@ -103,7 +103,7 @@ NET_UV_EXTERN void setNetUVLogPrintFunc(void(*func)(int, const char*))
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#if OPEN_NET_UV_DEBUG == 1
+#if OPEN_NET_MEM_CHECK == 1
 struct mallocBlockInfo
 {
 	unsigned int len;
@@ -111,7 +111,7 @@ struct mallocBlockInfo
 	int line;
 };
 
-std::mutex block_mutex;
+Mutex block_mutex;
 unsigned int block_size = 0;
 std::map<void*, mallocBlockInfo> block_map;
 

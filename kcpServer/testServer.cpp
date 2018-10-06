@@ -1,5 +1,5 @@
 
-#include "net_uv/udp/UDPServer.h"
+#include "net_uv/kcp/KCPServer.h"
 #include <iostream>
 
 NS_NET_UV_OPEN
@@ -34,7 +34,7 @@ void main()
 	int port;
 	std::cin >> port;
 
-	UDPServer* svr = new UDPServer();
+	KCPServer* svr = new KCPServer();
 	svr->setStartCallback([](Server* svr, bool issuc) {
 		if (issuc)
 		{
@@ -55,7 +55,7 @@ void main()
 	svr->setNewConnectCallback([](Server* svr, Session* session)
 	{
 		allSession.push_back(session);
-		//printf("%s:%d进入服务器\n", session->getIp().c_str(), session->getPort());
+		printf("[%d] %s:%d进入服务器\n", session->getSessionID(), session->getIp().c_str(), session->getPort());
 	});
 
 	svr->setRecvCallback([=](Server* svr, Session* session, char* data, unsigned int len)
@@ -109,7 +109,7 @@ void main()
 		{
 			allSession.erase(it);
 		}
-		//printf("%s:%d离开服务器\n", session->getIp().c_str(), session->getPort());
+		printf("[%d] %s:%d离开服务器\n", session->getSessionID(), session->getIp().c_str(), session->getPort());
 		if (session == controlClient)
 		{
 			controlClient = NULL;

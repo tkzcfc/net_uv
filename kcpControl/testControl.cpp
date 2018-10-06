@@ -1,5 +1,5 @@
-#include "net_uv/tcp/TCPServer.h"
-#include "net_uv/tcp/TCPClient.h"
+#include "net_uv/kcp/KCPServer.h"
+#include "net_uv/kcp/KCPClient.h"
 
 #include <iostream>
 
@@ -14,13 +14,13 @@ LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
 
 #define CONNECT_IP "127.0.0.1"
 //#define CONNECT_IP "www.kurumi.xin"
-#define CONNECT_PORT 1001
+#define CONNECT_PORT 1234
 
 #define KEY_DOWN(VK_NONAME) ((GetAsyncKeyState(VK_NONAME) & 0x8000) ? 1:0)
 #define CMD_STR_STR(v) (strstr(cmdBuf, v))
 
 
-auto instance = new TCPClient();
+auto instance = new KCPClient();
 
 char *cmdBuf = new char[1024];
 char *szWriteBuf = new char[1024];

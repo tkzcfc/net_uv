@@ -232,7 +232,7 @@ TCPSocket* TCPSocket::accept(uv_stream_t* server, int status)
 	newSocket->setIp(szIp);
 
 	fc_free(szIp);
-	r = uv_read_start(handle, net_alloc_buffer, uv_on_after_read);
+	r = uv_read_start(handle, uv_on_alloc_buffer, uv_on_after_read);
 	if (r != 0)
 	{
 		newSocket->~TCPSocket();
@@ -295,7 +295,7 @@ void TCPSocket::uv_on_after_connect(uv_connect_t* handle, int status)
 	
 	if (status == 0)
 	{
-		int r = uv_read_start(handle->handle, net_alloc_buffer, uv_on_after_read);
+		int r = uv_read_start(handle->handle, uv_on_alloc_buffer, uv_on_after_read);
 		if (r == 0)
 		{
 			s->m_connectCall(s, 1);
@@ -337,14 +337,9 @@ void TCPSocket::uv_on_after_read(uv_stream_t *handle, ssize_t nread, const uv_bu
 	if (nread <= 0) 
 	{
 		s->disconnect();
-		if (buf->base)
-		{
-			fc_free(buf->base);
-		}
 		return;
 	}
 	s->m_recvCall(buf->base, nread);
-	fc_free(buf->base);
 }
 
 void TCPSocket::uv_on_after_write(uv_write_t* req, int status)

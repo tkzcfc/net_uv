@@ -58,6 +58,8 @@ protected:
 
 	void udpSend(const char* data, int len);
 
+	void udpSend(const char* data, int len, const struct sockaddr* addr);
+
 	void kcpInput(const char* data, long size);
 
 	void initKcp(IUINT32 conv);
@@ -76,6 +78,8 @@ protected:
 
 	inline IUINT32 getConv();
 
+	void startIdle();
+
 protected:
 
 	enum State
@@ -91,6 +95,8 @@ protected:
 	uv_udp_t* m_udp;
 	bool m_weakRefUdp;
 	struct sockaddr* m_socketAddr;
+
+	uv_idle_t* m_idle;
 	
 	State m_kcpState;
 	char* m_recvBuf;
@@ -102,7 +108,7 @@ protected:
 	IUINT32 m_last_update_time;
 	IUINT32 m_conv;
 
-	IUINT16 m_releaseCount;
+	IINT32 m_releaseCount;
 
 	KCPSocketManager* m_socketMng;
 	bool m_weakRefSocketMng;
@@ -112,10 +118,12 @@ protected:
 	KCPSocketConnectFilterCall m_connectFilterCall;
 
 	friend class KCPSocketManager;
+	friend class KCPServer;
 protected:
 	static void uv_on_close_socket(uv_handle_t* socket);
 	static void uv_on_udp_send(uv_udp_send_t *req, int status);
 	static void uv_on_after_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
+	static void uv_on_idle_run(uv_idle_t* handle);
 	static int udp_output(const char *buf, int len, ikcpcb *kcp, void *user);
 };
 

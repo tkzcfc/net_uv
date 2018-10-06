@@ -56,7 +56,12 @@ public:
 	inline uv_loop_t* getLoop();
 
 protected:
+
+	static void uv_on_alloc_buffer(uv_handle_t* handle, size_t  size, uv_buf_t* buf);
+
+protected:
 	uv_loop_t* m_loop;
+	uv_buf_t m_uvReadBuf;
 	
 	std::string m_ip;
 	unsigned int m_port;

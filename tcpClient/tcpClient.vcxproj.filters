@@ -27,8 +27,11 @@
     <Filter Include="net_uv\tcp">
       <UniqueIdentifier>{aebfa0f2-d07b-41f9-bdb1-d311fa53755c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="net_uv\udp">
-      <UniqueIdentifier>{dd79e32b-1ee9-4ed2-8875-ec8518889b24}</UniqueIdentifier>
+    <Filter Include="net_uv\common">
+      <UniqueIdentifier>{47a703c8-bc50-4fd2-b9c9-e4a51d1830af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="net_uv\kcp">
+      <UniqueIdentifier>{7fc3866e-452e-413c-aaf1-0c4330f3bb5b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -179,20 +182,26 @@
     <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp">
       <Filter>net_uv\tcp</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\udp\UDPClient.cpp">
-      <Filter>net_uv\udp</Filter>
+    <ClCompile Include="..\common\net_uv\kcp\KCPSocket.cpp">
+      <Filter>net_uv\kcp</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\udp\UDPSocket.cpp">
-      <Filter>net_uv\udp</Filter>
+    <ClCompile Include="..\common\net_uv\kcp\KCPSocketManager.cpp">
+      <Filter>net_uv\kcp</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\udp\ikcp.c">
-      <Filter>net_uv\udp</Filter>
+    <ClCompile Include="..\common\net_uv\kcp\KCPUtils.cpp">
+      <Filter>net_uv\kcp</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\udp\KcpSession.cpp">
-      <Filter>net_uv\udp</Filter>
+    <ClCompile Include="..\common\net_uv\kcp\ikcp.c">
+      <Filter>net_uv\kcp</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\udp\UDPServer.cpp">
-      <Filter>net_uv\udp</Filter>
+    <ClCompile Include="..\common\net_uv\kcp\KCPClient.cpp">
+      <Filter>net_uv\kcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\kcp\KCPServer.cpp">
+      <Filter>net_uv\kcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\kcp\KCPSession.cpp">
+      <Filter>net_uv\kcp</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -337,29 +346,35 @@
     <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h">
       <Filter>net_uv\tcp</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\udp\KcpSession.h">
-      <Filter>net_uv\udp</Filter>
+    <ClInclude Include="..\common\net_uv\kcp\KCPSession.h">
+      <Filter>net_uv\kcp</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\udp\UDPClient.h">
-      <Filter>net_uv\udp</Filter>
+    <ClInclude Include="..\common\net_uv\kcp\KCPSocket.h">
+      <Filter>net_uv\kcp</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\udp\UDPCommon.h">
-      <Filter>net_uv\udp</Filter>
+    <ClInclude Include="..\common\net_uv\kcp\KCPSocketManager.h">
+      <Filter>net_uv\kcp</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\udp\UDPSocket.h">
-      <Filter>net_uv\udp</Filter>
+    <ClInclude Include="..\common\net_uv\kcp\KCPUtils.h">
+      <Filter>net_uv\kcp</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\udp\ikcp.h">
-      <Filter>net_uv\udp</Filter>
+    <ClInclude Include="..\common\net_uv\kcp\ikcp.h">
+      <Filter>net_uv\kcp</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\tcp\TCPThreadMsg.h">
-      <Filter>net_uv\tcp</Filter>
+    <ClInclude Include="..\common\net_uv\kcp\KCPClient.h">
+      <Filter>net_uv\kcp</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\udp\UDPThreadMsg.h">
-      <Filter>net_uv\udp</Filter>
+    <ClInclude Include="..\common\net_uv\kcp\KCPCommon.h">
+      <Filter>net_uv\kcp</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\udp\UDPServer.h">
-      <Filter>net_uv\udp</Filter>
+    <ClInclude Include="..\common\net_uv\kcp\KCPConfig.h">
+      <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\kcp\KCPServer.h">
+      <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\common\NetUVThreadMsg.h">
+      <Filter>net_uv\common</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

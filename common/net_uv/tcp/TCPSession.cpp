@@ -3,7 +3,7 @@
 
 NS_NET_UV_BEGIN
 
-TCPSession* TCPSession::createSession(SessionManager* sessionManager, TCPSocket* socket, const TCPSessionRecvCall& call)
+TCPSession* TCPSession::createSession(SessionManager* sessionManager, TCPSocket* socket, const SessionRecvCall& call)
 {
 	TCPSession* session = (TCPSession*)fc_malloc(sizeof(TCPSession));
 	new(session)TCPSession(sessionManager);
@@ -17,7 +17,7 @@ TCPSession* TCPSession::createSession(SessionManager* sessionManager, TCPSocket*
 
 	if (session->initWithSocket(socket))
 	{
-		session->setMsgCallback(call);
+		session->setSessionRecvCallback(call);
 		return session;
 	}
 	else
@@ -32,7 +32,6 @@ TCPSession::TCPSession(SessionManager* sessionManager)
 	: Session(sessionManager)
 	, m_recvBuffer(NULL)
 	, m_socket(NULL)
-	, m_recvCallback(nullptr)
 {
 	assert(sessionManager != NULL);
 }
@@ -102,6 +101,11 @@ void TCPSession::executeDisconnect()
 	}
 }
 
+bool TCPSession::executeConnect(const char* ip, unsigned int port)
+{
+	return getTCPSocket()->connect(ip, port);
+}
+
 void TCPSession::on_socket_recv(char* data, ssize_t len)
 {
 	if (!isOnline())
@@ -131,8 +135,8 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 			return;
 		}
 		// 消息内容标记不合法
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-		if (h->tag > TCPMsgTag::MT_DEFAULT)
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+		if (h->tag > NetMsgTag::MT_DEFAULT)
 		{
 			NET_UV_LOG(NET_UV_L_WARNING, "数据不合法 (2)!!!!");
 
@@ -159,13 +163,17 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 
 			char* src = pMsg + headlen;
 
-#if OPEN_TCP_UV_MD5_CHECK == 1
+#if TCP_UV_OPEN_MD5_CHECK == 1
 			unsigned int recvLen = 0;
 			char* recvData = tcp_uv_decode(src, h->len, recvLen);
 
 			if (recvData != NULL && recvLen > 0)
 			{
-				m_recvCallback(this, recvData, recvLen, h->tag);
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+				m_sessionRecvCallback(this, recvData, recvLen, h->tag);
+#else
+				m_sessionRecvCallback(this, recvData, recvLen, NetMsgTag::MT_DEFAULT);
+#endif
 			}
 			else//数据不合法
 			{
@@ -184,10 +192,10 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 			memcpy(recvData, src, h->len);
 			recvData[h->len] = '\0';
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-			m_recvCallback(this, recvData, h->len, h->tag);
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+			m_sessionRecvCallback(this, recvData, h->len, h->tag);
 #else
-			m_recvCallback(this, recvData, h->len);
+			m_sessionRecvCallback(this, recvData, h->len, NetMsgTag::MT_DEFAULT);
 #endif
 #endif
 			m_recvBuffer->clear();

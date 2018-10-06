@@ -50,6 +50,12 @@ protected:
 	ClientRecvCall m_recvCall;
 	ClientCloseCall m_clientCloseCall;
 	ClientRemoveSessionCall m_removeSessionCall;
+
+
+	//线程消息队列
+	Mutex m_msgMutex;
+	std::queue<NetThreadMsg_C> m_msgQue;
+	std::queue<NetThreadMsg_C> m_msgDispatchQue;
 };
 
 void Client::setConnectCallback(const ClientConnectCall& call)

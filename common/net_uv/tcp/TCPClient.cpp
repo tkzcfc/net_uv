@@ -5,7 +5,7 @@
 NS_NET_UV_BEGIN
 
 //断线重连定时器检测间隔
-#define CLIENT_TIMER_DELAY (0.1f)
+#define TCP_CLIENT_TIMER_DELAY (0.1f)
 
 
 enum 
@@ -72,12 +72,12 @@ TCPClient::TCPClient()
 
 	uv_timer_init(&m_loop, &m_timer);
 	m_timer.data = this;
-	uv_timer_start(&m_timer, uv_timer_run, (uint64_t)(CLIENT_TIMER_DELAY * 1000), (uint64_t)(CLIENT_TIMER_DELAY * 1000));
+	uv_timer_start(&m_timer, uv_timer_run, (uint64_t)(TCP_CLIENT_TIMER_DELAY * 1000), (uint64_t)(TCP_CLIENT_TIMER_DELAY * 1000));
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 	m_heartTimer.data = this;
 	uv_timer_init(&m_loop, &m_heartTimer);
-	uv_timer_start(&m_heartTimer, TCPClient::uv_heart_timer_callback, HEARTBEAT_TIMER_DELAY, HEARTBEAT_TIMER_DELAY);
+	uv_timer_start(&m_heartTimer, TCPClient::uv_heart_timer_callback, TCP_HEARTBEAT_TIMER_DELAY, TCP_HEARTBEAT_TIMER_DELAY);
 #endif
 	this->startThread();
 }
@@ -145,54 +145,54 @@ void TCPClient::updateFrame()
 	bool closeClientTag = false;
 	while (!m_msgDispatchQue.empty())
 	{
-		const TCPThreadMsg_C& Msg = m_msgDispatchQue.front();
+		const NetThreadMsg_C& Msg = m_msgDispatchQue.front();
 		switch (Msg.msgType)
 		{
-		case TCPThreadMsgType::RECV_DATA:
+		case NetThreadMsgType::RECV_DATA:
 		{
 			m_recvCall(this, Msg.pSession, Msg.data, Msg.dataLen);
 			fc_free(Msg.data);
 		}break;
-		case TCPThreadMsgType::CONNECT_FAIL:
+		case NetThreadMsgType::CONNECT_FAIL:
 		{
 			if (m_connectCall != nullptr)
 			{
 				m_connectCall(this, Msg.pSession, 0);
 			}
 		}break;
-		case TCPThreadMsgType::CONNECT:
+		case NetThreadMsgType::CONNECT:
 		{
 			if (m_connectCall != nullptr)
 			{
 				m_connectCall(this, Msg.pSession, 1);
 			}
 		}break;
-		case TCPThreadMsgType::CONNECT_TIMOUT:
+		case NetThreadMsgType::CONNECT_TIMOUT:
 		{
 			if (m_connectCall != nullptr)
 			{
 				m_connectCall(this, Msg.pSession, 2);
 			}
 		}break;
-		case TCPThreadMsgType::CONNECT_SESSIONID_EXIST:
+		case NetThreadMsgType::CONNECT_SESSIONID_EXIST:
 		{
 			if (m_connectCall != nullptr)
 			{
 				m_connectCall(this, Msg.pSession, 3);
 			}
 		}break;
-		case TCPThreadMsgType::DIS_CONNECT:
+		case NetThreadMsgType::DIS_CONNECT:
 		{
 			if (m_disconnectCall != nullptr)
 			{
 				m_disconnectCall(this, Msg.pSession);
 			}
 		}break;
-		case TCPThreadMsgType::EXIT_LOOP:
+		case NetThreadMsgType::EXIT_LOOP:
 		{
 			closeClientTag = true;
 		}break;
-		case TCPThreadMsgType::REMOVE_SESSION:
+		case NetThreadMsgType::REMOVE_SESSION:
 		{
 			if (m_removeSessionCall != nullptr)
 			{
@@ -219,10 +219,10 @@ void TCPClient::send(unsigned int sessionId, char* data, unsigned int len)
 	if (data == 0 || len <= 0)
 		return;
 	int bufCount = 0;
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-	uv_buf_t* bufArr = packageData(data, len, &bufCount, TCPMsgTag::MT_DEFAULT);
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	uv_buf_t* bufArr = tcp_packageData(data, len, &bufCount, NetMsgTag::MT_DEFAULT);
 #else
-	uv_buf_t* bufArr = packageData(data, len, &bufCount);
+	uv_buf_t* bufArr = tcp_packageData(data, len, &bufCount);
 #endif
 	if (bufArr == NULL)
 		return;
@@ -347,7 +347,7 @@ void TCPClient::run()
 
 	m_clientStage = clientStage::STOP;
 
-	this->pushThreadMsg(TCPThreadMsgType::EXIT_LOOP, NULL);
+	this->pushThreadMsg(NetThreadMsgType::EXIT_LOOP, NULL);
 }
 
 /// SessionManager
@@ -478,7 +478,7 @@ void TCPClient::executeOperation()
 		}break;
 		case TCP_CLI_OP_CLIENT_CLOSE://客户端关闭
 		{
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 			uv_timer_stop(&m_heartTimer);
 #endif
 			m_clientStage = clientStage::CLEAR_SESSION;
@@ -498,7 +498,7 @@ void TCPClient::executeOperation()
 					if (!sessionData->removeTag)
 					{
 						sessionData->removeTag = true;
-						pushThreadMsg(TCPThreadMsgType::REMOVE_SESSION, sessionData->session);
+						pushThreadMsg(NetThreadMsgType::REMOVE_SESSION, sessionData->session);
 					}
 				}
 			}
@@ -535,21 +535,22 @@ void TCPClient::onSocketConnect(Socket* socket, int status)
 			pSession = it.second->session;
 			it.second->session->setIsOnline(isSuc);
 			it.second->connectState = isSuc ? CONNECTSTATE::CONNECT : CONNECTSTATE::DISCONNECT;
-			if (isSuc)
+
+			if (m_clientStage != clientStage::START)
 			{
-				if (m_clientStage != clientStage::START)
+				it.second->session->executeDisconnect();
+				pSession = NULL;
+			}
+			else
+			{
+				if (it.second->removeTag)
 				{
 					it.second->session->executeDisconnect();
 					pSession = NULL;
 				}
 				else
 				{
-					if (it.second->removeTag)
-					{
-						it.second->session->executeDisconnect();
-						pSession = NULL;
-					}
-					else
+					if (isSuc)
 					{
 						it.second->session->getTCPSocket()->setNoDelay(m_enableNoDelay);
 						it.second->session->getTCPSocket()->setKeepAlive(m_enableKeepAlive, m_keepAliveDelay);
@@ -564,15 +565,15 @@ void TCPClient::onSocketConnect(Socket* socket, int status)
 	{
 		if (status == 0)
 		{
-			pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, pSession);
+			pushThreadMsg(NetThreadMsgType::CONNECT_FAIL, pSession);
 		}
 		else if (status == 1)
 		{
-			pushThreadMsg(TCPThreadMsgType::CONNECT, pSession);
+			pushThreadMsg(NetThreadMsgType::CONNECT, pSession);
 		}
 		else if (status == 2)
 		{
-			pushThreadMsg(TCPThreadMsgType::CONNECT_TIMOUT, pSession);
+			pushThreadMsg(NetThreadMsgType::CONNECT_TIMOUT, pSession);
 		}
 	}
 }
@@ -583,11 +584,11 @@ void TCPClient::onSessionClose(Session* session)
 	if (sessionData)
 	{
 		sessionData->connectState = CONNECTSTATE::DISCONNECT;
-		pushThreadMsg(TCPThreadMsgType::DIS_CONNECT, sessionData->session);
+		pushThreadMsg(NetThreadMsgType::DIS_CONNECT, sessionData->session);
 
 		if (sessionData->removeTag)
 		{
-			pushThreadMsg(TCPThreadMsgType::REMOVE_SESSION, sessionData->session);
+			pushThreadMsg(NetThreadMsgType::REMOVE_SESSION, sessionData->session);
 		}
 	}
 }
@@ -607,13 +608,13 @@ void TCPClient::createNewConnect(void* data)
 		//对比端口和IP是否一致
 		if (strcmp(opData->ip.c_str(), it->second->ip.c_str()) != 0 && opData->port != it->second->port)
 		{
-			pushThreadMsg(TCPThreadMsgType::CONNECT_SESSIONID_EXIST, NULL);
+			pushThreadMsg(NetThreadMsgType::CONNECT_SESSIONID_EXIST, NULL);
 			return;
 		}
 
 		if (it->second->connectState == CONNECTSTATE::DISCONNECT)
 		{
-			if (it->second->session->getTCPSocket()->connect(opData->ip.c_str(), opData->port))
+			if (it->second->session->executeConnect(opData->ip.c_str(), opData->port))
 			{
 				it->second->connectState = CONNECTSTATE::CONNECTING;
 			}
@@ -621,7 +622,7 @@ void TCPClient::createNewConnect(void* data)
 			{
 				it->second->connectState = CONNECTSTATE::DISCONNECT;
 				it->second->session->executeDisconnect();
-				pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, it->second->session);
+				pushThreadMsg(NetThreadMsgType::CONNECT_FAIL, it->second->session);
 			}
 		}
 	}
@@ -631,11 +632,8 @@ void TCPClient::createNewConnect(void* data)
 		new (socket) TCPSocket(&m_loop); 
 		socket->setConnectCallback(std::bind(&TCPClient::onSocketConnect, this, std::placeholders::_1, std::placeholders::_2));
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
 		TCPSession* session = TCPSession::createSession(this, socket, std::bind(&TCPClient::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
-#else
-		TCPSession* session = TCPSession::createSession(this, socket, std::bind(&TCPClient::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-#endif
+
 		if (session == NULL)
 		{
 			NET_UV_LOG(NET_UV_L_FATAL, "创建会话失败，可能是内存不足!!!");
@@ -656,8 +654,8 @@ void TCPClient::createNewConnect(void* data)
 		cs->reconnect = m_reconnect;
 		cs->totaltime = m_totalTime;
 		cs->connectState = CONNECTSTATE::CONNECTING;
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-		cs->curHeartCount = HEARTBEAT_COUNT_RESET_VALUE_CLIENT;
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+		cs->curHeartCount = TCP_HEARTBEAT_COUNT_RESET_VALUE_CLIENT;
 		cs->curHeartTime = 0;
 #endif
 		m_allSessionMap.insert(std::make_pair(opData->sessionID, cs));
@@ -669,43 +667,37 @@ void TCPClient::createNewConnect(void* data)
 		else
 		{
 			cs->connectState = CONNECTSTATE::DISCONNECT;
-			pushThreadMsg(TCPThreadMsgType::CONNECT_FAIL, session);
+			pushThreadMsg(NetThreadMsgType::CONNECT_FAIL, session);
 		}
 	}
 }
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-void TCPClient::onSessionRecvData(TCPSession* session, char* data, unsigned int len, TCPMsgTag tag)
+void TCPClient::onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag)
 {
-	pushThreadMsg(TCPThreadMsgType::RECV_DATA, session, data, len, tag);
+	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len, tag);
 }
-#else
-void TCPClient::onSessionRecvData(TCPSession* session, char* data, unsigned int len)
-{
-	pushThreadMsg(TCPThreadMsgType::RECV_DATA, session, data, len, TCPMsgTag::MT_DEFAULT);
-}
-#endif
 
-void TCPClient::pushThreadMsg(TCPThreadMsgType type, Session* session, char* data, unsigned int len, TCPMsgTag tag)
+
+void TCPClient::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, unsigned int len, NetMsgTag tag)
 {
-#if OPEN_UV_THREAD_HEARTBEAT == 1
-	if (type == TCPThreadMsgType::RECV_DATA)
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	if (type == NetThreadMsgType::RECV_DATA)
 	{
 		auto it = m_allSessionMap.find(session->getSessionID());
 		if (it != m_allSessionMap.end())
 		{
 			auto clientdata = it->second;
-			clientdata->curHeartCount = HEARTBEAT_COUNT_RESET_VALUE_CLIENT;
+			clientdata->curHeartCount = TCP_HEARTBEAT_COUNT_RESET_VALUE_CLIENT;
 			clientdata->curHeartTime = 0;
-			if (tag == TCPMsgTag::MT_HEARTBEAT)
+			if (tag == NetMsgTag::MT_HEARTBEAT)
 			{
-				if (len == HEARTBEAT_MSG_SIZE)
+				if (len == TCP_HEARTBEAT_MSG_SIZE)
 				{
-					if (*((char*)data) == HEARTBEAT_MSG_S2C)
+					if (*((char*)data) == TCP_HEARTBEAT_MSG_S2C)
 					{
 						NET_UV_LOG(NET_UV_L_HEART, "recv heart s->c");
 						unsigned int sendlen = 0;
-						char* senddata = packageHeartMsgData(HEARTBEAT_RET_MSG_C2S, &sendlen);
+						char* senddata = tcp_packageHeartMsgData(TCP_HEARTBEAT_RET_MSG_C2S, &sendlen);
 						clientdata->session->executeSend(senddata, sendlen);
 					}
 				}
@@ -720,7 +712,7 @@ void TCPClient::pushThreadMsg(TCPThreadMsgType type, Session* session, char* dat
 	}
 #endif
 
-	TCPThreadMsg_C msg;
+	NetThreadMsg_C msg;
 	msg.msgType = type;
 	msg.data = data;
 	msg.dataLen = len;
@@ -752,7 +744,7 @@ TCPClient::clientSessionData* TCPClient::getClientSessionDataBySession(Session* 
 	return NULL;
 }
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 void TCPClient::heartRun()
 {
 	for (auto &it : m_allSessionMap)
@@ -762,14 +754,14 @@ void TCPClient::heartRun()
 		if(clientdata->connectState != CONNECT)
 			continue;
 
-		clientdata->curHeartTime += HEARTBEAT_TIMER_DELAY;
-		if (clientdata->curHeartTime > HEARTBEAT_CHECK_DELAY)
+		clientdata->curHeartTime += TCP_HEARTBEAT_TIMER_DELAY;
+		if (clientdata->curHeartTime > TCP_HEARTBEAT_CHECK_DELAY)
 		{
 			clientdata->curHeartTime = 0;
 			clientdata->curHeartCount++;
 			if (clientdata->curHeartCount > 0)
 			{
-				if (clientdata->curHeartCount > HEARTBEAT_MAX_COUNT_CLIENT)
+				if (clientdata->curHeartCount > TCP_HEARTBEAT_MAX_COUNT_CLIENT)
 				{
 					clientdata->curHeartCount = 0;
 					clientdata->session->executeDisconnect();
@@ -777,7 +769,7 @@ void TCPClient::heartRun()
 				else
 				{
 					unsigned int sendlen = 0;
-					char* senddata = packageHeartMsgData(HEARTBEAT_MSG_C2S, &sendlen);
+					char* senddata = tcp_packageHeartMsgData(TCP_HEARTBEAT_MSG_C2S, &sendlen);
 					clientdata->session->executeSend(senddata, sendlen);
 					NET_UV_LOG(NET_UV_L_HEART, "send heart c->s");
 				}
@@ -864,12 +856,12 @@ void TCPClient::uv_timer_run(uv_timer_t* handle)
 			data = it.second;
 			if (data->connectState == CONNECTSTATE::DISCONNECT && data->reconnect && data->removeTag == false)
 			{
-				data->curtime = data->curtime + CLIENT_TIMER_DELAY;
+				data->curtime = data->curtime + TCP_CLIENT_TIMER_DELAY;
 
 				if (data->curtime >= data->totaltime)
 				{
 					data->curtime = 0.0f;
-					if (data->session->getTCPSocket()->connect(data->ip.c_str(), data->port))
+					if (data->session->executeConnect(data->ip.c_str(), data->port))
 					{
 						data->connectState = CONNECTSTATE::CONNECTING;
 					}
@@ -898,7 +890,7 @@ void TCPClient::uv_timer_run(uv_timer_t* handle)
 				if (!data->removeTag)
 				{
 					data->removeTag = true;
-					c->pushThreadMsg(TCPThreadMsgType::REMOVE_SESSION, data->session);
+					c->pushThreadMsg(NetThreadMsgType::REMOVE_SESSION, data->session);
 				}
 			}
 		}
@@ -920,7 +912,7 @@ void TCPClient::uv_on_idle_run(uv_idle_t* handle)
 	ThreadSleep(1);
 }
 
-#if OPEN_UV_THREAD_HEARTBEAT == 1
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
 void TCPClient::uv_heart_timer_callback(uv_timer_t* handle)
 {
 	TCPClient* s = (TCPClient*)handle->data;

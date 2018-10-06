@@ -2,11 +2,12 @@
 #include "KCPSocket.h"
 
 KCPSocketManager::KCPSocketManager(uv_loop_t* loop)
-	: m_convCount(1)
+	: m_convCount(1000)
 {
 	m_loop = loop;
 
 	uv_idle_init(loop, &m_idle);
+	m_idle.data = this;
 	uv_idle_start(&m_idle, KCPSocketManager::uv_on_idle_run);
 }
 
@@ -18,13 +19,9 @@ KCPSocketManager::~KCPSocketManager()
 void KCPSocketManager::push(KCPSocket* socket, IUINT32 conv)
 {
 	auto it = m_allSocket.find(conv);
-	if (it != m_allSocket.end())
+	if (it == m_allSocket.end())
 	{
 		m_allSocket.insert(std::make_pair(conv, socket));
-	}
-	else
-	{
-		assert(0);
 	}
 }
 
@@ -38,8 +35,14 @@ KCPSocket* KCPSocketManager::accept(uv_udp_t* handle, const struct sockaddr* add
 		return NULL;
 	}
 
-	struct sockaddr* curAddr = (struct sockaddr*)fc_malloc(sizeof(struct sockaddr));
-	memcpy(curAddr, addr, sizeof(struct sockaddr));
+	unsigned int addrlen = sizeof(struct sockaddr_in);
+	if (addr->sa_family == AF_INET6)
+	{
+		addrlen = sizeof(struct sockaddr_in6);
+	}
+
+	struct sockaddr* curAddr = (struct sockaddr*)fc_malloc(addrlen);
+	memcpy(curAddr, addr, addrlen);
 
 	KCPSocket* socket = (KCPSocket*)fc_malloc(sizeof(KCPSocket));
 	new (socket)KCPSocket(m_loop);
@@ -49,6 +52,8 @@ KCPSocket* KCPSocketManager::accept(uv_udp_t* handle, const struct sockaddr* add
 	socket->initKcp(m_convCount);
 	socket->setWeakRefUdp(handle);
 	socket->setSocketAddr(curAddr);
+	socket->setWeakRefSocketManager(this);
+	socket->m_kcpState = KCPSocket::State::CONNECT;
 	this->push(socket, m_convCount);
 
 	m_convCount++;
@@ -110,8 +115,23 @@ void KCPSocketManager::idleRun()
 	}
 }
 
+static IUINT32 cur_static_time = 0;
 void KCPSocketManager::uv_on_idle_run(uv_idle_t* handle)
 {
+	if (cur_static_time == 0)
+	{
+		cur_static_time = iclock();
+	}
+	else
+	{
+		IUINT32 curClock = iclock();
+		int subClock = curClock - cur_static_time;
+		if (subClock > 30)
+		{
+			printf("%d\n", subClock);
+		}
+		cur_static_time = curClock;
+	}
 	((KCPSocketManager*)handle->data)->idleRun();
 }
 

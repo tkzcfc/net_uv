@@ -4,8 +4,6 @@
 
 NS_NET_UV_BEGIN
 
-
-t)>;
 using TCPSocketNewConnectionCall = std::function<void(uv_stream_t*, int)>;
 
 class NET_UV_EXTERN TCPSocket : public Socket

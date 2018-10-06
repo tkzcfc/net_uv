@@ -4,6 +4,9 @@
 // 开启调试模式
 #define OPEN_NET_UV_DEBUG 1
 
+// 开启内存检测
+#define OPEN_NET_MEM_CHECK 1
+
 
 // 日志等级
 #define NET_UV_L_HEART	 (0)

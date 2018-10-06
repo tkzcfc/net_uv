@@ -1,8 +1,13 @@
 #pragma once
 
 #include "Common.h"
+#include "../common/NetUVThreadMsg.h"
 
 NS_NET_UV_BEGIN
+
+class Session;
+using SessionCloseCall = std::function<void(Session*)>;
+using SessionRecvCall = std::function<void(Session*, char*, unsigned int, NetMsgTag)>;
 
 class SessionManager;
 class NET_UV_EXTERN Session
@@ -27,11 +32,15 @@ protected:
 
 	virtual void executeDisconnect() = 0;
 
+	virtual bool executeConnect(const char* ip, unsigned int port) = 0;
+
 protected:
 		
 	inline SessionManager* getSessionManager();
 
-	inline void setSessionClose(const std::function<void(Session*)>& call);
+	inline void setSessionClose(const SessionCloseCall& call);
+
+	inline void setSessionRecvCallback(const SessionRecvCall& call);
 
 	inline bool isOnline();
 
@@ -43,16 +52,23 @@ protected:
 	friend class SessionManager;
 
 	SessionManager* m_sessionManager;
-	std::function<void(Session*)> m_sessionCloseCallback;
+
+	SessionCloseCall m_sessionCloseCallback;
+	SessionRecvCall m_sessionRecvCallback;
 
 	bool m_isOnline;
 	unsigned int m_sessionID;
 };
 
 
-void Session::setSessionClose(const std::function<void(Session*)>& call)
+void Session::setSessionClose(const SessionCloseCall& call)
 {
 	m_sessionCloseCallback = std::move(call);
+}
+
+void Session::setSessionRecvCallback(const SessionRecvCall& call)
+{
+	m_sessionRecvCallback = std::move(call);
 }
 
 SessionManager* Session::getSessionManager()

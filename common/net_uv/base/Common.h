@@ -19,7 +19,7 @@ NS_NET_UV_BEGIN
 /// µ˜ ‘œ‡πÿ
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if OPEN_NET_UV_DEBUG == 1
+#if OPEN_NET_MEM_CHECK == 1
 
 #define fc_malloc(len) fc_malloc_s(len, __FILE__, __LINE__)
 
