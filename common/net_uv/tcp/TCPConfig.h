@@ -32,7 +32,7 @@ NS_NET_UV_BEGIN
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // 消息开启md5校验
-#define TCP_UV_OPEN_MD5_CHECK 1
+#define TCP_UV_OPEN_MD5_CHECK 0
 // 校验密码
 #define TCP_UV_ENCODE_KEY "net_uv_tcp_md5_key"
 
@@ -57,12 +57,5 @@ NS_NET_UV_BEGIN
 // 心跳次数计数重置值(客户端) 小于0
 #define TCP_HEARTBEAT_COUNT_RESET_VALUE_CLIENT (-1)	
 #endif
-
-#define TCP_HEARTBEAT_MSG_C2S ((unsigned int)0)		// 客户端->服务器心跳探测消息
-#define TCP_HEARTBEAT_MSG_S2C ((unsigned int)1)		// 服务器->客户端心跳探测消息
-#define TCP_HEARTBEAT_RET_MSG_C2S ((unsigned int)2) // 客户端->服务器心跳回复消息
-#define TCP_HEARTBEAT_RET_MSG_S2C ((unsigned int)3) // 服务器->客户端心跳回复消息
-#define TCP_HEARTBEAT_MSG_SIZE sizeof(unsigned int)	// 心跳消息大小
-
 
 NS_NET_UV_END

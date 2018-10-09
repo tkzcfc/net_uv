@@ -31,9 +31,6 @@
     <Filter Include="net_uv\common">
       <UniqueIdentifier>{c3001d3d-724e-49e2-b269-377f6ac1cee7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="net_uv\kcp">
-      <UniqueIdentifier>{1a21d925-e225-4bd6-89fb-c8e9b9ca91f1}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp">
@@ -183,27 +180,6 @@
     <ClCompile Include="testServer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\kcp\KCPSession.cpp">
-      <Filter>net_uv\kcp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\kcp\KCPSocket.cpp">
-      <Filter>net_uv\kcp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\kcp\KCPSocketManager.cpp">
-      <Filter>net_uv\kcp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\kcp\KCPUtils.cpp">
-      <Filter>net_uv\kcp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\kcp\ikcp.c">
-      <Filter>net_uv\kcp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\kcp\KCPClient.cpp">
-      <Filter>net_uv\kcp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\kcp\KCPServer.cpp">
-      <Filter>net_uv\kcp</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\net_uv\tcp\TCPServer.h">
@@ -349,33 +325,6 @@
     </ClInclude>
     <ClInclude Include="..\common\libuv\src\win\atomicops-inl.h">
       <Filter>libuv\src\win</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\kcp\KCPSession.h">
-      <Filter>net_uv\kcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\kcp\KCPSocket.h">
-      <Filter>net_uv\kcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\kcp\KCPSocketManager.h">
-      <Filter>net_uv\kcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\kcp\KCPUtils.h">
-      <Filter>net_uv\kcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\kcp\ikcp.h">
-      <Filter>net_uv\kcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\kcp\KCPClient.h">
-      <Filter>net_uv\kcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\kcp\KCPCommon.h">
-      <Filter>net_uv\kcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\kcp\KCPConfig.h">
-      <Filter>net_uv\kcp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\kcp\KCPServer.h">
-      <Filter>net_uv\kcp</Filter>
     </ClInclude>
     <ClInclude Include="..\common\net_uv\common\NetUVThreadMsg.h">
       <Filter>net_uv\common</Filter>

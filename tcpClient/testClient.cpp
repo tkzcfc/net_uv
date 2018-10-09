@@ -87,10 +87,10 @@ void main()
 			}
 		}
 		fc_free(msg);
-		if (rand() % 100 == 0)
-		{
-			session->disconnect();
-		}
+		//if (rand() % 100 == 0)
+		//{
+		//	session->disconnect();
+		//}
 	});
 
 	for (int i = 0; i < 10; ++i)

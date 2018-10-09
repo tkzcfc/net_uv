@@ -284,18 +284,19 @@ void TCPServer::pushThreadMsg(NetThreadMsgType type, Session* session, char* dat
 			it->second.curHeartTime = 0;
 			if (tag == NetMsgTag::MT_HEARTBEAT)
 			{
-				if (len == TCP_HEARTBEAT_MSG_SIZE)
+				if (len == NET_HEARTBEAT_MSG_SIZE)
 				{
-					if (*((char*)data) == TCP_HEARTBEAT_MSG_C2S)
+					if (*((NET_HEART_TYPE*)data) == NET_HEARTBEAT_MSG_C2S)
 					{
 						unsigned int sendlen = 0;
-						char* senddata = tcp_packageHeartMsgData(TCP_HEARTBEAT_RET_MSG_S2C, &sendlen);
+						char* senddata = tcp_packageHeartMsgData(NET_HEARTBEAT_RET_MSG_S2C, &sendlen);
 						it->second.session->executeSend(senddata, sendlen);
 						NET_UV_LOG(NET_UV_L_HEART, "recv heart c->s");
 					}
 				}
 				else// 不合法心跳
 				{
+					NET_UV_LOG(NET_UV_L_ERROR, "心跳消息不合法");
 					it->second.session->disconnect();
 				}
 				fc_free(data);
@@ -492,7 +493,7 @@ void TCPServer::heartRun()
 					else
 					{
 						unsigned int sendlen = 0;
-						char* senddata = tcp_packageHeartMsgData(TCP_HEARTBEAT_MSG_S2C, &sendlen);
+						char* senddata = tcp_packageHeartMsgData(NET_HEARTBEAT_MSG_S2C, &sendlen);
 						it.second.session->executeSend(senddata, sendlen);
 						NET_UV_LOG(NET_UV_L_HEART, "send heart s->c");
 					}

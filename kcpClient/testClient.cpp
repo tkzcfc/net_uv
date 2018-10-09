@@ -93,7 +93,7 @@ void main()
 		}
 	});
 
-	for (int i = 0; i < 10; ++i)
+	for (int i = 0; i < 1; ++i)
 	{
 		client->connect(CONNECT_IP, CONNECT_PORT, keyIndex++);
 	}

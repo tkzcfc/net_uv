@@ -536,21 +536,21 @@ void TCPClient::onSocketConnect(Socket* socket, int status)
 			it.second->session->setIsOnline(isSuc);
 			it.second->connectState = isSuc ? CONNECTSTATE::CONNECT : CONNECTSTATE::DISCONNECT;
 
-			if (m_clientStage != clientStage::START)
+			if (isSuc)
 			{
-				it.second->session->executeDisconnect();
-				pSession = NULL;
-			}
-			else
-			{
-				if (it.second->removeTag)
+				if (m_clientStage != clientStage::START)
 				{
 					it.second->session->executeDisconnect();
 					pSession = NULL;
 				}
 				else
 				{
-					if (isSuc)
+					if (it.second->removeTag)
+					{
+						it.second->session->executeDisconnect();
+						pSession = NULL;
+					}
+					else
 					{
 						it.second->session->getTCPSocket()->setNoDelay(m_enableNoDelay);
 						it.second->session->getTCPSocket()->setKeepAlive(m_enableKeepAlive, m_keepAliveDelay);
@@ -691,18 +691,19 @@ void TCPClient::pushThreadMsg(NetThreadMsgType type, Session* session, char* dat
 			clientdata->curHeartTime = 0;
 			if (tag == NetMsgTag::MT_HEARTBEAT)
 			{
-				if (len == TCP_HEARTBEAT_MSG_SIZE)
+				if (len == NET_HEARTBEAT_MSG_SIZE)
 				{
-					if (*((char*)data) == TCP_HEARTBEAT_MSG_S2C)
+					if (*((NET_HEART_TYPE*)data) == NET_HEARTBEAT_MSG_S2C)
 					{
 						NET_UV_LOG(NET_UV_L_HEART, "recv heart s->c");
 						unsigned int sendlen = 0;
-						char* senddata = tcp_packageHeartMsgData(TCP_HEARTBEAT_RET_MSG_C2S, &sendlen);
+						char* senddata = tcp_packageHeartMsgData(NET_HEARTBEAT_RET_MSG_C2S, &sendlen);
 						clientdata->session->executeSend(senddata, sendlen);
 					}
 				}
 				else// 不合法心跳
 				{
+					NET_UV_LOG(NET_UV_L_ERROR, "心跳消息不合法");
 					clientdata->session->executeDisconnect();
 				}
 				fc_free(data);
@@ -769,7 +770,7 @@ void TCPClient::heartRun()
 				else
 				{
 					unsigned int sendlen = 0;
-					char* senddata = tcp_packageHeartMsgData(TCP_HEARTBEAT_MSG_C2S, &sendlen);
+					char* senddata = tcp_packageHeartMsgData(NET_HEARTBEAT_MSG_C2S, &sendlen);
 					clientdata->session->executeSend(senddata, sendlen);
 					NET_UV_LOG(NET_UV_L_HEART, "send heart c->s");
 				}
@@ -880,12 +881,12 @@ void TCPClient::uv_timer_run(uv_timer_t* handle)
 		{
 			data = it.second;
 
-			if (data->connectState != DISCONNECT)
+			if (data->connectState == CONNECT)
 			{
 				data->removeTag = true;
 				data->session->executeDisconnect();
 			}
-			else
+			else if (data->connectState == DISCONNECT)
 			{
 				if (!data->removeTag)
 				{

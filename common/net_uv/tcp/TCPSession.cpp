@@ -170,7 +170,7 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 			if (recvData != NULL && recvLen > 0)
 			{
 #if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-				m_sessionRecvCallback(this, recvData, recvLen, h->tag);
+				m_sessionRecvCallback(this, recvData, recvLen, (NetMsgTag)h->tag);
 #else
 				m_sessionRecvCallback(this, recvData, recvLen, NetMsgTag::MT_DEFAULT);
 #endif
@@ -193,7 +193,7 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 			recvData[h->len] = '\0';
 
 #if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-			m_sessionRecvCallback(this, recvData, h->len, h->tag);
+			m_sessionRecvCallback(this, recvData, h->len, (NetMsgTag)h->tag);
 #else
 			m_sessionRecvCallback(this, recvData, h->len, NetMsgTag::MT_DEFAULT);
 #endif

@@ -142,7 +142,6 @@ bool TCPSocket::connect(const char* ip, unsigned int port)
 		{
 			return false;
 		}
-
 		setTcp(tcp);
 		net_adjustBuffSize((uv_handle_t*)tcp, TCP_UV_SOCKET_RECV_BUF_LEN, TCP_UV_SOCKET_SEND_BUF_LEN);
 		return true;
