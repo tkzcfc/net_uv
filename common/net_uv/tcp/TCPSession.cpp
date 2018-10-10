@@ -3,10 +3,10 @@
 
 NS_NET_UV_BEGIN
 
-TCPSession* TCPSession::createSession(SessionManager* sessionManager, TCPSocket* socket, const SessionRecvCall& call)
+TCPSession* TCPSession::createSession(SessionManager* sessionManager, uv_loop_t* loop, TCPSocket* socket)
 {
 	TCPSession* session = (TCPSession*)fc_malloc(sizeof(TCPSession));
-	new(session)TCPSession(sessionManager);
+	new(session)TCPSession(sessionManager, loop);
 	
 	if (session == NULL)
 	{
@@ -17,7 +17,6 @@ TCPSession* TCPSession::createSession(SessionManager* sessionManager, TCPSocket*
 
 	if (session->initWithSocket(socket))
 	{
-		session->setSessionRecvCallback(call);
 		return session;
 	}
 	else
@@ -28,12 +27,20 @@ TCPSession* TCPSession::createSession(SessionManager* sessionManager, TCPSocket*
 	return NULL;
 }
 
-TCPSession::TCPSession(SessionManager* sessionManager)
+TCPSession::TCPSession(SessionManager* sessionManager, uv_loop_t* loop)
 	: Session(sessionManager)
 	, m_recvBuffer(NULL)
 	, m_socket(NULL)
 {
 	assert(sessionManager != NULL);
+
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	m_resetHeartCount = -1;
+	m_curHeartCount = -1;
+	m_curHeartTime = 0;
+	m_sendHeartMsg = NET_HEARTBEAT_MSG_C2S;
+	m_curHeartMaxCount = TCP_HEARTBEAT_MAX_COUNT_CLIENT;
+#endif
 }
 
 TCPSession::~TCPSession()
@@ -111,6 +118,11 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 	if (!isOnline())
 		return;
 
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	m_curHeartCount = m_resetHeartCount;
+	m_curHeartTime = 0;
+#endif
+
 	m_recvBuffer->add(data, len);
 
 	const unsigned int headlen = sizeof(TCPMsgHead);
@@ -136,7 +148,7 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 		}
 		// 消息内容标记不合法
 #if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-		if (h->tag > NetMsgTag::MT_DEFAULT)
+		if (h->tag <= NET_MSG_TYPE::MT_MIN || h->tag > NET_MSG_TYPE::MT_MAX)
 		{
 			NET_UV_LOG(NET_UV_L_WARNING, "数据不合法 (2)!!!!");
 
@@ -170,9 +182,9 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 			if (recvData != NULL && recvLen > 0)
 			{
 #if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-				m_sessionRecvCallback(this, recvData, recvLen, (NetMsgTag)h->tag);
+				onRecvMsgPackage(recvData, recvLen, h->tag);
 #else
-				m_sessionRecvCallback(this, recvData, recvLen, NetMsgTag::MT_DEFAULT);
+				onRecvMsgPackage(recvData, recvLen, NET_MSG_TYPE::MT_DEFAULT);
 #endif
 			}
 			else//数据不合法
@@ -193,9 +205,9 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 			recvData[h->len] = '\0';
 
 #if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-			m_sessionRecvCallback(this, recvData, h->len, (NetMsgTag)h->tag);
+			onRecvMsgPackage(recvData, h->len, h->tag);
 #else
-			m_sessionRecvCallback(this, recvData, h->len, NetMsgTag::MT_DEFAULT);
+			onRecvMsgPackage(recvData, h->len, NET_MSG_TYPE::MT_DEFAULT);
 #endif
 #endif
 			m_recvBuffer->clear();
@@ -213,6 +225,41 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 	}
 }
 
+void TCPSession::onRecvMsgPackage(char* data, unsigned int len, NET_HEART_TYPE type)
+{
+	if (type == NET_MSG_TYPE::MT_HEARTBEAT)
+	{
+		if (len == NET_HEARTBEAT_MSG_SIZE)
+		{
+			NET_HEART_TYPE msg = *((NET_HEART_TYPE*)data);
+			if (msg == NET_HEARTBEAT_MSG_C2S)
+			{
+				unsigned int sendlen = 0;
+				char* senddata = tcp_packageHeartMsgData(NET_HEARTBEAT_RET_MSG_S2C, &sendlen);
+				executeSend(senddata, sendlen);
+				NET_UV_LOG(NET_UV_L_HEART, "recv heart c->s");
+			}
+			else if (msg == NET_HEARTBEAT_MSG_S2C)
+			{
+				unsigned int sendlen = 0;
+				char* senddata = tcp_packageHeartMsgData(NET_HEARTBEAT_RET_MSG_C2S, &sendlen);
+				executeSend(senddata, sendlen);
+				NET_UV_LOG(NET_UV_L_HEART, "recv heart s->c");
+			}
+			else if(msg > NET_HEARTBEAT_RET_MSG_S2C) // 非法心跳
+			{
+				this->disconnect();
+				NET_UV_LOG(NET_UV_L_ERROR, "收到非法心跳");
+			}
+		}
+		fc_free(data);
+	}
+	else
+	{
+		m_sessionRecvCallback(this, data, len);
+	}
+}
+
 void TCPSession::on_socket_close(Socket* socket)
 {
 	this->setIsOnline(false);
@@ -226,6 +273,40 @@ void TCPSession::setIsOnline(bool isOnline)
 {
 	Session::setIsOnline(isOnline);
 	m_recvBuffer->clear();
+
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	m_curHeartCount = m_resetHeartCount;
+	m_curHeartTime = 0;
+#endif
+}
+
+void TCPSession::update(unsigned int time)
+{
+	if (!isOnline())
+		return;
+
+	m_curHeartTime += time;
+	if (m_curHeartTime >= TCP_HEARTBEAT_CHECK_DELAY)
+	{
+		m_curHeartTime = 0;
+		m_curHeartCount++;
+		if (m_curHeartCount > 0)
+		{
+			if (m_curHeartCount > m_curHeartMaxCount)
+			{
+				m_curHeartCount = m_resetHeartCount;
+				//NET_UV_LOG(NET_UV_L_INFO, "无心跳回复，断开连接");
+				executeDisconnect();
+			}
+			else
+			{
+				unsigned int sendlen = 0;
+				char* senddata = tcp_packageHeartMsgData(m_sendHeartMsg, &sendlen);
+				executeSend(senddata, sendlen);
+				NET_UV_LOG(NET_UV_L_HEART, "tcp send heart %d", m_sendHeartMsg);
+			}
+		}
+	}
 }
 
 NS_NET_UV_END

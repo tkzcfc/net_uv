@@ -16,16 +16,10 @@ enum
 
 TCPServer::TCPServer()
 	: m_start(false)
-	, m_port(0)
 	, m_server(NULL)
-	, m_isIPV6(false)
 	, m_sessionID(0)
 {
 	m_serverStage = ServerStage::STOP;
-	
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	m_heartTimer = (uv_timer_t*)fc_malloc(sizeof(uv_timer_t));
-#endif
 }
 
 TCPServer::~TCPServer()
@@ -33,15 +27,11 @@ TCPServer::~TCPServer()
 	stopServer();
 	this->join();
 	clearData();
-	
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	fc_free(m_heartTimer);
-#endif
 
 	NET_UV_LOG(NET_UV_L_INFO, "TCPServer destroy...");
 }
 
-void TCPServer::startServer(const char* ip, int port, bool isIPV6)
+void TCPServer::startServer(const char* ip, unsigned int port, bool isIPV6)
 {
 	if (m_serverStage != ServerStage::STOP)
 		return;
@@ -50,14 +40,10 @@ void TCPServer::startServer(const char* ip, int port, bool isIPV6)
 
 	Server::startServer(ip, port, isIPV6);
 
-	m_ip = ip;
-	m_port = port;
-	m_isIPV6 = isIPV6;
-		
 	m_start = true;
 	m_serverStage = ServerStage::START;
 
-	NET_UV_LOG(NET_UV_L_INFO, "TCPServer start-up...");
+	NET_UV_LOG(NET_UV_L_INFO, "TCPServer %s:%d start-up...", ip, port);
 	this->startThread();
 }
 
@@ -93,7 +79,7 @@ void TCPServer::updateFrame()
 	bool closeServerTag = false;
 	while (!m_msgDispatchQue.empty())
 	{
-		const NetThreadMsg_S& Msg = m_msgDispatchQue.front();
+		const NetThreadMsg& Msg = m_msgDispatchQue.front();
 
 		switch (Msg.msgType)
 		{
@@ -143,11 +129,9 @@ void TCPServer::updateFrame()
 void TCPServer::send(Session* session, char* data, unsigned int len)
 {
 	int bufCount = 0;
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	uv_buf_t* bufArr = tcp_packageData(data, len, &bufCount, NetMsgTag::MT_DEFAULT);
-#else
+
 	uv_buf_t* bufArr = tcp_packageData(data, len, &bufCount);
-#endif
+
 	if (bufArr == NULL)
 		return;
 
@@ -173,17 +157,8 @@ void TCPServer::run()
 	int r = uv_loop_init(&m_loop);
 	CHECK_UV_ASSERT(r);
 
-	r = uv_idle_init(&m_loop, &m_idle);
-	m_idle.data = this;
-	CHECK_UV_ASSERT(r);
-
-	uv_idle_start(&m_idle, uv_on_idle_run);
-	
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1 
-	m_heartTimer->data = this;
-	uv_timer_init(&m_loop, m_heartTimer);
-	uv_timer_start(m_heartTimer, TCPServer::uv_heart_timer_callback, TCP_HEARTBEAT_TIMER_DELAY, TCP_HEARTBEAT_TIMER_DELAY);
-#endif
+	startIdle();
+	startSessionUpdate(TCP_HEARTBEAT_TIMER_DELAY);
 
 	m_server = (TCPSocket*)fc_malloc(sizeof(TCPSocket));
 	if (m_server == NULL)
@@ -236,7 +211,7 @@ void TCPServer::run()
 	m_server->~TCPSocket();
 	fc_free(m_server);
 	m_server = NULL;
-
+	
 	uv_loop_close(&m_loop);
 	
 	m_serverStage = ServerStage::STOP;
@@ -249,15 +224,19 @@ void TCPServer::onNewConnect(uv_stream_t* server, int status)
 	TCPSocket* client = m_server->accept(server, status);
 	if (client != NULL)
 	{
-		TCPSession* session = TCPSession::createSession(this, client, std::bind(&TCPServer::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+		TCPSession* session = TCPSession::createSession(this, &m_loop, client);
 		if (session == NULL)
 		{
 			NET_UV_LOG(NET_UV_L_ERROR, "服务器创建新会话失败,可能是内存不足");
 		}
 		else
 		{
-			session->setIsOnline(true);
+			session->setSessionRecvCallback(std::bind(&TCPServer::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 			session->setSessionClose(std::bind(&TCPServer::onSessionClose, this, std::placeholders::_1));
+			session->setSendHeartMsg(NET_HEARTBEAT_MSG_S2C);
+			session->setHeartMaxCount(TCP_HEARTBEAT_MAX_COUNT_SERVER);
+			session->setResetHeartCount(TCP_HEARTBEAT_COUNT_RESET_VALUE_SERVER);
+			session->setIsOnline(true);
 			addNewSession(session);
 		}
 	}
@@ -272,72 +251,22 @@ void TCPServer::onServerSocketClose(Socket* svr)
 	m_serverStage = ServerStage::CLEAR;
 }
 
-void TCPServer::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, unsigned int len, const NetMsgTag& tag)
-{
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	if (type == NetThreadMsgType::RECV_DATA)
-	{
-		auto it = m_allSession.find(session->getSessionID());
-		if (it != m_allSession.end())
-		{
-			it->second.curHeartCount = TCP_HEARTBEAT_COUNT_RESET_VALUE_SERVER;
-			it->second.curHeartTime = 0;
-			if (tag == NetMsgTag::MT_HEARTBEAT)
-			{
-				if (len == NET_HEARTBEAT_MSG_SIZE)
-				{
-					if (*((NET_HEART_TYPE*)data) == NET_HEARTBEAT_MSG_C2S)
-					{
-						unsigned int sendlen = 0;
-						char* senddata = tcp_packageHeartMsgData(NET_HEARTBEAT_RET_MSG_S2C, &sendlen);
-						it->second.session->executeSend(senddata, sendlen);
-						NET_UV_LOG(NET_UV_L_HEART, "recv heart c->s");
-					}
-				}
-				else// 不合法心跳
-				{
-					NET_UV_LOG(NET_UV_L_ERROR, "心跳消息不合法");
-					it->second.session->disconnect();
-				}
-				fc_free(data);
-				return;
-			}
-		}
-	}
-#endif
-
-	NetThreadMsg_S msg;
-	msg.msgType = type;
-	msg.data = data;
-	msg.dataLen = len;
-	msg.pSession = session;
-	msg.tag = tag;
-
-	m_msgMutex.lock();
-	m_msgQue.push(msg);
-	m_msgMutex.unlock();
-}
-
 void TCPServer::addNewSession(TCPSession* session)
 {
 	if (session == NULL)
 	{
 		return;
 	}
-	tcpSessionData data;
+	serverSessionData data;
 	data.isInvalid = false;
 	data.session = session;
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	data.curHeartCount = TCP_HEARTBEAT_COUNT_RESET_VALUE_SERVER;
-	data.curHeartTime = 0;
-#endif
+
 	session->setSessionID(m_sessionID);
 	m_allSession.insert(std::make_pair(m_sessionID, data));
 
 	m_sessionID++;
 
 	pushThreadMsg(NetThreadMsgType::NEW_CONNECT, session);
-	//NET_UV_LOG(NET_UV_L_INFO, "[%p] add", session);
 }
 
 void TCPServer::onSessionClose(Session* session)
@@ -353,45 +282,11 @@ void TCPServer::onSessionClose(Session* session)
 	}
 
 	pushThreadMsg(NetThreadMsgType::DIS_CONNECT, session);
-	//NET_UV_LOG(NET_UV_L_INFO, "[%p] remove", session);
 }
 
-void TCPServer::onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag)
+void TCPServer::onSessionRecvData(Session* session, char* data, unsigned int len)
 {
-	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len, tag);
-}
-
-
-void TCPServer::onServerIdleRun()
-{
-	executeOperation();
-	switch (m_serverStage)
-	{
-	case TCPServer::ServerStage::CLEAR:
-	{
-		for (auto& it : m_allSession)
-		{
-			if (!it.second.isInvalid)
-			{
-				it.second.session->executeDisconnect();
-			}
-		}
-		m_serverStage = ServerStage::WAIT_SESSION_CLOSE;
-	}
-	break;
-	case TCPServer::ServerStage::WAIT_SESSION_CLOSE:
-	{
-		if (m_allSession.empty())
-		{
-			uv_stop(&m_loop);
-			m_serverStage = ServerStage::STOP;
-		}
-	}
-	break;
-	default:
-		break;
-	}
-	ThreadSleep(1);
+	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len);
 }
 
 void TCPServer::executeOperation()
@@ -451,9 +346,6 @@ void TCPServer::executeOperation()
 		}break;
 		case TCP_SVR_OP_STOP_SERVER:
 		{
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1 
-			uv_timer_stop(m_heartTimer);
-#endif
 			for (auto & it : m_allSession)
 			{
 				if (!it.second.isInvalid)
@@ -463,6 +355,8 @@ void TCPServer::executeOperation()
 			}
 			m_server->disconnect();
 			m_serverStage = ServerStage::WAIT_CLOSE_SERVER_SOCKET;
+
+			stopSessionUpdate();
 		}break;
 		default:
 			break;
@@ -470,40 +364,6 @@ void TCPServer::executeOperation()
 		m_operationDispatchQue.pop();
 	}
 }
-
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-void TCPServer::heartRun()
-{
-	for (auto &it : m_allSession)
-	{
-		if (!it.second.isInvalid)
-		{
-			it.second.curHeartTime += TCP_HEARTBEAT_TIMER_DELAY;
-			if (it.second.curHeartTime >= TCP_HEARTBEAT_CHECK_DELAY)
-			{
-				it.second.curHeartTime = 0;
-				it.second.curHeartCount++;
-				if (it.second.curHeartCount > 0)
-				{
-					if (it.second.curHeartCount > TCP_HEARTBEAT_MAX_COUNT_SERVER)
-					{
-						it.second.curHeartCount = 0;
-						it.second.session->executeDisconnect();
-					}
-					else
-					{
-						unsigned int sendlen = 0;
-						char* senddata = tcp_packageHeartMsgData(NET_HEARTBEAT_MSG_S2C, &sendlen);
-						it.second.session->executeSend(senddata, sendlen);
-						NET_UV_LOG(NET_UV_L_HEART, "send heart s->c");
-					}
-				}
-			}
-		}
-	}
-}
-#endif
-
 
 void TCPServer::clearData()
 {
@@ -527,20 +387,45 @@ void TCPServer::clearData()
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void TCPServer::uv_on_idle_run(uv_idle_t* handle)
+void TCPServer::onIdleRun()
 {
-	TCPServer* s = (TCPServer*)handle->data;
-	s->onServerIdleRun();
+	executeOperation();
+	switch (m_serverStage)
+	{
+	case TCPServer::ServerStage::CLEAR:
+	{
+		for (auto& it : m_allSession)
+		{
+			if (!it.second.isInvalid)
+			{
+				it.second.session->executeDisconnect();
+			}
+		}
+		m_serverStage = ServerStage::WAIT_SESSION_CLOSE;
+	}
+	break;
+	case TCPServer::ServerStage::WAIT_SESSION_CLOSE:
+	{
+		if (m_allSession.empty())
+		{
+			stopIdle();
+			uv_stop(&m_loop);
+			m_serverStage = ServerStage::STOP;
+		}
+	}
+	break;
+	default:
+		break;
+	}
+	ThreadSleep(1);
 }
 
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-void TCPServer::uv_heart_timer_callback(uv_timer_t* handle)
+void TCPServer::onSessionUpdateRun()
 {
-	TCPServer* s = (TCPServer*)handle->data;
-	s->heartRun();
+	for (auto& it : m_allSession)
+	{
+		it.second.session->update(TCP_HEARTBEAT_TIMER_DELAY);
+	}
 }
-#endif
 
 NS_NET_UV_END

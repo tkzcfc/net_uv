@@ -7,13 +7,36 @@ NS_NET_UV_BEGIN
 
 class NET_UV_EXTERN TCPClient : public Client
 {
-public:
+protected:
 	enum CONNECTSTATE
 	{
 		CONNECT,		//已连接
 		CONNECTING,		//正在连接
 		DISCONNECTING,	//正在断开
 		DISCONNECT,		//已断开
+	};
+
+	struct clientSessionData
+	{
+		clientSessionData() {}
+		~clientSessionData() {}
+		CONNECTSTATE connectState;
+		bool removeTag; // 是否被标记移除
+		bool reconnect;	// 是否断线重连
+		float curtime;
+		float totaltime;
+		std::string ip;
+		unsigned int port;
+		TCPSession* session;
+	};
+
+	//客户端所处阶段
+	enum class clientStage
+	{
+		START,
+		CLEAR_SESSION,//清理会话
+		WAIT_EXIT,//即将退出
+		STOP
 	};
 public:
 
@@ -68,80 +91,45 @@ protected:
 	/// SessionManager
 	virtual void executeOperation()override;
 
+	/// Client
+	virtual void onIdleRun();
+
+	virtual void onSessionUpdateRun();
+
 	/// TCPClient
 	void onSocketConnect(Socket* socket, int status);
 
 	void onSessionClose(Session* session);
 
-	void onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag);
+	void onSessionRecvData(Session* session, char* data, unsigned int len);
 
 	void createNewConnect(void* data);
 
-	void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0U, NetMsgTag tag = NetMsgTag::MT_DEFAULT);
-
 	void clearData();
 
-	struct clientSessionData;
-	TCPClient::clientSessionData* getClientSessionDataBySessionId(unsigned int sessionId);
-	TCPClient::clientSessionData* getClientSessionDataBySession(Session* session);
+	clientSessionData* getClientSessionDataBySessionId(unsigned int sessionId);
 
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	void heartRun();
-#endif
+	clientSessionData* getClientSessionDataBySession(Session* session);
+
+	void onClientUpdate();
 
 protected:
-	uv_loop_t m_loop;
-	uv_idle_t m_idle;
-	uv_timer_t m_timer;
-
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	uv_timer_t m_heartTimer;
-#endif
+	uv_timer_t m_clientUpdateTimer;
 
 	bool m_reconnect;		// 是否自动断线重连
 	float m_totalTime;		// 断线重连时间
 	bool m_enableNoDelay;	
 	int m_enableKeepAlive; 
-	int m_keepAliveDelay;	
-
-	struct clientSessionData
-	{
-		clientSessionData() {}
-		~clientSessionData() {}
-		CONNECTSTATE connectState;
-		bool removeTag; // 是否被标记移除
-		bool reconnect;	// 是否断线重连
-		float curtime;
-		float totaltime;
-		std::string ip;
-		unsigned int port;
-		TCPSession* session;
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-		int curHeartTime;
-		int curHeartCount;
-#endif
-	};
+	int m_keepAliveDelay;
 
 	// 所有会话
 	std::map<unsigned int, clientSessionData*> m_allSessionMap;
 	
-	//客户端所处阶段
-	enum class clientStage
-	{
-		START,
-		CLEAR_SESSION,//清理会话
-		WAIT_EXIT,//即将退出
-		STOP
-	};
 	clientStage m_clientStage;
 	bool m_isStop;
 protected:
 
-	static void uv_timer_run(uv_timer_t* handle);
-	static void uv_on_idle_run(uv_idle_t* handle);
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	static void uv_heart_timer_callback(uv_timer_t* handle);
-#endif
+	static void uv_client_update_timer_run(uv_timer_t* handle);
 };
 NS_NET_UV_END
 

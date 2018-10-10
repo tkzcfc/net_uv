@@ -1,13 +1,12 @@
 #pragma once
 
 #include "Common.h"
-#include "../common/NetUVThreadMsg.h"
 
 NS_NET_UV_BEGIN
 
 class Session;
 using SessionCloseCall = std::function<void(Session*)>;
-using SessionRecvCall = std::function<void(Session*, char*, unsigned int, NetMsgTag)>;
+using SessionRecvCall = std::function<void(Session*, char*, unsigned int)>;
 
 class SessionManager;
 class NET_UV_EXTERN Session
@@ -33,6 +32,8 @@ protected:
 	virtual void executeDisconnect() = 0;
 
 	virtual bool executeConnect(const char* ip, unsigned int port) = 0;
+
+	virtual void update(unsigned int time) = 0;
 
 protected:
 		

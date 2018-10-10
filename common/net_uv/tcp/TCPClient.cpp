@@ -66,19 +66,13 @@ TCPClient::TCPClient()
 	
 	m_clientStage = clientStage::START;
 	
-	uv_idle_init(&m_loop, &m_idle);
-	m_idle.data = this;
-	uv_idle_start(&m_idle, uv_on_idle_run);
+	startIdle();
+	startSessionUpdate(TCP_HEARTBEAT_TIMER_DELAY);
 
-	uv_timer_init(&m_loop, &m_timer);
-	m_timer.data = this;
-	uv_timer_start(&m_timer, uv_timer_run, (uint64_t)(TCP_CLIENT_TIMER_DELAY * 1000), (uint64_t)(TCP_CLIENT_TIMER_DELAY * 1000));
+	uv_timer_init(&m_loop, &m_clientUpdateTimer);
+	m_clientUpdateTimer.data = this;
+	uv_timer_start(&m_clientUpdateTimer, uv_client_update_timer_run, (uint64_t)(TCP_CLIENT_TIMER_DELAY * 1000), (uint64_t)(TCP_CLIENT_TIMER_DELAY * 1000));
 
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	m_heartTimer.data = this;
-	uv_timer_init(&m_loop, &m_heartTimer);
-	uv_timer_start(&m_heartTimer, TCPClient::uv_heart_timer_callback, TCP_HEARTBEAT_TIMER_DELAY, TCP_HEARTBEAT_TIMER_DELAY);
-#endif
 	this->startThread();
 }
 
@@ -145,7 +139,7 @@ void TCPClient::updateFrame()
 	bool closeClientTag = false;
 	while (!m_msgDispatchQue.empty())
 	{
-		const NetThreadMsg_C& Msg = m_msgDispatchQue.front();
+		const NetThreadMsg& Msg = m_msgDispatchQue.front();
 		switch (Msg.msgType)
 		{
 		case NetThreadMsgType::RECV_DATA:
@@ -219,11 +213,9 @@ void TCPClient::send(unsigned int sessionId, char* data, unsigned int len)
 	if (data == 0 || len <= 0)
 		return;
 	int bufCount = 0;
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	uv_buf_t* bufArr = tcp_packageData(data, len, &bufCount, NetMsgTag::MT_DEFAULT);
-#else
+
 	uv_buf_t* bufArr = tcp_packageData(data, len, &bufCount);
-#endif
+
 	if (bufArr == NULL)
 		return;
 
@@ -478,10 +470,8 @@ void TCPClient::executeOperation()
 		}break;
 		case TCP_CLI_OP_CLIENT_CLOSE://客户端关闭
 		{
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-			uv_timer_stop(&m_heartTimer);
-#endif
 			m_clientStage = clientStage::CLEAR_SESSION;
+			stopSessionUpdate();
 		}break;
 		case TCP_CLI_OP_REMOVE_SESSION:
 		{
@@ -519,6 +509,20 @@ void TCPClient::executeOperation()
 			break;
 		}
 		m_operationDispatchQue.pop();
+	}
+}
+
+void TCPClient::onIdleRun()
+{
+	executeOperation();
+	ThreadSleep(1);
+}
+
+void TCPClient::onSessionUpdateRun()
+{
+	for (auto& it : m_allSessionMap)
+	{
+		it.second->session->update(TCP_HEARTBEAT_TIMER_DELAY);
 	}
 }
 
@@ -632,18 +636,21 @@ void TCPClient::createNewConnect(void* data)
 		new (socket) TCPSocket(&m_loop); 
 		socket->setConnectCallback(std::bind(&TCPClient::onSocketConnect, this, std::placeholders::_1, std::placeholders::_2));
 
-		TCPSession* session = TCPSession::createSession(this, socket, std::bind(&TCPClient::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+		TCPSession* session = TCPSession::createSession(this, &m_loop, socket);
 
 		if (session == NULL)
 		{
 			NET_UV_LOG(NET_UV_L_FATAL, "创建会话失败，可能是内存不足!!!");
 			return;
 		}
+		session->setSessionRecvCallback(std::bind(&TCPClient::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 		session->setSessionClose(std::bind(&TCPClient::onSessionClose, this, std::placeholders::_1));
 		session->setSessionID(opData->sessionID);
+		session->setSendHeartMsg(NET_HEARTBEAT_MSG_C2S);
+		session->setHeartMaxCount(TCP_HEARTBEAT_MAX_COUNT_CLIENT);
+		session->setResetHeartCount(TCP_HEARTBEAT_COUNT_RESET_VALUE_CLIENT);
 		session->setIsOnline(false);
 		
-
 		clientSessionData* cs = (clientSessionData*)fc_malloc(sizeof(clientSessionData));
 		new (cs) clientSessionData();
 		cs->removeTag = false;
@@ -654,10 +661,7 @@ void TCPClient::createNewConnect(void* data)
 		cs->reconnect = m_reconnect;
 		cs->totaltime = m_totalTime;
 		cs->connectState = CONNECTSTATE::CONNECTING;
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-		cs->curHeartCount = TCP_HEARTBEAT_COUNT_RESET_VALUE_CLIENT;
-		cs->curHeartTime = 0;
-#endif
+
 		m_allSessionMap.insert(std::make_pair(opData->sessionID, cs));
 		
 		if (socket->connect(opData->ip.c_str(), opData->port))
@@ -672,57 +676,9 @@ void TCPClient::createNewConnect(void* data)
 	}
 }
 
-void TCPClient::onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag)
+void TCPClient::onSessionRecvData(Session* session, char* data, unsigned int len)
 {
-	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len, tag);
-}
-
-
-void TCPClient::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, unsigned int len, NetMsgTag tag)
-{
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	if (type == NetThreadMsgType::RECV_DATA)
-	{
-		auto it = m_allSessionMap.find(session->getSessionID());
-		if (it != m_allSessionMap.end())
-		{
-			auto clientdata = it->second;
-			clientdata->curHeartCount = TCP_HEARTBEAT_COUNT_RESET_VALUE_CLIENT;
-			clientdata->curHeartTime = 0;
-			if (tag == NetMsgTag::MT_HEARTBEAT)
-			{
-				if (len == NET_HEARTBEAT_MSG_SIZE)
-				{
-					if (*((NET_HEART_TYPE*)data) == NET_HEARTBEAT_MSG_S2C)
-					{
-						NET_UV_LOG(NET_UV_L_HEART, "recv heart s->c");
-						unsigned int sendlen = 0;
-						char* senddata = tcp_packageHeartMsgData(NET_HEARTBEAT_RET_MSG_C2S, &sendlen);
-						clientdata->session->executeSend(senddata, sendlen);
-					}
-				}
-				else// 不合法心跳
-				{
-					NET_UV_LOG(NET_UV_L_ERROR, "心跳消息不合法");
-					clientdata->session->executeDisconnect();
-				}
-				fc_free(data);
-				return;
-			}
-		}
-	}
-#endif
-
-	NetThreadMsg_C msg;
-	msg.msgType = type;
-	msg.data = data;
-	msg.dataLen = len;
-	msg.pSession = session;
-	msg.tag = tag;
-
-	m_msgMutex.lock();
-	m_msgQue.push(msg);
-	m_msgMutex.unlock();
+	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len);
 }
 
 TCPClient::clientSessionData* TCPClient::getClientSessionDataBySessionId(unsigned int sessionId)
@@ -744,42 +700,6 @@ TCPClient::clientSessionData* TCPClient::getClientSessionDataBySession(Session* 
 	}
 	return NULL;
 }
-
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-void TCPClient::heartRun()
-{
-	for (auto &it : m_allSessionMap)
-	{
-		auto clientdata = it.second;
-
-		if(clientdata->connectState != CONNECT)
-			continue;
-
-		clientdata->curHeartTime += TCP_HEARTBEAT_TIMER_DELAY;
-		if (clientdata->curHeartTime > TCP_HEARTBEAT_CHECK_DELAY)
-		{
-			clientdata->curHeartTime = 0;
-			clientdata->curHeartCount++;
-			if (clientdata->curHeartCount > 0)
-			{
-				if (clientdata->curHeartCount > TCP_HEARTBEAT_MAX_COUNT_CLIENT)
-				{
-					clientdata->curHeartCount = 0;
-					clientdata->session->executeDisconnect();
-				}
-				else
-				{
-					unsigned int sendlen = 0;
-					char* senddata = tcp_packageHeartMsgData(NET_HEARTBEAT_MSG_C2S, &sendlen);
-					clientdata->session->executeSend(senddata, sendlen);
-					NET_UV_LOG(NET_UV_L_HEART, "send heart c->s");
-				}
-			}
-		}
-	}
-}
-#endif
-
 
 void TCPClient::clearData()
 {
@@ -844,15 +764,12 @@ void TCPClient::clearData()
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-void TCPClient::uv_timer_run(uv_timer_t* handle)
+void TCPClient::onClientUpdate()
 {
-	TCPClient* c = (TCPClient*)handle->data;
-
-	if (c->m_clientStage == clientStage::START)
+	if (m_clientStage == clientStage::START)
 	{
 		clientSessionData* data = NULL;
-		for (auto& it : c->m_allSessionMap)
+		for (auto& it : m_allSessionMap)
 		{
 			data = it.second;
 			if (data->connectState == CONNECTSTATE::DISCONNECT && data->reconnect && data->removeTag == false)
@@ -872,12 +789,13 @@ void TCPClient::uv_timer_run(uv_timer_t* handle)
 					}
 				}
 			}
+			data->session->update(TCP_CLIENT_TIMER_DELAY * 1000);
 		}
 	}
-	else if(c->m_clientStage == clientStage::CLEAR_SESSION)
+	else if (m_clientStage == clientStage::CLEAR_SESSION)
 	{
 		clientSessionData* data = NULL;
-		for (auto& it : c->m_allSessionMap)
+		for (auto& it : m_allSessionMap)
 		{
 			data = it.second;
 
@@ -891,34 +809,28 @@ void TCPClient::uv_timer_run(uv_timer_t* handle)
 				if (!data->removeTag)
 				{
 					data->removeTag = true;
-					c->pushThreadMsg(NetThreadMsgType::REMOVE_SESSION, data->session);
+					pushThreadMsg(NetThreadMsgType::REMOVE_SESSION, data->session);
 				}
 			}
 		}
-		if (c->m_allSessionMap.empty())
+		if (m_allSessionMap.empty())
 		{
-			c->m_clientStage = clientStage::WAIT_EXIT;
+			m_clientStage = clientStage::WAIT_EXIT;
 		}
 	}
-	else if (c->m_clientStage == clientStage::WAIT_EXIT)
+	else if (m_clientStage == clientStage::WAIT_EXIT)
 	{
-		uv_stop(&c->m_loop);
+		stopIdle();
+		uv_timer_stop(&m_clientUpdateTimer);
+		uv_stop(&m_loop);
 	}
 }
 
-void TCPClient::uv_on_idle_run(uv_idle_t* handle)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+void TCPClient::uv_client_update_timer_run(uv_timer_t* handle)
 {
-	TCPClient* c =  (TCPClient*)handle->data;
-	c->executeOperation();
-	ThreadSleep(1);
+	TCPClient* c = (TCPClient*)handle->data;
+	c->onClientUpdate();
 }
-
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-void TCPClient::uv_heart_timer_callback(uv_timer_t* handle)
-{
-	TCPClient* s = (TCPClient*)handle->data;
-	s->heartRun();
-}
-#endif
 
 NS_NET_UV_END

@@ -19,9 +19,9 @@ public:
 	
 protected:
 
-	static TCPSession* createSession(SessionManager* sessionManager, TCPSocket* socket, const SessionRecvCall& call);
+	static TCPSession* createSession(SessionManager* sessionManager, uv_loop_t* loop, TCPSocket* socket);
 
-	TCPSession(SessionManager* sessionManager);
+	TCPSession(SessionManager* sessionManager, uv_loop_t* loop);
 
 protected:
 
@@ -33,11 +33,21 @@ protected:
 
 	virtual void setIsOnline(bool isOnline)override;
 
+	virtual void update(unsigned int time)override;
+
 protected:
 
 	bool initWithSocket(TCPSocket* socket);
 	
 	inline TCPSocket* getTCPSocket();
+
+	inline void setResetHeartCount(int resetHeartCount);
+
+	inline void setSendHeartMsg(NET_HEART_TYPE msg);
+
+	inline void setHeartMaxCount(int maxCount);
+	
+	void onRecvMsgPackage(char* data, unsigned int len, NET_HEART_TYPE type);
 
 protected:
 
@@ -52,6 +62,14 @@ protected:
 
 	Buffer* m_recvBuffer;
 	TCPSocket* m_socket;
+
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	int m_curHeartTime;
+	int m_curHeartCount;
+	int m_resetHeartCount;
+	int m_curHeartMaxCount;
+	NET_HEART_TYPE m_sendHeartMsg;
+#endif
 };
 
 TCPSocket* TCPSession::getTCPSocket()
@@ -69,5 +87,26 @@ const std::string& TCPSession::getIp()
 	return getTCPSocket()->getIp();
 }
 
+
+void TCPSession::setResetHeartCount(int resetHeartCount)
+{
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	m_resetHeartCount = resetHeartCount;
+#endif
+}
+
+void TCPSession::setSendHeartMsg(NET_HEART_TYPE msg)
+{
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	m_sendHeartMsg = msg;
+#endif
+}
+
+void TCPSession::setHeartMaxCount(int maxCount)
+{
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	m_curHeartMaxCount = maxCount;
+#endif
+}
 
 NS_NET_UV_END

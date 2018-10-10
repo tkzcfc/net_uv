@@ -82,11 +82,7 @@ NET_UV_EXTERN char* tcp_uv_decode(const char* data, unsigned int len, unsigned i
 
 
 // 打包数据
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-NET_UV_EXTERN uv_buf_t* tcp_packageData(char* data, unsigned int len, int* bufCount, NET_HEART_TYPE msgTag)
-#else
 NET_UV_EXTERN uv_buf_t* tcp_packageData(char* data, unsigned int len, int* bufCount)
-#endif
 {
 	*bufCount = 0;
 	if (data == NULL || len <= 0)
@@ -120,7 +116,7 @@ NET_UV_EXTERN uv_buf_t* tcp_packageData(char* data, unsigned int len, int* bufCo
 	TCPMsgHead* h = (TCPMsgHead*)p;
 	h->len = encodelen;
 #if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	h->tag = msgTag;
+	h->tag = NET_MSG_TYPE::MT_DEFAULT;
 #endif
 	memcpy(p + tcp_msg_headlen, encodedata, encodelen);
 
@@ -131,7 +127,7 @@ NET_UV_EXTERN uv_buf_t* tcp_packageData(char* data, unsigned int len, int* bufCo
 	TCPMsgHead* h = (TCPMsgHead*)p;
 	h->len = len;
 #if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	h->tag = msgTag;
+	h->tag = NET_MSG_TYPE::MT_DEFAULT;
 #endif
 	memcpy(p + tcp_msg_headlen, data, len);
 #endif
@@ -187,13 +183,12 @@ NET_UV_EXTERN uv_buf_t* tcp_packageData(char* data, unsigned int len, int* bufCo
 }
 
 // 打包心跳消息
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
-NET_UV_EXTERN char* tcp_packageHeartMsgData(char msg, unsigned int* outBufSize)
+NET_UV_EXTERN char* tcp_packageHeartMsgData(NET_HEART_TYPE msg, unsigned int* outBufSize)
 {
 	*outBufSize = 0;
 #if TCP_UV_OPEN_MD5_CHECK == 1
 	unsigned int encodelen = 0;
-	char* encodedata = tcp_uv_encode(&msg, NET_HEARTBEAT_MSG_SIZE, encodelen);
+	char* encodedata = tcp_uv_encode((char*)&msg, NET_HEARTBEAT_MSG_SIZE, encodelen);
 	if (encodedata == NULL)
 	{
 		assert(0);
@@ -208,7 +203,9 @@ NET_UV_EXTERN char* tcp_packageHeartMsgData(char msg, unsigned int* outBufSize)
 	}
 	TCPMsgHead* h = (TCPMsgHead*)p;
 	h->len = encodelen;
-	h->tag = NetMsgTag::MT_HEARTBEAT;
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	h->tag = NET_MSG_TYPE::MT_HEARTBEAT;
+#endif
 	memcpy(p + tcp_msg_headlen, encodedata, encodelen);
 
 	fc_free(encodedata);
@@ -221,14 +218,15 @@ NET_UV_EXTERN char* tcp_packageHeartMsgData(char msg, unsigned int* outBufSize)
 	}
 	TCPMsgHead* h = (TCPMsgHead*)p;
 	h->len = NET_HEARTBEAT_MSG_SIZE;
-	h->tag = NetMsgTag::MT_HEARTBEAT;
-	memcpy(p + tcp_msg_headlen, h, NET_HEARTBEAT_MSG_SIZE);
+#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	h->tag = NET_MSG_TYPE::MT_HEARTBEAT;
+#endif
+	memcpy(p + tcp_msg_headlen, &msg, NET_HEARTBEAT_MSG_SIZE);
 #endif
 
 	*outBufSize = sendlen;
 
 	return p;
 }
-#endif
 
 NS_NET_UV_END

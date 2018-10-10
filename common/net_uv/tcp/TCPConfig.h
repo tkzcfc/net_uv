@@ -32,7 +32,7 @@ NS_NET_UV_BEGIN
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // 消息开启md5校验
-#define TCP_UV_OPEN_MD5_CHECK 0
+#define TCP_UV_OPEN_MD5_CHECK 1
 // 校验密码
 #define TCP_UV_ENCODE_KEY "net_uv_tcp_md5_key"
 
@@ -45,7 +45,7 @@ NS_NET_UV_BEGIN
 // 如果关闭该选项，则需要在应用层自己做心跳校验
 #define TCP_OPEN_UV_THREAD_HEARTBEAT 1
 
-#if TCP_OPEN_UV_THREAD_HEARTBEAT == 1
+
 #define TCP_HEARTBEAT_TIMER_DELAY (400)		// 心跳检测定时器间隔
 #define TCP_HEARTBEAT_CHECK_DELAY (1200)	// 心跳检测时间
 #define TCP_HEARTBEAT_MAX_COUNT_SERVER 3	// 心跳不回复最大次数(服务端)
@@ -56,6 +56,6 @@ NS_NET_UV_BEGIN
 #define TCP_HEARTBEAT_COUNT_RESET_VALUE_SERVER (-2) 
 // 心跳次数计数重置值(客户端) 小于0
 #define TCP_HEARTBEAT_COUNT_RESET_VALUE_CLIENT (-1)	
-#endif
+
 
 NS_NET_UV_END

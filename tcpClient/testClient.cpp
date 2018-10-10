@@ -11,8 +11,8 @@ NS_NET_UV_OPEN
 LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
 #endif
 
-#define CONNECT_IP "127.0.0.1"
-//#define CONNECT_IP "www.kurumi.xin"
+//#define CONNECT_IP "127.0.0.1"
+#define CONNECT_IP "www.kurumi.xin"
 #define CONNECT_PORT 1001
 
 bool autosend = true;
@@ -87,10 +87,10 @@ void main()
 			}
 		}
 		fc_free(msg);
-		//if (rand() % 100 == 0)
-		//{
-		//	session->disconnect();
-		//}
+		if (rand() % 100 == 0)
+		{
+			session->disconnect(); 
+		}
 	});
 
 	for (int i = 0; i < 10; ++i)

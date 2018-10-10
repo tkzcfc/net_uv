@@ -4,6 +4,7 @@
 #include "Session.h"
 #include "SessionManager.h"
 #include "Runnable.h"
+#include "../common/NetUVThreadMsg.h"
 
 NS_NET_UV_BEGIN
 
@@ -20,7 +21,7 @@ public:
 	Server();
 	virtual ~Server();
 
-	virtual void startServer(const char* ip, int port, bool isIPV6);
+	virtual void startServer(const char* ip, unsigned int port, bool isIPV6);
 
 	virtual bool stopServer() = 0;
 
@@ -38,17 +39,46 @@ public:
 	inline void setDisconnectCallback(const ServerDisconnectCall& call);
 
 protected:
+
+	virtual void onIdleRun() = 0;
+
+	virtual void onSessionUpdateRun() = 0;
+
+protected:
+
+	void startIdle();
+
+	void stopIdle();
+
+	void startSessionUpdate(unsigned int time);
+
+	void stopSessionUpdate();
+
+	virtual void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0);
+
+protected:
+	static void uv_on_idle_run(uv_idle_t* handle);
+
+	static void uv_on_session_update_timer_run(uv_timer_t* handle);
+protected:
 	ServerStartCall m_startCall;
 	ServerCloseCall m_closeCall;
 	ServerNewConnectCall m_newConnectCall;
 	ServerRecvCall m_recvCall;
 	ServerDisconnectCall m_disconnectCall;
 
-
 	// 线程消息
 	Mutex m_msgMutex;
-	std::queue<NetThreadMsg_S> m_msgQue;
-	std::queue<NetThreadMsg_S> m_msgDispatchQue;
+	std::queue<NetThreadMsg> m_msgQue;
+	std::queue<NetThreadMsg> m_msgDispatchQue;
+
+	uv_idle_t m_idle;
+	uv_timer_t m_sessionUpdateTimer;
+	uv_loop_t m_loop;
+
+	std::string m_ip;
+	unsigned int m_port;
+	bool m_isIPV6;
 };
 
 void Server::setCloseCallback(const ServerCloseCall& call)

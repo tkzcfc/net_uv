@@ -16,4 +16,4 @@
 #define NET_UV_L_FATAL	 (4)
 
 // log输出最低等级
-#define NET_UV_L_MIN_LEVEL NET_UV_L_INFO
+#define NET_UV_L_MIN_LEVEL NET_UV_L_HEART

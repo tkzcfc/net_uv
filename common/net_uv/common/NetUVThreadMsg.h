@@ -4,13 +4,6 @@
 
 NS_NET_UV_BEGIN
 
-// 消息内容标记
-enum NetMsgTag : unsigned int
-{
-	MT_HEARTBEAT,	// 心跳消息
-	MT_DEFAULT
-};
-
 //消息类型
 enum class NetThreadMsgType
 {
@@ -29,22 +22,12 @@ enum class NetThreadMsgType
 };
 
 class Session;
-struct NetThreadMsg_S
+struct NetThreadMsg
 {
 	NetThreadMsgType msgType;
 	Session* pSession;
 	char* data;
 	unsigned int dataLen;
-	unsigned int tag;
-};
-
-struct NetThreadMsg_C
-{
-	NetThreadMsgType msgType;
-	Session* pSession;
-	char* data;
-	unsigned int dataLen;
-	unsigned int tag;
 };
 
 NS_NET_UV_END
