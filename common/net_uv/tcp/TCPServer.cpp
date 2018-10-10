@@ -224,7 +224,7 @@ void TCPServer::onNewConnect(uv_stream_t* server, int status)
 	TCPSocket* client = m_server->accept(server, status);
 	if (client != NULL)
 	{
-		TCPSession* session = TCPSession::createSession(this, &m_loop, client);
+		TCPSession* session = TCPSession::createSession(this, client);
 		if (session == NULL)
 		{
 			NET_UV_LOG(NET_UV_L_ERROR, "服务器创建新会话失败,可能是内存不足");
@@ -236,7 +236,11 @@ void TCPServer::onNewConnect(uv_stream_t* server, int status)
 			session->setSendHeartMsg(NET_HEARTBEAT_MSG_S2C);
 			session->setHeartMaxCount(TCP_HEARTBEAT_MAX_COUNT_SERVER);
 			session->setResetHeartCount(TCP_HEARTBEAT_COUNT_RESET_VALUE_SERVER);
+			session->setSessionID(m_sessionID);
 			session->setIsOnline(true);
+
+			m_sessionID++;
+
 			addNewSession(session);
 		}
 	}
@@ -261,10 +265,7 @@ void TCPServer::addNewSession(TCPSession* session)
 	data.isInvalid = false;
 	data.session = session;
 
-	session->setSessionID(m_sessionID);
-	m_allSession.insert(std::make_pair(m_sessionID, data));
-
-	m_sessionID++;
+	m_allSession.insert(std::make_pair(session->getSessionID(), data));
 
 	pushThreadMsg(NetThreadMsgType::NEW_CONNECT, session);
 }

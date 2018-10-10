@@ -92,9 +92,9 @@ protected:
 	virtual void executeOperation()override;
 
 	/// Client
-	virtual void onIdleRun();
+	virtual void onIdleRun()override;
 
-	virtual void onSessionUpdateRun();
+	virtual void onSessionUpdateRun()override;
 
 	/// TCPClient
 	void onSocketConnect(Socket* socket, int status);

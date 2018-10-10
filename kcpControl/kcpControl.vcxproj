@@ -244,6 +244,7 @@
     <ClInclude Include="..\common\net_uv\base\SessionManager.h" />
     <ClInclude Include="..\common\net_uv\base\Socket.h" />
     <ClInclude Include="..\common\net_uv\base\uv_func.h" />
+    <ClInclude Include="..\common\net_uv\common\NetHeart.h" />
     <ClInclude Include="..\common\net_uv\common\NetUVThreadMsg.h" />
     <ClInclude Include="..\common\net_uv\kcp\ikcp.h" />
     <ClInclude Include="..\common\net_uv\kcp\KCPClient.h" />

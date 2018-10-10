@@ -11,8 +11,8 @@ NS_NET_UV_OPEN
 LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
 #endif
 
-#define CONNECT_IP "127.0.0.1"
-//#define CONNECT_IP "www.kurumi.xin"
+//#define CONNECT_IP "127.0.0.1"
+#define CONNECT_IP "www.kurumi.xin"
 #define CONNECT_PORT 1234
 
 bool autosend = true;
@@ -87,13 +87,13 @@ void main()
 			}
 		}
 		fc_free(msg);
-		if (rand() % 100 == 0)
-		{
-			session->disconnect();
-		}
+		//if (rand() % 100 == 0)
+		//{
+		//	session->disconnect();
+		//}
 	});
 
-	for (int i = 0; i < 1; ++i)
+	for (int i = 0; i < 2; ++i)
 	{
 		client->connect(CONNECT_IP, CONNECT_PORT, keyIndex++);
 	}
@@ -103,20 +103,20 @@ void main()
 	{
 		client->updateFrame();
 
-		//自动发送
-		if (autosend)
-		{
-			curCount++;
-			if (curCount > 200)
-			{
-				for (int i = 0; i < keyIndex; ++i)
-				{
-					sprintf(szWriteBuf, "this is %d send data...", i);
-					client->send(i, szWriteBuf, (unsigned int)strlen(szWriteBuf));
-				}
-				curCount = 0;
-			}
-		}
+		////自动发送
+		//if (autosend)
+		//{
+		//	curCount++;
+		//	if (curCount > 200)
+		//	{
+		//		for (int i = 0; i < keyIndex; ++i)
+		//		{
+		//			sprintf(szWriteBuf, "this is %d send data...", i);
+		//			client->send(i, szWriteBuf, (unsigned int)strlen(szWriteBuf));
+		//		}
+		//		curCount = 0;
+		//	}
+		//}
 
 		ThreadSleep(1);
 	}
@@ -169,7 +169,7 @@ bool cmdResolve(char* cmd, unsigned int key)
 	}
 	else if (CMD_STRCMP("big"))
 	{
-		int msgLen = KCP_WRITE_MAX_LEN * 100;
+		int msgLen = KCP_WRITE_MAX_LEN * 100 * 4;
 		char* szMsg = (char*)fc_malloc(msgLen);
 		for (int i = 0; i < msgLen; ++i)
 		{

@@ -19,9 +19,9 @@ public:
 	
 protected:
 
-	static TCPSession* createSession(SessionManager* sessionManager, uv_loop_t* loop, TCPSocket* socket);
+	static TCPSession* createSession(SessionManager* sessionManager, TCPSocket* socket);
 
-	TCPSession(SessionManager* sessionManager, uv_loop_t* loop);
+	TCPSession(SessionManager* sessionManager);
 
 protected:
 

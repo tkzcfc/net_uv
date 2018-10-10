@@ -377,5 +377,8 @@
     <ClInclude Include="..\common\net_uv\tcp\TCPSession.h">
       <Filter>net_uv\tcp</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\net_uv\common\NetHeart.h">
+      <Filter>net_uv\common</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -167,11 +167,7 @@ NET_UV_EXTERN char* kcp_uv_decode(const char* data, unsigned int len, unsigned i
 
 
 // 打包数据
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-NET_UV_EXTERN uv_buf_t* kcp_packageData(char* data, unsigned int len, int* bufCount, NetMsgTag msgTag)
-#else
 NET_UV_EXTERN uv_buf_t* kcp_packageData(char* data, unsigned int len, int* bufCount)
-#endif
 {
 	*bufCount = 0;
 	if (data == NULL || len <= 0)
@@ -205,7 +201,7 @@ NET_UV_EXTERN uv_buf_t* kcp_packageData(char* data, unsigned int len, int* bufCo
 	KCPMsgHead* h = (KCPMsgHead*)p;
 	h->len = encodelen;
 #if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	h->tag = msgTag;
+	h->tag = NET_MSG_TYPE::MT_DEFAULT;
 #endif
 	memcpy(p + kcp_msg_headlen, encodedata, encodelen);
 
@@ -216,7 +212,7 @@ NET_UV_EXTERN uv_buf_t* kcp_packageData(char* data, unsigned int len, int* bufCo
 	KCPMsgHead* h = (KCPMsgHead*)p;
 	h->len = len;
 #if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	h->tag = msgTag;
+	h->tag = NET_MSG_TYPE::MT_DEFAULT;
 #endif
 	memcpy(p + kcp_msg_headlen, data, len);
 #endif
@@ -269,16 +265,15 @@ NET_UV_EXTERN uv_buf_t* kcp_packageData(char* data, unsigned int len, int* bufCo
 		outBuf->len = sendlen;
 	}
 	return outBuf;
-}
+	}
 
 // 打包心跳消息
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-NET_UV_EXTERN char* kcp_packageHeartMsgData(char msg, unsigned int* outBufSize)
+NET_UV_EXTERN char* kcp_packageHeartMsgData(NET_HEART_TYPE msg, unsigned int* outBufSize)
 {
 	*outBufSize = 0;
 #if KCP_UV_OPEN_MD5_CHECK == 1
 	unsigned int encodelen = 0;
-	char* encodedata = kcp_uv_encode(&msg, KCP_HEARTBEAT_MSG_SIZE, encodelen);
+	char* encodedata = kcp_uv_encode((char*)&msg, NET_HEARTBEAT_MSG_SIZE, encodelen);
 	if (encodedata == NULL)
 	{
 		assert(0);
@@ -293,27 +288,30 @@ NET_UV_EXTERN char* kcp_packageHeartMsgData(char msg, unsigned int* outBufSize)
 	}
 	KCPMsgHead* h = (KCPMsgHead*)p;
 	h->len = encodelen;
-	h->tag = NetMsgTag::MT_HEARTBEAT;
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	h->tag = NET_MSG_TYPE::MT_HEARTBEAT;
+#endif
 	memcpy(p + kcp_msg_headlen, encodedata, encodelen);
 
 	fc_free(encodedata);
 #else
-	unsigned int sendlen = kcp_msg_headlen + KCP_HEARTBEAT_MSG_SIZE;
+	unsigned int sendlen = kcp_msg_headlen + NET_HEARTBEAT_MSG_SIZE;
 	char* p = (char*)fc_malloc(sendlen);
 	if (p == NULL)
 	{
 		return NULL;
 	}
 	KCPMsgHead* h = (KCPMsgHead*)p;
-	h->len = KCP_HEARTBEAT_MSG_SIZE;
-	h->tag = NetMsgTag::MT_HEARTBEAT;
-	memcpy(p + kcp_msg_headlen, h, KCP_HEARTBEAT_MSG_SIZE);
+	h->len = NET_HEARTBEAT_MSG_SIZE;
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	h->tag = NET_MSG_TYPE::MT_HEARTBEAT;
+#endif
+	memcpy(p + kcp_msg_headlen, &msg, NET_HEARTBEAT_MSG_SIZE);
 #endif
 
 	*outBufSize = sendlen;
 
 	return p;
 }
-#endif
 
 NS_NET_UV_END

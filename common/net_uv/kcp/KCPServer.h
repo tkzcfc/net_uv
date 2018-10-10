@@ -19,23 +19,15 @@ class NET_UV_EXTERN KCPServer : public Server
 		STOP		//退出
 	};
 
-	struct kcpSessionData
+	struct serverSessionData
 	{
-		kcpSessionData()
+		serverSessionData()
 		{
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-			curHeartTime = 0;
-			curHeartCount = 0;
-#endif
 			isInvalid = false;
 			session = NULL;
 		}
 		KCPSession* session;
 		bool isInvalid;
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-		int curHeartTime;
-		int curHeartCount;
-#endif
 	};
 
 public:
@@ -46,7 +38,7 @@ public:
 	virtual ~KCPServer();
 
 	/// Server
-	virtual void startServer(const char* ip, int port, bool isIPV6)override;
+	virtual void startServer(const char* ip, unsigned int port, bool isIPV6)override;
 
 	virtual bool stopServer()override;
 
@@ -75,13 +67,14 @@ protected:
 
 	bool onServerSocketConnectFilter(const struct sockaddr* addr);
 
-	void onServerIdleRun();
+	void onSessionRecvData(Session* session, char* data, unsigned int len);
 
-	void onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag);
-	
+	/// Server
+	virtual void onIdleRun()override;
+
+	virtual void onSessionUpdateRun()override;
+
 protected:
-
-	void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0, const NetMsgTag& tag = NetMsgTag::MT_DEFAULT);
 
 	void addNewSession(KCPSession* session);
 
@@ -89,40 +82,16 @@ protected:
 
 	void clearData();
 
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	void heartRun();
-#endif
-
 protected:
 	bool m_start;
 
-	std::string m_ip;
-	int m_port;
-	bool m_isIPV6;
-
 	KCPSocket* m_server;
-
-	uv_idle_t m_idle;
-	uv_loop_t m_loop;
 
 	// 服务器所处阶段
 	ServerStage m_serverStage;
 
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	uv_timer_t* m_heartTimer;
-#endif
-
 	// 会话管理
-	std::map<unsigned int, kcpSessionData> m_allSession;
-
-	unsigned int m_sessionID;
-protected:
-
-	static void uv_on_idle_run(uv_idle_t* handle);
-
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	static void uv_heart_timer_callback(uv_timer_t* handle);
-#endif
+	std::map<unsigned int, serverSessionData> m_allSession;
 };
 
 

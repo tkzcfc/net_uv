@@ -2,7 +2,8 @@
 
 NS_NET_UV_BEGIN
 
-#define KCP_SOCKET_TIMEOUT 3000
+// 连接超时时间 5S
+#define KCP_SOCKET_CONNECT_TIMEOUT (5000)
 
 KCPSocket::KCPSocket(uv_loop_t* loop)
 	: m_socketAddr(NULL)
@@ -96,7 +97,7 @@ bool KCPSocket::bind(const char* ip, unsigned int port)
 	r = uv_udp_init(m_loop, m_udp);
 	CHECK_UV_ASSERT(r);
 	m_udp->data = this;
-	
+
 	r = uv_udp_bind(m_udp, (const struct sockaddr*) &bind_addr, UV_UDP_REUSEADDR);
 	CHECK_UV_ASSERT(r);
 
@@ -230,7 +231,6 @@ bool KCPSocket::connect(const char* ip, unsigned int port)
 
 		m_udp->data = this;
 
-
 		//struct sockaddr_in broadcast_addr;
 		//r = uv_ip4_addr("0.0.0.0", 0, &broadcast_addr);
 		//CHECK_UV_ASSERT(r);
@@ -299,6 +299,7 @@ void KCPSocket::disconnect()
 		{
 			m_kcpState = State::WAIT_DISCONNECT;
 			m_releaseCount = 10;
+			startIdle();
 		}
 	}
 	if (m_socketMng != NULL)
@@ -318,10 +319,14 @@ void KCPSocket::disconnect()
 void KCPSocket::socketUpdate(IUINT32 clock)
 {
 	m_last_update_time = clock;
+
+	if (m_kcpState == State::DISCONNECT)
+		return;
+
 	if (m_kcpState == State::WAIT_CONNECT)
 	{
 		// 连接超时
-		if (m_last_send_connect_msg_time - m_first_send_connect_msg_time > KCP_SOCKET_TIMEOUT)
+		if (m_last_send_connect_msg_time - m_first_send_connect_msg_time > KCP_SOCKET_CONNECT_TIMEOUT)
 		{
 			doConnectTimeout();
 			return;
@@ -339,12 +344,13 @@ void KCPSocket::socketUpdate(IUINT32 clock)
 	}
 	else
 	{
-		//// 发送超时
-		//if (m_last_packet_recv_time > 0 && clock - m_last_packet_recv_time > KCP_SOCKET_TIMEOUT)
-		//{
-		//	doSendTimeout();
-		//	return;
-		//}
+		// 发送超时
+		// 三分钟没有任何消息返回
+		if (m_last_packet_recv_time > 0 && clock - m_last_packet_recv_time > 300000)
+		{
+			doSendTimeout();
+			return;
+		}
 
 		if (m_kcp)
 		{
@@ -412,11 +418,6 @@ void KCPSocket::udpSend(const char* data, int len)
 	{
 		NET_UV_LOG(NET_UV_L_ERROR, "udp send error %s", uv_strerror(r));
 	}
-	std::string strMsg = std::string(data, len);
-	if (strlen(strMsg.c_str()) > 10)
-	{
-		printf("[%p] %s\n", this, strMsg.c_str());
-	}
 }
 
 void KCPSocket::udpSend(const char* data, int len, const struct sockaddr* addr)
@@ -443,7 +444,7 @@ void KCPSocket::udpSend(const char* data, int len, const struct sockaddr* addr)
 
 void KCPSocket::kcpInput(const char* data, long size)
 {
-	m_last_packet_recv_time = iclock();
+	m_last_packet_recv_time = m_last_update_time;
 	ikcp_input(m_kcp, data, size);
 
 	int kcp_recvd_bytes = 0;
@@ -474,8 +475,8 @@ void KCPSocket::initKcp(IUINT32 conv)
 	// 第三个参数 interval为内部处理时钟，默认设置为 10ms
 	// 第四个参数 resend为快速重传指标，设置为2
 	// 第五个参数 为是否禁用常规流控，这里禁止
-	//ikcp_nodelay(p_kcp_, 1, 10, 2, 1);
-	ikcp_nodelay(m_kcp, 1, 5, 1, 1); // 设置成1次ACK跨越直接重传, 这样反应速度会更快. 内部时钟5毫秒.
+	ikcp_nodelay(m_kcp, 1, 10, 2, 1);
+	//ikcp_nodelay(m_kcp, 1, 5, 1, 1); // 设置成1次ACK跨越直接重传, 这样反应速度会更快. 内部时钟5毫秒.
 }
 
 void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
@@ -500,7 +501,7 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			m_connectCall(this, 1);
 		}
 	}
-		break;
+	break;
 	case KCPSocket::LISTEN:
 	{
 		if (kcp_is_connect_packet(buf->base, nread))
@@ -558,7 +559,7 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			kcpInput(buf->base, nread);
 		}
 	}
-		break;
+	break;
 	default:
 		break;
 	}
@@ -573,7 +574,6 @@ void KCPSocket::doSendConnectMsgPack(IUINT32 clock)
 
 void KCPSocket::doConnectTimeout()
 {
-	printf("[%p] timeout\n", this);
 	if (m_idle)
 	{
 		uv_idle_stop(m_idle);
@@ -586,7 +586,14 @@ void KCPSocket::doConnectTimeout()
 }
 
 void KCPSocket::doSendTimeout()
-{}
+{
+	if (m_kcp)
+	{
+		ikcp_release(m_kcp);
+		m_kcp = NULL;
+	}
+	shutdownSocket();
+}
 
 void KCPSocket::startIdle()
 {
@@ -614,9 +621,9 @@ void KCPSocket::uv_on_close_socket(uv_handle_t* socket)
 	fc_free(socket);
 }
 
-void KCPSocket::uv_on_udp_send(uv_udp_send_t *req, int status) 
+void KCPSocket::uv_on_udp_send(uv_udp_send_t *req, int status)
 {
-	if (status != 0) 
+	if (status != 0)
 	{
 		NET_UV_LOG(NET_UV_L_ERROR, "udp send error %s", uv_strerror(status));
 	}

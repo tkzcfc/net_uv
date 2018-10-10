@@ -115,23 +115,8 @@ void KCPSocketManager::idleRun()
 	}
 }
 
-static IUINT32 cur_static_time = 0;
 void KCPSocketManager::uv_on_idle_run(uv_idle_t* handle)
 {
-	if (cur_static_time == 0)
-	{
-		cur_static_time = iclock();
-	}
-	else
-	{
-		IUINT32 curClock = iclock();
-		int subClock = curClock - cur_static_time;
-		if (subClock > 30)
-		{
-			printf("%d\n", subClock);
-		}
-		cur_static_time = curClock;
-	}
 	((KCPSocketManager*)handle->data)->idleRun();
 }
 

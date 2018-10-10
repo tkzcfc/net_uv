@@ -8,6 +8,7 @@ NS_NET_UV_BEGIN
 
 #define KCP_MAX_MSG_SIZE (1024*2)
 
+// 新连接过滤回调，用于过滤黑名单 返回false表示不接受该连接
 using KCPSocketConnectFilterCall = std::function<bool(const struct sockaddr*)>;
 using KCPSocketNewConnectionCall = std::function<void(Socket*)>;
 using KCPSocketDisconnectCall = std::function<void(Socket*, unsigned int)>;
@@ -35,14 +36,10 @@ public:
 
 	virtual void disconnect()override;
 
-	//KCPSocket* accept(struct sockaddr* addr);
-
-	void socketUpdate(IUINT32 clock);
-
 	inline void setNewConnectionCallback(const KCPSocketNewConnectionCall& call);
 	inline void setDisconnectCallback(const KCPSocketDisconnectCall& call);
 	inline void setConnectFilterCallback(const KCPSocketConnectFilterCall& call);
-		
+
 protected:
 	inline uv_udp_t* getUdp();
 
@@ -50,10 +47,12 @@ protected:
 
 	inline void setWeakRefSocketManager(KCPSocketManager* manager);
 
+	void socketUpdate(IUINT32 clock);
+
 	void shutdownSocket();
-	
+
 	void setSocketAddr(struct sockaddr* addr);
-	
+
 	inline struct sockaddr* getSocketAddr();
 
 	void udpSend(const char* data, int len);
@@ -67,7 +66,7 @@ protected:
 	void onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
 
 	void doSendConnectMsgPack(IUINT32 clock);
-	
+
 	void doConnectTimeout();
 
 	void doSendTimeout();
@@ -97,7 +96,7 @@ protected:
 	struct sockaddr* m_socketAddr;
 
 	uv_idle_t* m_idle;
-	
+
 	State m_kcpState;
 	char* m_recvBuf;
 

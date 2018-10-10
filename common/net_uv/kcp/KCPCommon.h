@@ -10,6 +10,7 @@
 #include "../base/Client.h"
 #include "../base/Server.h"
 #include "../common/NetUVThreadMsg.h"
+#include "../common/NetHeart.h"
 #include "KCPConfig.h"
 
 NS_NET_UV_BEGIN
@@ -22,7 +23,7 @@ struct KCPMsgHead
 {
 	unsigned int len;// 消息长度，不包括本结构体
 #if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	NetMsgTag tag;// 消息标记
+	NET_HEART_TYPE tag;// 消息标记
 #endif
 };
 

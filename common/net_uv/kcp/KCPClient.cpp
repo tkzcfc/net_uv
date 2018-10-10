@@ -55,28 +55,19 @@ struct KCPClientReconnectTimeOperation
 KCPClient::KCPClient()
 	: m_reconnect(true)
 	, m_totalTime(3.0f)
-	, m_enableNoDelay(true)
-	, m_enableKeepAlive(true)
-	, m_keepAliveDelay(10)
 	, m_isStop(false)
 {
 	uv_loop_init(&m_loop);
 
 	m_clientStage = clientStage::START;
-	
-	uv_idle_init(&m_loop, &m_idle);
-	m_idle.data = this;
-	uv_idle_start(&m_idle, uv_on_idle_run);
 
-	uv_timer_init(&m_loop, &m_timer);
-	m_timer.data = this;
-	uv_timer_start(&m_timer, uv_timer_run, (uint64_t)(KCP_CLIENT_TIMER_DELAY * 1000), (uint64_t)(KCP_CLIENT_TIMER_DELAY * 1000));
+	startIdle();
+	startSessionUpdate(KCP_HEARTBEAT_TIMER_DELAY);
 
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	m_heartTimer.data = this;
-	uv_timer_init(&m_loop, &m_heartTimer);
-	uv_timer_start(&m_heartTimer, KCPClient::uv_heart_timer_callback, KCP_HEARTBEAT_TIMER_DELAY, KCP_HEARTBEAT_TIMER_DELAY);
-#endif
+	uv_timer_init(&m_loop, &m_clientUpdateTimer);
+	m_clientUpdateTimer.data = this;
+	uv_timer_start(&m_clientUpdateTimer, uv_client_update_timer_run, (uint64_t)(KCP_CLIENT_TIMER_DELAY * 1000), (uint64_t)(KCP_CLIENT_TIMER_DELAY * 1000));
+
 	this->startThread();
 }
 
@@ -143,7 +134,7 @@ void KCPClient::updateFrame()
 	bool closeClientTag = false;
 	while (!m_msgDispatchQue.empty())
 	{
-		const NetThreadMsg_C& Msg = m_msgDispatchQue.front();
+		const NetThreadMsg& Msg = m_msgDispatchQue.front();
 		switch (Msg.msgType)
 		{
 		case NetThreadMsgType::RECV_DATA:
@@ -217,11 +208,9 @@ void KCPClient::send(unsigned int sessionId, char* data, unsigned int len)
 	if (data == 0 || len <= 0)
 		return;
 	int bufCount = 0;
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	uv_buf_t* bufArr = kcp_packageData(data, len, &bufCount, NetMsgTag::MT_DEFAULT);
-#else
+
 	uv_buf_t* bufArr = kcp_packageData(data, len, &bufCount);
-#endif
+
 	if (bufArr == NULL)
 		return;
 
@@ -432,10 +421,8 @@ void KCPClient::executeOperation()
 		}break;
 		case KCP_CLI_OP_CLIENT_CLOSE://客户端关闭
 		{
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-			uv_timer_stop(&m_heartTimer);
-#endif
 			m_clientStage = clientStage::CLEAR_SESSION;
+			stopSessionUpdate();
 		}break;
 		case KCP_CLI_OP_REMOVE_SESSION:
 		{
@@ -476,6 +463,20 @@ void KCPClient::executeOperation()
 	}
 }
 
+void KCPClient::onIdleRun()
+{
+	executeOperation();
+	ThreadSleep(1);
+}
+
+void KCPClient::onSessionUpdateRun()
+{
+	for (auto& it : m_allSessionMap)
+	{
+		it.second->session->update(KCP_HEARTBEAT_TIMER_DELAY);
+	}
+}
+
 /// KCPClient
 void KCPClient::onSocketConnect(Socket* socket, int status)
 {
@@ -490,17 +491,20 @@ void KCPClient::onSocketConnect(Socket* socket, int status)
 			it.second->session->setIsOnline(isSuc);
 			it.second->connectState = isSuc ? CONNECTSTATE::CONNECT : CONNECTSTATE::DISCONNECT;
 
-			if (m_clientStage != clientStage::START)
+			if (isSuc)
 			{
-				it.second->session->executeDisconnect();
-				pSession = NULL;
-			}
-			else
-			{
-				if (it.second->removeTag)
+				if (m_clientStage != clientStage::START)
 				{
 					it.second->session->executeDisconnect();
 					pSession = NULL;
+				}
+				else
+				{
+					if (it.second->removeTag)
+					{
+						it.second->session->executeDisconnect();
+						pSession = NULL;
+					}
 				}
 			}
 			break;
@@ -578,17 +582,20 @@ void KCPClient::createNewConnect(void* data)
 		new (socket) KCPSocket(&m_loop);
 		socket->setConnectCallback(std::bind(&KCPClient::onSocketConnect, this, std::placeholders::_1, std::placeholders::_2));
 
-		KCPSession* session = KCPSession::createSession(this, socket, std::bind(&KCPClient::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+		KCPSession* session = KCPSession::createSession(this, socket);
 
 		if (session == NULL)
 		{
 			NET_UV_LOG(NET_UV_L_FATAL, "创建会话失败，可能是内存不足!!!");
 			return;
 		}
+		session->setSessionRecvCallback(std::bind(&KCPClient::onSessionRecvData, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 		session->setSessionClose(std::bind(&KCPClient::onSessionClose, this, std::placeholders::_1));
 		session->setSessionID(opData->sessionID);
+		session->setSendHeartMsg(NET_HEARTBEAT_MSG_C2S);
+		session->setHeartMaxCount(KCP_HEARTBEAT_MAX_COUNT_CLIENT);
+		session->setResetHeartCount(KCP_HEARTBEAT_COUNT_RESET_VALUE_CLIENT);
 		session->setIsOnline(false);
-
 
 		clientSessionData* cs = (clientSessionData*)fc_malloc(sizeof(clientSessionData));
 		new (cs) clientSessionData();
@@ -600,10 +607,7 @@ void KCPClient::createNewConnect(void* data)
 		cs->reconnect = m_reconnect;
 		cs->totaltime = m_totalTime;
 		cs->connectState = CONNECTSTATE::CONNECTING;
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-		cs->curHeartCount = KCP_HEARTBEAT_COUNT_RESET_VALUE_CLIENT;
-		cs->curHeartTime = 0;
-#endif
+
 		m_allSessionMap.insert(std::make_pair(opData->sessionID, cs));
 
 		if (socket->connect(opData->ip.c_str(), opData->port))
@@ -618,56 +622,9 @@ void KCPClient::createNewConnect(void* data)
 	}
 }
 
-void KCPClient::onSessionRecvData(Session* session, char* data, unsigned int len, NetMsgTag tag)
+void KCPClient::onSessionRecvData(Session* session, char* data, unsigned int len)
 {
-	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len, tag);
-}
-
-
-void KCPClient::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, unsigned int len, NetMsgTag tag)
-{
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-	if (type == NetThreadMsgType::RECV_DATA)
-	{
-		auto it = m_allSessionMap.find(session->getSessionID());
-		if (it != m_allSessionMap.end())
-		{
-			auto clientdata = it->second;
-			clientdata->curHeartCount = KCP_HEARTBEAT_COUNT_RESET_VALUE_CLIENT;
-			clientdata->curHeartTime = 0;
-			if (tag == NetMsgTag::MT_HEARTBEAT)
-			{
-				if (len == KCP_HEARTBEAT_MSG_SIZE)
-				{
-					if (*((char*)data) == KCP_HEARTBEAT_MSG_S2C)
-					{
-						NET_UV_LOG(NET_UV_L_HEART, "recv heart s->c");
-						unsigned int sendlen = 0;
-						char* senddata = kcp_packageHeartMsgData(KCP_HEARTBEAT_RET_MSG_C2S, &sendlen);
-						clientdata->session->executeSend(senddata, sendlen);
-					}
-				}
-				else// 不合法心跳
-				{
-					clientdata->session->executeDisconnect();
-				}
-				fc_free(data);
-				return;
-			}
-		}
-	}
-#endif
-
-	NetThreadMsg_C msg;
-	msg.msgType = type;
-	msg.data = data;
-	msg.dataLen = len;
-	msg.pSession = session;
-	msg.tag = tag;
-
-	m_msgMutex.lock();
-	m_msgQue.push(msg);
-	m_msgMutex.unlock();
+	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len);
 }
 
 KCPClient::clientSessionData* KCPClient::getClientSessionDataBySessionId(unsigned int sessionId)
@@ -689,42 +646,6 @@ KCPClient::clientSessionData* KCPClient::getClientSessionDataBySession(Session* 
 	}
 	return NULL;
 }
-
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-void KCPClient::heartRun()
-{
-	for (auto &it : m_allSessionMap)
-	{
-		auto clientdata = it.second;
-
-		if (clientdata->connectState != CONNECT)
-			continue;
-
-		clientdata->curHeartTime += KCP_HEARTBEAT_TIMER_DELAY;
-		if (clientdata->curHeartTime > KCP_HEARTBEAT_CHECK_DELAY)
-		{
-			clientdata->curHeartTime = 0;
-			clientdata->curHeartCount++;
-			if (clientdata->curHeartCount > 0)
-			{
-				if (clientdata->curHeartCount > KCP_HEARTBEAT_MAX_COUNT_CLIENT)
-				{
-					clientdata->curHeartCount = 0;
-					clientdata->session->executeDisconnect();
-				}
-				else
-				{
-					unsigned int sendlen = 0;
-					char* senddata = kcp_packageHeartMsgData(KCP_HEARTBEAT_MSG_C2S, &sendlen);
-					clientdata->session->executeSend(senddata, sendlen);
-					NET_UV_LOG(NET_UV_L_HEART, "send heart c->s");
-				}
-			}
-		}
-	}
-}
-#endif
-
 
 void KCPClient::clearData()
 {
@@ -789,15 +710,12 @@ void KCPClient::clearData()
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-void KCPClient::uv_timer_run(uv_timer_t* handle)
+void KCPClient::onClientUpdate()
 {
-	KCPClient* c = (KCPClient*)handle->data;
-
-	if (c->m_clientStage == clientStage::START)
+	if (m_clientStage == clientStage::START)
 	{
 		clientSessionData* data = NULL;
-		for (auto& it : c->m_allSessionMap)
+		for (auto& it : m_allSessionMap)
 		{
 			data = it.second;
 			if (data->connectState == CONNECTSTATE::DISCONNECT && data->reconnect && data->removeTag == false)
@@ -819,51 +737,45 @@ void KCPClient::uv_timer_run(uv_timer_t* handle)
 			}
 		}
 	}
-	else if (c->m_clientStage == clientStage::CLEAR_SESSION)
+	else if (m_clientStage == clientStage::CLEAR_SESSION)
 	{
 		clientSessionData* data = NULL;
-		for (auto& it : c->m_allSessionMap)
+		for (auto& it : m_allSessionMap)
 		{
 			data = it.second;
 
-			if (data->connectState != DISCONNECT)
+			if (data->connectState == CONNECT)
 			{
 				data->removeTag = true;
 				data->session->executeDisconnect();
 			}
-			else
+			else if (data->connectState == DISCONNECT)
 			{
 				if (!data->removeTag)
 				{
 					data->removeTag = true;
-					c->pushThreadMsg(NetThreadMsgType::REMOVE_SESSION, data->session);
+					pushThreadMsg(NetThreadMsgType::REMOVE_SESSION, data->session);
 				}
 			}
 		}
-		if (c->m_allSessionMap.empty())
+		if (m_allSessionMap.empty())
 		{
-			c->m_clientStage = clientStage::WAIT_EXIT;
+			m_clientStage = clientStage::WAIT_EXIT;
 		}
 	}
-	else if (c->m_clientStage == clientStage::WAIT_EXIT)
+	else if (m_clientStage == clientStage::WAIT_EXIT)
 	{
-		uv_stop(&c->m_loop);
+		stopIdle();
+		uv_timer_stop(&m_clientUpdateTimer);
+		uv_stop(&m_loop);
 	}
 }
 
-void KCPClient::uv_on_idle_run(uv_idle_t* handle)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+void KCPClient::uv_client_update_timer_run(uv_timer_t* handle)
 {
 	KCPClient* c = (KCPClient*)handle->data;
-	c->executeOperation();
-	ThreadSleep(1);
+	c->onClientUpdate();
 }
-
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-void KCPClient::uv_heart_timer_callback(uv_timer_t* handle)
-{
-	KCPClient* s = (KCPClient*)handle->data;
-	s->heartRun();
-}
-#endif
 
 NS_NET_UV_END

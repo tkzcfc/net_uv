@@ -3,10 +3,10 @@
 
 NS_NET_UV_BEGIN
 
-TCPSession* TCPSession::createSession(SessionManager* sessionManager, uv_loop_t* loop, TCPSocket* socket)
+TCPSession* TCPSession::createSession(SessionManager* sessionManager, TCPSocket* socket)
 {
 	TCPSession* session = (TCPSession*)fc_malloc(sizeof(TCPSession));
-	new(session)TCPSession(sessionManager, loop);
+	new(session)TCPSession(sessionManager);
 	
 	if (session == NULL)
 	{
@@ -27,7 +27,7 @@ TCPSession* TCPSession::createSession(SessionManager* sessionManager, uv_loop_t*
 	return NULL;
 }
 
-TCPSession::TCPSession(SessionManager* sessionManager, uv_loop_t* loop)
+TCPSession::TCPSession(SessionManager* sessionManager)
 	: Session(sessionManager)
 	, m_recvBuffer(NULL)
 	, m_socket(NULL)
@@ -249,7 +249,7 @@ void TCPSession::onRecvMsgPackage(char* data, unsigned int len, NET_HEART_TYPE t
 			else if(msg > NET_HEARTBEAT_RET_MSG_S2C) // 非法心跳
 			{
 				this->disconnect();
-				NET_UV_LOG(NET_UV_L_ERROR, "收到非法心跳");
+				NET_UV_LOG(NET_UV_L_HEART, "收到非法心跳");
 			}
 		}
 		fc_free(data);

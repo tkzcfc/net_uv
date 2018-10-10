@@ -636,7 +636,7 @@ void TCPClient::createNewConnect(void* data)
 		new (socket) TCPSocket(&m_loop); 
 		socket->setConnectCallback(std::bind(&TCPClient::onSocketConnect, this, std::placeholders::_1, std::placeholders::_2));
 
-		TCPSession* session = TCPSession::createSession(this, &m_loop, socket);
+		TCPSession* session = TCPSession::createSession(this, socket);
 
 		if (session == NULL)
 		{
@@ -789,7 +789,6 @@ void TCPClient::onClientUpdate()
 					}
 				}
 			}
-			data->session->update(TCP_CLIENT_TIMER_DELAY * 1000);
 		}
 	}
 	else if (m_clientStage == clientStage::CLEAR_SESSION)

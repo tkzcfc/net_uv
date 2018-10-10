@@ -19,7 +19,7 @@ public:
 	
 protected:
 
-	static KCPSession* createSession(SessionManager* sessionManager, KCPSocket* socket, const SessionRecvCall& call);
+	static KCPSession* createSession(SessionManager* sessionManager, KCPSocket* socket);
 
 	KCPSession(SessionManager* sessionManager);
 
@@ -34,6 +34,8 @@ protected:
 
 	virtual void setIsOnline(bool isOnline)override;
 
+	virtual void update(unsigned int time)override;
+
 	/// KCPSession
 	inline void setKCPSocket(KCPSocket* socket);
 
@@ -45,6 +47,15 @@ protected:
 
 	void on_socket_recv(char* data, ssize_t len);
 
+	/// 
+	inline void setResetHeartCount(int resetHeartCount);
+
+	inline void setSendHeartMsg(NET_HEART_TYPE msg);
+
+	inline void setHeartMaxCount(int maxCount);
+
+	void onRecvMsgPackage(char* data, unsigned int len, NET_HEART_TYPE type);
+
 protected:
 
 	friend class KCPClient;
@@ -52,6 +63,14 @@ protected:
 protected:
 	Buffer* m_recvBuffer;
 	KCPSocket* m_socket;
+
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	int m_curHeartTime;
+	int m_curHeartCount;
+	int m_resetHeartCount;
+	int m_curHeartMaxCount;
+	NET_HEART_TYPE m_sendHeartMsg;
+#endif
 };
 
 unsigned int KCPSession::getPort()
@@ -72,6 +91,28 @@ void KCPSession::setKCPSocket(KCPSocket* socket)
 KCPSocket* KCPSession::getKCPSocket()
 {
 	return m_socket;
+}
+
+
+void KCPSession::setResetHeartCount(int resetHeartCount)
+{
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	m_resetHeartCount = resetHeartCount;
+#endif
+}
+
+void KCPSession::setSendHeartMsg(NET_HEART_TYPE msg)
+{
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	m_sendHeartMsg = msg;
+#endif
+}
+
+void KCPSession::setHeartMaxCount(int maxCount)
+{
+#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
+	m_curHeartMaxCount = maxCount;
+#endif
 }
 
 NS_NET_UV_END

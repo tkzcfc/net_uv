@@ -64,11 +64,6 @@ void main()
 		memcpy(msg, data, len);
 		msg[len] = '\0';
 
-		if (len > 100)
-		{
-			NET_UV_LOG(NET_UV_L_INFO, "[%p]接收到消息%d个字节", session, len);
-			session->send(data, len);
-		}
 		if (strcmp(msg, "control") == 0)
 		{
 			sendString(session, "conrol client");
@@ -95,6 +90,10 @@ void main()
 		}
 		else
 		{
+			if (len > 100)
+			{
+				NET_UV_LOG(NET_UV_L_INFO, "[%p]接收到消息%d个字节", session, len);
+			}
 			session->send(data, len);
 		}
 		fc_free(msg);

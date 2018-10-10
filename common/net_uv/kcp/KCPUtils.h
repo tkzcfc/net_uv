@@ -37,6 +37,14 @@ bool kcp_is_heart_packet(const char* data, size_t len);
 std::string kcp_making_heart_back_packet();
 bool kcp_is_heart_back_packet(const char* data, size_t len);
 
+//加密
+NET_UV_EXTERN char* kcp_uv_encode(const char* data, unsigned int len, unsigned int &outLen);
+//解密
+NET_UV_EXTERN char* kcp_uv_decode(const char* data, unsigned int len, unsigned int &outLen);
+// 打包数据
+NET_UV_EXTERN uv_buf_t* kcp_packageData(char* data, unsigned int len, int* bufCount);
+// 打包心跳消息
+NET_UV_EXTERN char* kcp_packageHeartMsgData(NET_HEART_TYPE msg, unsigned int* outBufSize);
 
 
 /* get system time */
@@ -81,22 +89,6 @@ static inline IUINT32 iclock()
 {
 	return (IUINT32)(iclock64() & 0xfffffffful);
 }
-
-
-//加密
-NET_UV_EXTERN char* kcp_uv_encode(const char* data, unsigned int len, unsigned int &outLen);
-//解密
-NET_UV_EXTERN char* kcp_uv_decode(const char* data, unsigned int len, unsigned int &outLen);
-// 打包数据
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-NET_UV_EXTERN uv_buf_t* kcp_packageData(char* data, unsigned int len, int* bufCount, NetMsgTag msgTag);
-#else
-NET_UV_EXTERN uv_buf_t* kcp_packageData(char* data, unsigned int len, int* bufCount);
-#endif
-// 打包心跳消息
-#if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
-NET_UV_EXTERN char* kcp_packageHeartMsgData(char msg, unsigned int* outBufSize);
-#endif
 
 NS_NET_UV_END
 
