@@ -116,10 +116,13 @@ void KCPSession::on_socket_recv(char* data, ssize_t len)
 	m_curHeartCount = m_resetHeartCount;
 	m_curHeartTime = 0;
 #endif
+	
+	if (len <= 0)
+		return;
 
 	m_recvBuffer->add(data, len);
 
-	const unsigned int headlen = sizeof(KCPMsgHead);
+	const static unsigned int headlen = sizeof(KCPMsgHead);
 
 	while (m_recvBuffer->getDataLength() >= headlen)
 	{
@@ -282,6 +285,11 @@ void KCPSession::update(unsigned int time)
 			}
 		}
 	}
+}
+
+void KCPSession::updateKcp(IUINT32 update_clock)
+{
+	getKCPSocket()->updateKcp(update_clock);
 }
 
 NS_NET_UV_END

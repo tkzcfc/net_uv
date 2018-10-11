@@ -56,6 +56,8 @@ protected:
 
 	void onRecvMsgPackage(char* data, unsigned int len, NET_HEART_TYPE type);
 
+	void updateKcp(IUINT32 update_clock);
+
 protected:
 
 	friend class KCPClient;

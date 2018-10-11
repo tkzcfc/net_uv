@@ -82,7 +82,7 @@ void main()
 		char* msg = (char*)fc_malloc(len + 1);
 		memcpy(msg, data, len);
 		msg[len] = '\0';
-		NET_UV_LOG(NET_UV_L_INFO, "[%d]接收到消息:%s\n", session->getSessionID(), msg);
+		printf("[%d]接收到消息:%s\n", session->getSessionID(), msg);
 		fc_free(msg);
 	});
 
@@ -95,7 +95,7 @@ void main()
 			std::cin >> cmdBuf;
 			if (CMD_STR_STR("send"))
 			{
-				NET_UV_LOG(NET_UV_L_INFO, "请输入要发送的内容:");
+				printf("请输入要发送的内容:");
 				std::cin >> szWriteBuf;
 				instance->send(control_key, szWriteBuf, strlen(szWriteBuf));
 			}

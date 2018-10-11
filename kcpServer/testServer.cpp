@@ -92,7 +92,7 @@ void main()
 		{
 			if (len > 100)
 			{
-				NET_UV_LOG(NET_UV_L_INFO, "[%p]接收到消息%d个字节", session, len);
+				printf("[%p]接收到消息%d个字节\n", session, len);
 			}
 			session->send(data, len);
 		}
@@ -149,7 +149,7 @@ void CreateDempFile(LPCWSTR lpstrDumpFilePathName, EXCEPTION_POINTERS* pExceptio
 
 LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException)
 {
-	CreateDempFile(TEXT("udpServer.dmp"), pException);
+	CreateDempFile(TEXT("kcpServer.dmp"), pException);
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 #endif

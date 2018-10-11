@@ -466,6 +466,13 @@ void KCPClient::executeOperation()
 void KCPClient::onIdleRun()
 {
 	executeOperation();
+
+	IUINT32 update_clock = iclock();
+	for (auto& it : m_allSessionMap)
+	{
+		it.second->session->updateKcp(update_clock);
+	}
+
 	ThreadSleep(1);
 }
 

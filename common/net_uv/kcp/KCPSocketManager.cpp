@@ -3,6 +3,7 @@
 
 KCPSocketManager::KCPSocketManager(uv_loop_t* loop)
 	: m_convCount(1000)
+	, m_owner(NULL)
 {
 	m_loop = loop;
 
@@ -112,6 +113,10 @@ void KCPSocketManager::idleRun()
 	for (auto& it : m_allSocket)
 	{
 		it.second->socketUpdate(update_clock);
+	}
+	if (m_owner)
+	{
+		m_owner->updateKcp(update_clock);
 	}
 }
 

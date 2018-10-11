@@ -125,7 +125,7 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 
 	m_recvBuffer->add(data, len);
 
-	const unsigned int headlen = sizeof(TCPMsgHead);
+	const static unsigned int headlen = sizeof(TCPMsgHead);
 
 	while (m_recvBuffer->getDataLength() >= headlen)
 	{

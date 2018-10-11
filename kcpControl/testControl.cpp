@@ -12,8 +12,8 @@ NS_NET_UV_OPEN
 LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
 #endif
 
-//#define CONNECT_IP "127.0.0.1"
-#define CONNECT_IP "www.kurumi.xin"
+#define CONNECT_IP "127.0.0.1"
+//#define CONNECT_IP "www.kurumi.xin"
 #define CONNECT_PORT 1234
 
 #define KEY_DOWN(VK_NONAME) ((GetAsyncKeyState(VK_NONAME) & 0x8000) ? 1:0)
@@ -82,7 +82,7 @@ void main()
 		char* msg = (char*)fc_malloc(len + 1);
 		memcpy(msg, data, len);
 		msg[len] = '\0';
-		NET_UV_LOG(NET_UV_L_INFO, "[%d]接收到消息:%s\n", session->getSessionID(), msg);
+		printf("[%d]接收到消息:%s\n", session->getSessionID(), msg);
 		fc_free(msg);
 	});
 
@@ -95,7 +95,7 @@ void main()
 			std::cin >> cmdBuf;
 			if (CMD_STR_STR("send"))
 			{
-				NET_UV_LOG(NET_UV_L_INFO, "请输入要发送的内容:");
+				printf("请输入要发送的内容:");
 				std::cin >> szWriteBuf;
 				instance->send(control_key, szWriteBuf, strlen(szWriteBuf));
 			}
@@ -138,7 +138,7 @@ void CreateDempFile(LPCWSTR lpstrDumpFilePathName, EXCEPTION_POINTERS* pExceptio
 
 LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException)
 {
-	CreateDempFile(TEXT("tcpControl.dmp"), pException);
+	CreateDempFile(TEXT("kcpControl.dmp"), pException);
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 #endif

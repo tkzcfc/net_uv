@@ -21,8 +21,8 @@ KCPSocket::KCPSocket(uv_loop_t* loop)
 	, m_conv(0)
 	, m_weakRefUdp(false)
 	, m_weakRefSocketMng(false)
-	, m_idle(NULL)
 	, m_kcp(NULL)
+	, m_runIdle(false)
 {
 	m_recvBuf = (char*)fc_malloc(KCP_MAX_MSG_SIZE);
 	memset(m_recvBuf, 0, KCP_MAX_MSG_SIZE);
@@ -64,13 +64,7 @@ KCPSocket::~KCPSocket()
 		}
 		m_socketMng = NULL;
 	}
-
-	if (m_idle)
-	{
-		uv_idle_stop(m_idle);
-		fc_free(m_idle);
-		m_idle = NULL;
-	}
+	stopIdle();
 }
 
 bool KCPSocket::bind(const char* ip, unsigned int port)
@@ -166,6 +160,7 @@ bool KCPSocket::listen()
 
 	m_socketMng = (KCPSocketManager*)fc_malloc(sizeof(KCPSocketManager));
 	new (m_socketMng) KCPSocketManager(m_loop);
+	m_socketMng->setOwner(this);
 	return true;
 }
 
@@ -381,10 +376,7 @@ void KCPSocket::shutdownSocket()
 	net_closeHandle((uv_handle_t*)m_udp, uv_on_close_socket);
 	m_udp = NULL;
 
-	if (m_idle)
-	{
-		uv_idle_stop(m_idle);
-	}
+	stopIdle();
 }
 
 void KCPSocket::setSocketAddr(struct sockaddr* addr)
@@ -451,10 +443,12 @@ void KCPSocket::kcpInput(const char* data, long size)
 	do
 	{
 		kcp_recvd_bytes = ikcp_recv(m_kcp, m_recvBuf, KCP_MAX_MSG_SIZE);
-		if (kcp_recvd_bytes > 0)
+
+		if (kcp_recvd_bytes < 0)
 		{
-			m_recvCall(m_recvBuf, kcp_recvd_bytes);
+			kcp_recvd_bytes = 0;
 		}
+		m_recvCall(m_recvBuf, kcp_recvd_bytes);
 	} while (kcp_recvd_bytes > 0);
 }
 
@@ -574,10 +568,7 @@ void KCPSocket::doSendConnectMsgPack(IUINT32 clock)
 
 void KCPSocket::doConnectTimeout()
 {
-	if (m_idle)
-	{
-		uv_idle_stop(m_idle);
-	}
+	stopIdle();
 	if (m_connectCall != nullptr)
 	{
 		m_connectCall(this, 2);
@@ -595,19 +586,11 @@ void KCPSocket::doSendTimeout()
 	shutdownSocket();
 }
 
-void KCPSocket::startIdle()
+void KCPSocket::updateKcp(IUINT32 update_clock)
 {
-	if (m_idle == NULL)
-	{
-		m_idle = (uv_idle_t*)fc_malloc(sizeof(uv_idle_t));
-		uv_idle_init(m_loop, m_idle);
-		m_idle->data = this;
-	}
-	else
-	{
-		uv_idle_stop(m_idle);
-	}
-	uv_idle_start(m_idle, uv_on_idle_run);
+	if (!m_runIdle)
+		return;
+	socketUpdate(update_clock);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -651,11 +634,6 @@ void KCPSocket::uv_on_after_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t
 		KCPSocket* s = (KCPSocket*)handle->data;
 		s->onUdpRead(handle, nread, buf, addr, flags);
 	}
-}
-
-void KCPSocket::uv_on_idle_run(uv_idle_t* handle)
-{
-	((KCPSocket*)handle->data)->socketUpdate(iclock());
 }
 
 int KCPSocket::udp_output(const char *buf, int len, ikcpcb *kcp, void *user)

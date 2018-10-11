@@ -77,7 +77,11 @@ protected:
 
 	inline IUINT32 getConv();
 
-	void startIdle();
+	inline void startIdle();
+
+	inline void stopIdle();
+
+	void updateKcp(IUINT32 update_clock);
 
 protected:
 
@@ -95,7 +99,7 @@ protected:
 	bool m_weakRefUdp;
 	struct sockaddr* m_socketAddr;
 
-	uv_idle_t* m_idle;
+	bool m_runIdle;
 
 	State m_kcpState;
 	char* m_recvBuf;
@@ -118,11 +122,11 @@ protected:
 
 	friend class KCPSocketManager;
 	friend class KCPServer;
+	friend class KCPSession;
 protected:
 	static void uv_on_close_socket(uv_handle_t* socket);
 	static void uv_on_udp_send(uv_udp_send_t *req, int status);
 	static void uv_on_after_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
-	static void uv_on_idle_run(uv_idle_t* handle);
 	static int udp_output(const char *buf, int len, ikcpcb *kcp, void *user);
 };
 
@@ -176,6 +180,16 @@ void KCPSocket::setConv(IUINT32 conv)
 IUINT32 KCPSocket::getConv()
 {
 	return m_conv;
+}
+
+void KCPSocket::startIdle()
+{
+	m_runIdle = true;
+}
+
+void KCPSocket::stopIdle()
+{
+	m_runIdle = false;
 }
 
 NS_NET_UV_END

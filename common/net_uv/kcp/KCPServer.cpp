@@ -392,6 +392,7 @@ void KCPServer::clearData()
 void KCPServer::onIdleRun()
 {
 	executeOperation();
+
 	switch (m_serverStage)
 	{
 	case KCPServer::ServerStage::CLEAR:

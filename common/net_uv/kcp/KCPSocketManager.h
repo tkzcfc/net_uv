@@ -25,6 +25,8 @@ public:
 
 	void stop_listen();
 
+	inline void setOwner(KCPSocket* socket);
+
 protected:
 
 	void idleRun();
@@ -38,4 +40,11 @@ protected:
 	uv_idle_t m_idle;
 	IUINT32 m_convCount;
 	std::map<IUINT32, KCPSocket*> m_allSocket;
+
+	KCPSocket* m_owner;
 };
+
+void KCPSocketManager::setOwner(KCPSocket* socket)
+{
+	m_owner = socket;
+}
