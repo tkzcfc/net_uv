@@ -5,7 +5,7 @@
 
 NS_NET_UV_BEGIN
 
-class NET_UV_EXTERN TCPClient : public Client
+class TCPClient : public Client
 {
 protected:
 	enum CONNECTSTATE
