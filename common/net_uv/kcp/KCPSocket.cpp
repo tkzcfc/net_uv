@@ -226,11 +226,11 @@ bool KCPSocket::connect(const char* ip, unsigned int port)
 
 		m_udp->data = this;
 
-		//struct sockaddr_in broadcast_addr;
-		//r = uv_ip4_addr("0.0.0.0", 0, &broadcast_addr);
-		//CHECK_UV_ASSERT(r);
-		//r = uv_udp_bind(m_udp, (const struct sockaddr *)&broadcast_addr, 0);
-		//CHECK_UV_ASSERT(r);
+		struct sockaddr_in bind_addr;
+		r = uv_ip4_addr("0.0.0.0", 0, &bind_addr);
+		CHECK_UV_ASSERT(r);
+		r = uv_udp_bind(m_udp, (const struct sockaddr *)&bind_addr, 0);
+		CHECK_UV_ASSERT(r);
 		//r = uv_udp_set_broadcast(m_udp, 1);
 		//CHECK_UV_ASSERT(r);
 
