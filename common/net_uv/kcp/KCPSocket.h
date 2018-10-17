@@ -36,7 +36,7 @@ public:
 
 	virtual void disconnect()override;
 
-	KCPSocket* accept(struct sockaddr* addr);
+	bool accept(const struct sockaddr* addr, IUINT32 conv);
 
 	inline void setNewConnectionCallback(const KCPSocketNewConnectionCall& call);
 	inline void setDisconnectCallback(const KCPSocketDisconnectCall& call);
@@ -44,10 +44,10 @@ public:
 
 protected:
 	inline uv_udp_t* getUdp();
-
-	inline void setWeakRefUdp(uv_udp_t* udp);
-
+	
 	inline void setWeakRefSocketManager(KCPSocketManager* manager);
+
+	void svr_connect(struct sockaddr* addr, IUINT32 conv);
 
 	void socketUpdate(IUINT32 clock);
 
@@ -66,6 +66,8 @@ protected:
 	void initKcp(IUINT32 conv);
 
 	void onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
+
+	void doSendSvrConnectMsgPack(IUINT32 clock);
 
 	void doSendConnectMsgPack(IUINT32 clock);
 
@@ -98,7 +100,6 @@ protected:
 	};
 
 	uv_udp_t* m_udp;
-	bool m_weakRefUdp;
 	struct sockaddr* m_socketAddr;
 
 	bool m_runIdle;
@@ -135,12 +136,6 @@ protected:
 uv_udp_t* KCPSocket::getUdp()
 {
 	return m_udp;
-}
-
-void KCPSocket::setWeakRefUdp(uv_udp_t* udp)
-{
-	m_udp = udp;
-	m_weakRefUdp = true;
 }
 
 void KCPSocket::setWeakRefSocketManager(KCPSocketManager* manager)

@@ -5,6 +5,8 @@ NS_NET_UV_BEGIN
 
 #define NET_KCP_CONNECT_PACKET "kcp_connect_package get_conv"
 #define NET_KCP_SEND_BACK_CONV_PACKET "kcp_connect_back_package get_conv:"
+#define NET_KCP_SVR_CONNECT_PACKET "kcp_connect_package conv:"
+#define NET_KCP_SVR_SEND_BACK_CONV_PACKET "kcp_connect_back_package conv:"
 #define NET_KCP_DISCONNECT_PACKET "kcp_disconnect_package"
 #define NET_KCP_HEART_PACKET "kcp_heart_package"
 #define NET_KCP_HEART_BACK_PACKET "kcp_heart_back_package"
@@ -36,6 +38,47 @@ std::string kcp_making_send_back_conv_packet(uint32_t conv)
 uint32_t kcp_grab_conv_from_send_back_conv_packet(const char* data, size_t len)
 {
 	uint32_t conv = atol(data + sizeof(NET_KCP_SEND_BACK_CONV_PACKET));
+	return conv;
+}
+
+
+
+
+std::string kcp_making_svr_connect_packet(uint32_t conv)
+{
+	char str_send_back_conv[256] = "";
+	size_t n = snprintf(str_send_back_conv, sizeof(str_send_back_conv), "%s %u", NET_KCP_SVR_CONNECT_PACKET, conv);
+	return std::string(str_send_back_conv, n);
+}
+
+bool kcp_is_svr_connect_packet(const char* data, size_t len)
+{
+	return (len > sizeof(NET_KCP_SVR_CONNECT_PACKET) &&
+		memcmp(data, NET_KCP_SVR_CONNECT_PACKET, sizeof(NET_KCP_SVR_CONNECT_PACKET) - 1) == 0);
+}
+
+uint32_t kcp_grab_conv_from_svr_connect_packet(const char* data, size_t len)
+{
+	uint32_t conv = atol(data + sizeof(NET_KCP_SVR_CONNECT_PACKET));
+	return conv;
+}
+
+std::string kcp_making_svr_send_back_conv_packet(uint32_t conv)
+{
+	char str_send_back_conv[256] = "";
+	size_t n = snprintf(str_send_back_conv, sizeof(str_send_back_conv), "%s %u", NET_KCP_SVR_SEND_BACK_CONV_PACKET, conv);
+	return std::string(str_send_back_conv, n);
+}
+
+bool kcp_is_svr_send_back_conv_packet(const char* data, size_t len)
+{
+	return (len > sizeof(NET_KCP_SVR_SEND_BACK_CONV_PACKET) &&
+		memcmp(data, NET_KCP_SVR_SEND_BACK_CONV_PACKET, sizeof(NET_KCP_SVR_SEND_BACK_CONV_PACKET) - 1) == 0);
+}
+
+uint32_t kcp_grab_conv_from_svr_send_back_conv_packet(const char* data, size_t len)
+{
+	uint32_t conv = atol(data + sizeof(NET_KCP_SVR_SEND_BACK_CONV_PACKET));
 	return conv;
 }
 

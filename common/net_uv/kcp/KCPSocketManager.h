@@ -12,22 +12,20 @@ public:
 	KCPSocketManager(uv_loop_t* loop);
 
 	virtual ~KCPSocketManager();
+	
+	IUINT32 getNewConv();
 
-	KCPSocket* accept(uv_udp_t* handle, const struct sockaddr* addr);
+	void push(KCPSocket* socket);
 
-	void push(KCPSocket* socket, IUINT32 conv);
+	void remove(KCPSocket* socket);
 
-	void remove(IUINT32 conv);
-
-	void resetLastPacketRecvTime(IUINT32 conv);
-
-	void input(IUINT32 conv, const char* data, long size);
-
-	void disconnect(IUINT32 conv);
+	void connect(KCPSocket* socket);
 
 	void stop_listen();
 
 	inline void setOwner(KCPSocket* socket);
+
+	int isContain(const struct sockaddr* addr);
 
 protected:
 
@@ -38,10 +36,17 @@ protected:
 	static void uv_on_idle_run(uv_idle_t* handle);
 
 protected:
+
+	struct SMData
+	{
+		KCPSocket* socket;
+		bool invalid;
+	};
+
 	uv_loop_t* m_loop;
 	uv_idle_t m_idle;
 	IUINT32 m_convCount;
-	std::map<IUINT32, KCPSocket*> m_allSocket;
+	std::vector<SMData> m_allSocket;
 
 	KCPSocket* m_owner;
 };

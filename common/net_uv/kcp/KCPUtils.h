@@ -26,6 +26,14 @@ std::string kcp_making_send_back_conv_packet(uint32_t conv);
 bool kcp_is_send_back_conv_packet(const char* data, size_t len);
 uint32_t kcp_grab_conv_from_send_back_conv_packet(const char* data, size_t len);
 
+std::string kcp_making_svr_connect_packet(uint32_t conv);
+bool kcp_is_svr_connect_packet(const char* data, size_t len);
+uint32_t kcp_grab_conv_from_svr_connect_packet(const char* data, size_t len);
+
+std::string kcp_making_svr_send_back_conv_packet(uint32_t conv);
+bool kcp_is_svr_send_back_conv_packet(const char* data, size_t len);
+uint32_t kcp_grab_conv_from_svr_send_back_conv_packet(const char* data, size_t len);
+
 
 std::string kcp_making_disconnect_packet(uint32_t conv);
 bool kcp_is_disconnect_packet(const char* data, size_t len);

@@ -16,4 +16,8 @@ void net_adjustBuffSize(uv_handle_t* handle, int minRecvBufSize, int minSendBufS
 //hash
 unsigned int net_getBufHash(const void *buf, unsigned int len);
 
+unsigned int net_getsockAddrIPAndPort(const struct sockaddr* addr, std::string& outIP, unsigned int& outPort);
+
+struct sockaddr* net_getsocketAddr(const char* ip, unsigned int port, unsigned int* outAddrLen);
+
 NS_NET_UV_END

@@ -82,72 +82,38 @@ bool TCPSocket::listen()
 
 bool TCPSocket::connect(const char* ip, unsigned int port)
 {
+	unsigned int addr_len = 0;
+	struct sockaddr* addr = net_getsocketAddr(ip, port, &addr_len);
+
+	if (addr == NULL)
+	{
+		NET_UV_LOG(NET_UV_L_ERROR, "[%s:%d]地址信息获取失败", ip, port);
+		return false;
+	}
+
 	this->setIp(ip);
 	this->setPort(port);
 
-	struct addrinfo hints;
-	struct addrinfo* ainfo;
-	struct addrinfo* rp;
-	struct sockaddr_in* addr4 = NULL;
-	struct sockaddr_in6* addr6 = NULL;
-	struct sockaddr* addr = NULL;
-
-	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_flags = AI_ADDRCONFIG;
-	hints.ai_socktype = SOCK_STREAM;
-
-	int ret = getaddrinfo(ip, NULL, &hints, &ainfo);
-
-	if (ret == 0)
+	auto tcp = m_tcp;
+	if (tcp == NULL)
 	{
-		for (rp = ainfo; rp; rp = rp->ai_next)
-		{
-			if (rp->ai_family == AF_INET)
-			{
-				addr4 = (struct sockaddr_in*)rp->ai_addr;
-				addr4->sin_port = htons(port);
-				break;
+		tcp = (uv_tcp_t*)fc_malloc(sizeof(uv_tcp_t));
+		int r = uv_tcp_init(m_loop, tcp);
+		CHECK_UV_ASSERT(r);
 
-			}
-			else if (rp->ai_family == AF_INET6)
-			{
-				addr6 = (struct sockaddr_in6*)rp->ai_addr;
-				addr6->sin6_port = htons(port);
-				break;
-			}
-			else
-			{
-				continue;
-			}
-		}
-
-		auto tcp = m_tcp;
-		if (tcp == NULL)
-		{
-			tcp = (uv_tcp_t*)fc_malloc(sizeof(uv_tcp_t));
-			int r = uv_tcp_init(m_loop, tcp);
-			CHECK_UV_ASSERT(r);
-
-			tcp->data = this;
-		}
-
-		addr = addr4 ? (struct sockaddr*)addr4 : (struct sockaddr*)addr6;
-
-		uv_connect_t* connectReq = (uv_connect_t*)fc_malloc(sizeof(uv_connect_t));
-		connectReq->data = this;
-
-		int r = uv_tcp_connect(connectReq, tcp, addr, uv_on_after_connect);
-		if (r)
-		{
-			return false;
-		}
-		setTcp(tcp);
-		net_adjustBuffSize((uv_handle_t*)tcp, TCP_UV_SOCKET_RECV_BUF_LEN, TCP_UV_SOCKET_SEND_BUF_LEN);
-		return true;
+		tcp->data = this;
 	}
-	NET_UV_LOG(NET_UV_L_ERROR, "[%s:%d]地址信息获取失败", ip, port);
-	return false;
+	
+	uv_connect_t* connectReq = (uv_connect_t*)fc_malloc(sizeof(uv_connect_t));
+	connectReq->data = this;
+	int r = uv_tcp_connect(connectReq, tcp, addr, uv_on_after_connect);
+	if (r)
+	{
+		return false;
+	}
+	setTcp(tcp);
+	net_adjustBuffSize((uv_handle_t*)tcp, TCP_UV_SOCKET_RECV_BUF_LEN, TCP_UV_SOCKET_SEND_BUF_LEN);
+	return true;
 }
 
 bool TCPSocket::send(char* data, int len)
@@ -207,43 +173,22 @@ TCPSocket* TCPSocket::accept(uv_stream_t* server, int status)
 	CHECK_UV_ASSERT(r);
 	if (r != 0)
 	{
+		fc_free(client_addr);
 		fc_free(client);
 		return NULL;
 	}
-
 	std::string strip;
 	unsigned int port;
-	if (client_addr->sa_family == AF_INET6)
+	unsigned int socket_len = net_getsockAddrIPAndPort(client_addr, strip, port);
+	bool isIPV6 = client_addr->sa_family == AF_INET6;
+
+	fc_free(client_addr);
+
+	if (socket_len == 0)
 	{
-		struct sockaddr_in6* addr_in = (struct sockaddr_in6*) client_addr;
-
-		char szIp[NET_UV_INET6_ADDRSTRLEN + 1] = { 0 };
-		int r = uv_ip6_name(addr_in, szIp, NET_UV_INET6_ADDRSTRLEN);
-		if (r != 0)
-		{
-			NET_UV_LOG(NET_UV_L_ERROR, "tcp服务器接受连接失败,地址解析失败");
-			fc_free(client);
-			return NULL;
-		}
-
-		strip = szIp;
-		port = ntohs(addr_in->sin6_port);
-	}
-	else
-	{
-		struct sockaddr_in* addr_in = (struct sockaddr_in*) client_addr;
-
-		char szIp[NET_UV_INET_ADDRSTRLEN + 1] = { 0 };
-		int r = uv_ip4_name(addr_in, szIp, NET_UV_INET_ADDRSTRLEN);
-		if (r != 0)
-		{
-			NET_UV_LOG(NET_UV_L_ERROR, "tcp服务器接受连接失败,地址解析失败");
-			fc_free(client);
-			return NULL;
-		}
-
-		strip = szIp;
-		port = ntohs(addr_in->sin_port);
+		NET_UV_LOG(NET_UV_L_ERROR, "tcp服务器接受连接失败,地址解析失败");
+		fc_free(client);
+		return NULL;
 	}
 
 	net_adjustBuffSize((uv_handle_t*)client, TCP_UV_SOCKET_RECV_BUF_LEN, TCP_UV_SOCKET_SEND_BUF_LEN);
@@ -254,6 +199,7 @@ TCPSocket* TCPSocket::accept(uv_stream_t* server, int status)
 
 	newSocket->setIp(strip);
 	newSocket->setPort(port);
+	newSocket->setIsIPV6(isIPV6);
 
 	r = uv_read_start(handle, uv_on_alloc_buffer, uv_on_after_read);
 	if (r != 0)
