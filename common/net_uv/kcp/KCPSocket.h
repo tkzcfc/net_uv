@@ -36,6 +36,8 @@ public:
 
 	virtual void disconnect()override;
 
+	KCPSocket* accept(struct sockaddr* addr);
+
 	inline void setNewConnectionCallback(const KCPSocketNewConnectionCall& call);
 	inline void setDisconnectCallback(const KCPSocketDisconnectCall& call);
 	inline void setConnectFilterCallback(const KCPSocketConnectFilterCall& call);

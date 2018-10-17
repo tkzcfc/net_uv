@@ -311,6 +311,51 @@ void KCPSocket::disconnect()
 	}
 }
 
+KCPSocket* KCPSocket::accept(struct sockaddr* addr)
+{
+	std::string strip;
+	unsigned int addrlen = 0;
+	unsigned int port = 0;
+
+	if (addr->sa_family == AF_INET6)
+	{
+		addrlen = sizeof(struct sockaddr_in6);
+
+		struct sockaddr_in6* addr_in = (struct sockaddr_in6*) addr;
+
+		char szIp[NET_UV_INET6_ADDRSTRLEN + 1] = { 0 };
+		int r = uv_ip6_name(addr_in, szIp, NET_UV_INET6_ADDRSTRLEN);
+		if (r != 0)
+		{
+			NET_UV_LOG(NET_UV_L_ERROR, "kcp服务器创建KCPSocket失败,地址解析失败");
+			return NULL;
+		}
+
+		strip = szIp;
+		port = ntohs(addr_in->sin6_port);
+	}
+	else
+	{
+		addrlen = sizeof(struct sockaddr_in);
+
+		struct sockaddr_in* addr_in = (struct sockaddr_in*) addr;
+
+		char szIp[NET_UV_INET_ADDRSTRLEN + 1] = { 0 };
+		int r = uv_ip4_name(addr_in, szIp, NET_UV_INET_ADDRSTRLEN);
+		if (r != 0)
+		{
+			NET_UV_LOG(NET_UV_L_ERROR, "kcp服务器创建KCPSocket失败,地址解析失败");
+			return NULL;
+		}
+
+		strip = szIp;
+		port = ntohs(addr_in->sin_port);
+	}
+
+	struct sockaddr* curAddr = (struct sockaddr*)fc_malloc(addrlen);
+	memcpy(curAddr, addr, addrlen);
+}
+
 void KCPSocket::socketUpdate(IUINT32 clock)
 {
 	m_last_update_time = clock;
