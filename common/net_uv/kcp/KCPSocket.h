@@ -11,7 +11,6 @@ NS_NET_UV_BEGIN
 // 新连接过滤回调，用于过滤黑名单 返回false表示不接受该连接
 using KCPSocketConnectFilterCall = std::function<bool(const struct sockaddr*)>;
 using KCPSocketNewConnectionCall = std::function<void(Socket*)>;
-using KCPSocketDisconnectCall = std::function<void(Socket*, unsigned int)>;
 
 class KCPSocket : public Socket
 {
@@ -39,7 +38,6 @@ public:
 	bool accept(const struct sockaddr* addr, IUINT32 conv);
 
 	inline void setNewConnectionCallback(const KCPSocketNewConnectionCall& call);
-	inline void setDisconnectCallback(const KCPSocketDisconnectCall& call);
 	inline void setConnectFilterCallback(const KCPSocketConnectFilterCall& call);
 
 protected:
@@ -67,6 +65,8 @@ protected:
 
 	void onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
 
+	void connectResult(int status);
+
 	void doSendSvrConnectMsgPack(IUINT32 clock);
 
 	void doSendConnectMsgPack(IUINT32 clock);
@@ -74,9 +74,7 @@ protected:
 	void doConnectTimeout();
 
 	void doSendTimeout();
-
-	inline void resetLastPacketRecvTime();
-
+	
 	inline void setConv(IUINT32 conv);
 
 	inline IUINT32 getConv();
@@ -110,17 +108,18 @@ protected:
 	ikcpcb* m_kcp;
 	IUINT32 m_first_send_connect_msg_time;
 	IUINT32 m_last_send_connect_msg_time;
-	IUINT32 m_last_packet_recv_time;
+	IUINT32 m_last_kcp_packet_recv_time;
+	IUINT32 m_last_kcp_packet_send_time;
 	IUINT32 m_last_update_time;
 	IUINT32 m_conv;
-
 	IINT32 m_releaseCount;
+
+	bool m_firstSendSucTag;
 
 	KCPSocketManager* m_socketMng;
 	bool m_weakRefSocketMng;
 
 	KCPSocketNewConnectionCall m_newConnectionCall;
-	KCPSocketDisconnectCall m_disconnectCall;
 	KCPSocketConnectFilterCall m_connectFilterCall;
 
 	friend class KCPSocketManager;
@@ -154,19 +153,9 @@ void KCPSocket::setNewConnectionCallback(const KCPSocketNewConnectionCall& call)
 	m_newConnectionCall = std::move(call);
 }
 
-void KCPSocket::setDisconnectCallback(const KCPSocketDisconnectCall& call)
-{
-	m_disconnectCall = std::move(call);
-}
-
 void KCPSocket::setConnectFilterCallback(const KCPSocketConnectFilterCall& call)
 {
 	m_connectFilterCall = std::move(call);
-}
-
-void KCPSocket::resetLastPacketRecvTime()
-{
-	m_last_packet_recv_time = m_last_update_time;
 }
 
 void KCPSocket::setConv(IUINT32 conv)

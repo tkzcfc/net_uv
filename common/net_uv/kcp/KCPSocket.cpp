@@ -2,8 +2,8 @@
 
 NS_NET_UV_BEGIN
 
-// 连接超时时间 3S
-#define KCP_SOCKET_CONNECT_TIMEOUT (3000)
+// 连接超时时间 5S
+#define KCP_SOCKET_CONNECT_TIMEOUT (5000)
 
 KCPSocket::KCPSocket(uv_loop_t* loop)
 	: m_socketAddr(NULL)
@@ -12,16 +12,17 @@ KCPSocket::KCPSocket(uv_loop_t* loop)
 	, m_kcpState(State::DISCONNECT)
 	, m_newConnectionCall(nullptr)
 	, m_connectFilterCall(nullptr)
-	, m_disconnectCall(nullptr)
 	, m_releaseCount(5)
 	, m_first_send_connect_msg_time(0)
 	, m_last_send_connect_msg_time(0)
-	, m_last_packet_recv_time(0)
+	, m_last_kcp_packet_recv_time(0)
 	, m_last_update_time(0)
+	, m_last_kcp_packet_send_time(0)
 	, m_conv(0)
 	, m_weakRefSocketMng(false)
 	, m_kcp(NULL)
 	, m_runIdle(false)
+	, m_firstSendSucTag(false)
 {
 	m_recvBuf = (char*)fc_malloc(KCP_MAX_MSG_SIZE);
 	memset(m_recvBuf, 0, KCP_MAX_MSG_SIZE);
@@ -206,6 +207,7 @@ bool KCPSocket::connect(const char* ip, unsigned int port)
 	CHECK_UV_ASSERT(r);
 
 	m_kcpState = State::WAIT_CONNECT;
+	m_firstSendSucTag = false;
 
 	m_first_send_connect_msg_time = iclock();
 	doSendConnectMsgPack(m_first_send_connect_msg_time);
@@ -227,44 +229,33 @@ bool KCPSocket::send(char* data, int len)
 
 void KCPSocket::disconnect()
 {
-	// 未连接成功的客户端socket或者服务器listen socket
-	if (getConv() == 0)
+	switch (m_kcpState)
 	{
-		// 服务器listen socket
-		if (m_socketMng != NULL)
-		{
-			m_kcpState = State::WAIT_DISCONNECT;
-			m_releaseCount = 10;
-			m_socketMng->stop_listen();
-			startIdle();
-		}
-		else
-		{
-			shutdownSocket();
-		}
+	case KCPSocket::State::WAIT_CONNECT:
+	{
+		shutdownSocket();
 	}
-	else
+	break;
+	case KCPSocket::State::CONNECT:
 	{
 		std::string packet = kcp_making_disconnect_packet(getConv());
 		udpSend((char*)packet.c_str(), packet.size());
 
-		// 服务器socket
-		if (m_weakRefSocketMng)
-		{
-			shutdownSocket();
-		}
-		// 客户端socket
-		else
-		{
-			m_kcpState = State::WAIT_DISCONNECT;
-			m_releaseCount = 10;
-			startIdle();
-		}
+		m_kcpState = State::WAIT_DISCONNECT;
+		m_releaseCount = 10;
+		startIdle();
 	}
-	if (m_socketMng != NULL && m_weakRefSocketMng)
+	break;
+	case KCPSocket::State::LISTEN:
 	{
-		m_socketMng->remove(this);
+		m_kcpState = State::WAIT_DISCONNECT;
+		m_releaseCount = 10;
+		m_socketMng->stop_listen();
+		startIdle();
 	}
+		break;
+	}
+
 	if (m_kcp)
 	{
 		ikcp_release(m_kcp);
@@ -287,9 +278,6 @@ bool KCPSocket::accept(const struct sockaddr* addr, IUINT32 conv)
 		return false;
 	}
 
-	std::string packet = kcp_making_send_back_conv_packet(conv);
-	udpSend((char*)packet.c_str(), (int)packet.size(), addr);
-	
 	struct sockaddr* socker_addr = (struct sockaddr*)fc_malloc(addrlen);
 	memcpy(socker_addr, addr, addrlen);
 
@@ -298,11 +286,33 @@ bool KCPSocket::accept(const struct sockaddr* addr, IUINT32 conv)
 	socket->setIp(strip);
 	socket->setPort(port);
 	socket->setIsIPV6(socker_addr->sa_family == AF_INET6);
+	socket->setWeakRefSocketManager(m_socketMng); 
 	socket->svr_connect(socker_addr, conv);
-	socket->setWeakRefSocketManager(m_socketMng);
 	
 	m_socketMng->push(socket);
 
+	int client_addr_length = sizeof(sockaddr_in6) * 2;
+	struct sockaddr* client_addr = (struct sockaddr*)fc_malloc(client_addr_length);
+	memset(client_addr, 0, client_addr_length);
+
+	int r = uv_udp_getsockname(socket->getUdp(), client_addr, &client_addr_length);
+	CHECK_UV_ASSERT(r);
+	if (r == 0)
+	{
+		if (client_addr->sa_family == AF_INET6)
+		{
+			const struct sockaddr_in6* addr_in = (const struct sockaddr_in6*) client_addr;
+			port = ntohs(addr_in->sin6_port);
+		}
+		else
+		{
+			const struct sockaddr_in* addr_in = (const struct sockaddr_in*) client_addr;
+			port = ntohs(addr_in->sin_port);
+		}
+		std::string packet = kcp_making_send_back_conv_packet(conv, port);
+		udpSend((char*)packet.c_str(), (int)packet.size(), addr);
+	}
+	fc_free(client_addr);
 	return true;
 }
 
@@ -329,6 +339,7 @@ void KCPSocket::svr_connect(struct sockaddr* addr, IUINT32 conv)
 	CHECK_UV_ASSERT(r);
 
 	m_kcpState = State::WAIT_CONNECT;
+	m_firstSendSucTag = false;
 
 	m_first_send_connect_msg_time = iclock();
 	doSendSvrConnectMsgPack(m_first_send_connect_msg_time);
@@ -340,51 +351,99 @@ void KCPSocket::socketUpdate(IUINT32 clock)
 {
 	m_last_update_time = clock;
 
-	if (m_kcpState == State::DISCONNECT)
-		return;
+	switch (m_kcpState)
+	{
+	case KCPSocket::State::CONNECT:
+	{
+		if (m_last_kcp_packet_recv_time == 0)
+		{
+			m_last_kcp_packet_recv_time = clock;
+		}
 
-	if (m_kcpState == State::WAIT_CONNECT)
-	{
-		// 连接超时
-		if (m_last_send_connect_msg_time - m_first_send_connect_msg_time > KCP_SOCKET_CONNECT_TIMEOUT)
-		{
-			doConnectTimeout();
-			return;
-		}
-		m_last_send_connect_msg_time = m_last_update_time;
-		//doSendConnectMsgPack(clock);
-	}
-	else if (m_kcpState == State::WAIT_DISCONNECT)
-	{
-		m_releaseCount--;
-		if (m_releaseCount <= 0)
-		{
-			shutdownSocket();
-		}
-	}
-	else
-	{
 		// 发送超时
-		// 三分钟没有任何消息返回
-		if (m_last_packet_recv_time > 0 && clock - m_last_packet_recv_time > 300000)
+		// 一分钟没有任何消息返回
+		if (clock - m_last_kcp_packet_recv_time > 60000)
 		{
+			printf("time out 1\n");
 			doSendTimeout();
 			return;
 		}
 
 		if (m_kcp)
 		{
+			// kcp没有收到过数据
+			if (!m_firstSendSucTag)
+			{
+				// kcp数据发送后3S没有数据返回则表明该连接未连接成功
+				if (m_last_kcp_packet_send_time > 0 && m_last_kcp_packet_send_time - m_last_kcp_packet_recv_time > 3000)
+				{
+					printf("time out 2\n");
+					doSendTimeout();
+					return;
+				}
+			}
 			ikcp_update(m_kcp, clock);
 		}
+	}
+	break;
+	case KCPSocket::State::WAIT_CONNECT:
+	{
+		// 连接超时
+		if (m_first_send_connect_msg_time > 0 && clock - m_first_send_connect_msg_time > KCP_SOCKET_CONNECT_TIMEOUT)
+		{
+			doConnectTimeout();
+			return;
+		}
+
+		if (clock - m_last_send_connect_msg_time >= 100)
+		{
+			if (m_socketMng)
+			{
+				doSendSvrConnectMsgPack(clock);
+			}
+			else
+			{
+				doSendConnectMsgPack(clock);
+			}
+		}
+	}
+		break;
+	case KCPSocket::State::WAIT_DISCONNECT:
+	{
+		if (m_socketMng && m_socketMng->getOwner() == this)
+		{
+			if (m_socketMng->getAwaitConnectCount() <= 0)
+			{
+				m_releaseCount--;
+				if (m_releaseCount <= 0)
+				{
+					shutdownSocket();
+				}
+			}
+		}
+		else
+		{
+			m_releaseCount--;
+			if (m_releaseCount <= 0)
+			{
+				shutdownSocket();
+			}
+		}
+	}
+		break;
 	}
 }
 
 void KCPSocket::shutdownSocket()
 {
+	m_first_send_connect_msg_time = 0;
+	m_last_send_connect_msg_time = 0;
 	m_kcpState = State::DISCONNECT;
+	setConv(0);
 	
 	if (m_udp == NULL)
 	{
+		stopIdle();
 		return;
 	}
 	uv_udp_recv_stop(m_udp);
@@ -451,7 +510,11 @@ void KCPSocket::udpSend(const char* data, int len, const struct sockaddr* addr)
 
 void KCPSocket::kcpInput(const char* data, long size)
 {
-	m_last_packet_recv_time = m_last_update_time;
+	if (size <= 0)
+		return;
+
+	m_last_kcp_packet_recv_time = m_last_update_time;
+	m_firstSendSucTag = true;
 	ikcp_input(m_kcp, data, size);
 
 	int kcp_recvd_bytes = 0;
@@ -490,55 +553,84 @@ void KCPSocket::initKcp(IUINT32 conv)
 
 void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags)
 {
+	//std::string str_log(buf->base, nread);
+	//printf("recv : %s\n", str_log.c_str());
 	switch (m_kcpState)
 	{
 	case KCPSocket::WAIT_CONNECT:
 	{
 		if (kcp_is_send_back_conv_packet(buf->base, nread))
 		{
-			unsigned int conv = kcp_grab_conv_from_send_back_conv_packet(buf->base, nread);
-			if (conv == 0)
+			unsigned int conv, port;
+			bool suc = kcp_grab_conv_from_send_back_conv_packet(buf->base, nread, conv, port);
+			if (suc == false)
 			{
-				m_kcpState = State::DISCONNECT;
-				m_connectCall(this, 0);
+				connectResult(0);
 				return;
 			}
+
+			// 获取IP
+			std::string szIp;
+			unsigned int tmp;
+			if (net_getsockAddrIPAndPort(getSocketAddr(), szIp, tmp) <= 0)
+			{
+				connectResult(0);
+				return;
+			}
+			// 端口重定向
+			unsigned int addr_len = 0;
+			struct sockaddr* addr = net_getsocketAddr(szIp.c_str(), port, &addr_len);
+
+			if (addr == NULL)
+			{
+				connectResult(0);
+				return;
+			}
+
+			struct sockaddr* socker_addr = (struct sockaddr*)fc_malloc(addr_len);
+			memcpy(socker_addr, addr, addr_len);
+			this->setSocketAddr(socker_addr);
+
+			// 向新端口发送数据
+			doSendConnectMsgPack(m_last_update_time);
+
 			setConv(conv);
 		}
 		else if (kcp_is_svr_connect_packet(buf->base, nread))
 		{
 			unsigned int conv = kcp_grab_conv_from_svr_connect_packet(buf->base, nread);
-			if (conv == 0 || conv != getConv())
+			if (conv == 0)
 			{
-				m_kcpState = State::DISCONNECT;
-				m_connectCall(this, 0);
+				connectResult(0);
 				return;
 			}
 
-			// ip端口重定向
-			std::string strip;
-			unsigned int port;
-			unsigned int addrlen = net_getsockAddrIPAndPort(addr, strip, port);
+			// 地址重定向
+			unsigned int addrlen = 0;
+			if (addr->sa_family == AF_INET6)
+			{
+				addrlen = sizeof(struct sockaddr_in6);
+			}
+			else
+			{
+				addrlen = sizeof(struct sockaddr_in);
+			}
 			if (addrlen == 0)
 			{
-				m_kcpState = State::DISCONNECT;
-				m_connectCall(this, 0);
+				connectResult(0);
 				return;
 			}
 			struct sockaddr* socker_addr = (struct sockaddr*)fc_malloc(addrlen);
 			memcpy(socker_addr, addr, addrlen);
 
-			//this->setIp(strip);
-			//this->setPort(port);
 			this->setSocketAddr(socker_addr);
 			
 			std::string packet = kcp_making_svr_send_back_conv_packet(conv);
 			udpSend((char*)packet.c_str(), (int)packet.size(), addr);
 
+			setConv(conv);
 			initKcp(conv);
-			m_kcpState = State::CONNECT;
-
-			m_connectCall(this, 1);
+			connectResult(1);
 		}
 		else if (kcp_is_svr_send_back_conv_packet(buf->base, nread))
 		{
@@ -546,17 +638,11 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 
 			if (conv == 0 || conv != getConv())
 			{
-				m_kcpState = State::DISCONNECT;
-				m_connectCall(this, 0);
+				connectResult(0);
 				return;
 			}
 			initKcp(conv);
-			m_kcpState = State::CONNECT;
-
-			if (m_socketMng)
-			{
-				m_socketMng->connect(this);
-			}
+			connectResult(1);
 		}
 	}
 	break;
@@ -583,8 +669,6 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 	}break;
 	case KCPSocket::CONNECT:
 	{
-		resetLastPacketRecvTime();
-
 		if (kcp_is_disconnect_packet(buf->base, nread))
 		{
 			unsigned int conv = kcp_grab_conv_from_disconnect_packet(buf->base, nread);
@@ -610,6 +694,24 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 	}
 }
 
+void KCPSocket::connectResult(int status)
+{
+	if (status == 1)
+	{
+		m_kcpState = State::CONNECT;
+		m_last_kcp_packet_recv_time = 0;
+		m_last_kcp_packet_send_time = 0;
+	}
+	else
+	{
+		m_kcpState = State::DISCONNECT;
+	}
+	if (m_connectCall)
+	{
+		m_connectCall(this, status);
+	}
+}
+
 void KCPSocket::doSendSvrConnectMsgPack(IUINT32 clock)
 {
 	m_last_send_connect_msg_time = clock;
@@ -627,11 +729,7 @@ void KCPSocket::doSendConnectMsgPack(IUINT32 clock)
 void KCPSocket::doConnectTimeout()
 {
 	stopIdle();
-	if (m_connectCall != nullptr)
-	{
-		m_connectCall(this, 2);
-	}
-	m_kcpState = State::DISCONNECT;
+	connectResult(2);
 }
 
 void KCPSocket::doSendTimeout()
@@ -696,7 +794,9 @@ void KCPSocket::uv_on_after_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t
 
 int KCPSocket::udp_output(const char *buf, int len, ikcpcb *kcp, void *user)
 {
-	((KCPSocket*)user)->udpSend(buf, len);
+	KCPSocket* socket = (KCPSocket*)user;
+	socket->m_last_kcp_packet_send_time = socket->m_last_update_time;
+	socket->udpSend(buf, len);
 	return 0;
 }
 

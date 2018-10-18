@@ -6,6 +6,9 @@ NS_NET_UV_BEGIN
 KCPSocketManager::KCPSocketManager(uv_loop_t* loop)
 	: m_convCount(1000)
 	, m_owner(NULL)
+	, m_stop(false)
+	, m_isConnectArrDirty(false)
+	, m_isAwaitConnectArrDirty(false)
 {
 	m_loop = loop;
 
@@ -21,17 +24,21 @@ KCPSocketManager::~KCPSocketManager()
 
 void KCPSocketManager::push(KCPSocket* socket)
 {
-	for (auto& it : m_allSocket)
+	for (auto& it : m_allAwaitConnectSocket)
 	{
 		if (it.socket == socket)
 		{
 			return;
 		}
 	}
+
 	SMData data;
 	data.invalid = false;
 	data.socket = socket;
-	m_allSocket.push_back(data);
+	m_allAwaitConnectSocket.push_back(data);
+
+	socket->setConnectCallback(std::bind(&KCPSocketManager::on_socket_connect, this, std::placeholders::_1, std::placeholders::_2));
+	socket->setCloseCallback(std::bind(&KCPSocketManager::on_socket_close, this, std::placeholders::_1));
 }
 
 IUINT32 KCPSocketManager::getNewConv()
@@ -42,32 +49,27 @@ IUINT32 KCPSocketManager::getNewConv()
 
 void KCPSocketManager::remove(KCPSocket* socket)
 {
-	for (auto& it : m_allSocket)
+	for (auto& it : m_allConnectSocket)
 	{
 		if (it.socket == socket)
 		{
 			it.invalid = true;
-		}
-	}
-}
-
-void KCPSocketManager::connect(KCPSocket* socket)
-{
-	for (auto& it : m_allSocket)
-	{
-		if (it.invalid == false && it.socket == socket)
-		{
-			m_owner->m_newConnectionCall(socket);
+			m_isConnectArrDirty = true;
+			break;
 		}
 	}
 }
 
 void KCPSocketManager::stop_listen()
 {
-	std::vector<SMData> tmp = m_allSocket;
-	m_allSocket.clear();
+	m_stop = true;
 
-	for (auto& it : tmp)
+	for (auto& it : m_allConnectSocket)
+	{
+		it.socket->disconnect();
+	}
+
+	for (auto& it : m_allAwaitConnectSocket)
 	{
 		it.socket->disconnect();
 	}
@@ -83,7 +85,15 @@ int KCPSocketManager::isContain(const struct sockaddr* addr)
 		return -1;
 	}
 
-	for (auto& it : m_allSocket)
+	for (auto& it : m_allAwaitConnectSocket)
+	{
+		if (!it.invalid && it.socket && it.socket->getIp() == strip && it.socket->getPort() == port)
+		{
+			return 1;
+		}
+	}
+
+	for (auto& it : m_allConnectSocket)
 	{
 		if (!it.invalid && it.socket->getIp() == strip && it.socket->getPort() == port)
 		{
@@ -93,27 +103,128 @@ int KCPSocketManager::isContain(const struct sockaddr* addr)
 	return 0;
 }
 
-void KCPSocketManager::idleRun()
+void KCPSocketManager::on_socket_connect(Socket* socket, int status)
 {
-	IUINT32 update_clock = iclock();
-
-	auto it = m_allSocket.begin();
-	for (; it != m_allSocket.end(); )
+	if (!m_stop && status == 1)
 	{
-		if (it->invalid)
+		socket->setConnectCallback(nullptr);
+		connect((KCPSocket*)socket);
+	}
+	else
+	{
+		removeAwaitConnectSocket((KCPSocket*)socket);
+	}
+}
+
+void KCPSocketManager::on_socket_close(Socket* socket)
+{
+	removeAwaitConnectSocket((KCPSocket*)socket);
+}
+
+void KCPSocketManager::connect(KCPSocket* socket)
+{
+	for (auto& it : m_allConnectSocket)
+	{
+		if (it.socket == socket)
 		{
-			it = m_allSocket.erase(it);
-		}
-		else
-		{
-			it->socket->socketUpdate(update_clock);
-			it++;
+			return;
 		}
 	}
+
+	SMData data;
+	data.invalid = false;
+	data.socket = socket;
+	m_allConnectSocket.push_back(data);
+
+	m_owner->m_newConnectionCall(socket);
+
+	for (auto& it : m_allAwaitConnectSocket)
+	{
+		if (it.socket == socket)
+		{
+			it.invalid = true;
+			it.socket = NULL;
+			m_isAwaitConnectArrDirty = true;
+			break;
+		}
+	}
+}
+
+void KCPSocketManager::removeAwaitConnectSocket(KCPSocket* socket)
+{
+	for (auto& it : m_allAwaitConnectSocket)
+	{
+		if (it.socket == socket)
+		{
+			it.invalid = true;
+			m_isAwaitConnectArrDirty = true;
+			break;
+		}
+	}
+}
+
+void KCPSocketManager::clearInvalid()
+{
+	if (m_isAwaitConnectArrDirty)
+	{
+		auto it = m_allAwaitConnectSocket.begin();
+		for (; it != m_allAwaitConnectSocket.end(); )
+		{
+			if (it->invalid)
+			{
+				if (it->socket != NULL)
+				{
+					it->socket->~KCPSocket();
+					fc_free(it->socket);
+				}
+				it = m_allAwaitConnectSocket.erase(it);
+			}
+			else
+			{
+				it++;
+			}
+		}
+
+		m_isAwaitConnectArrDirty = false;
+	}
+
+	if (m_isConnectArrDirty)
+	{
+		auto it = m_allConnectSocket.begin();
+		for (; it != m_allConnectSocket.end(); )
+		{
+			if (it->invalid)
+			{
+				it = m_allConnectSocket.erase(it);
+			}
+			else
+			{
+				it++;
+			}
+		}
+		m_isConnectArrDirty = false;
+	}
+}
+
+void KCPSocketManager::idleRun()
+{
+	clearInvalid();
+
+	IUINT32 update_clock = iclock();
 
 	if (m_owner)
 	{
 		m_owner->updateKcp(update_clock);
+	}
+	
+	for (auto& it : m_allAwaitConnectSocket)
+	{
+		it.socket->socketUpdate(update_clock);
+	}
+
+	for (auto& it : m_allConnectSocket)
+	{
+		it.socket->socketUpdate(update_clock);
 	}
 }
 

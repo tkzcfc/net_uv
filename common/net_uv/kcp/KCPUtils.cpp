@@ -4,9 +4,9 @@ NS_NET_UV_BEGIN
 
 
 #define NET_KCP_CONNECT_PACKET "kcp_connect_package get_conv"
-#define NET_KCP_SEND_BACK_CONV_PACKET "kcp_connect_back_package get_conv:"
-#define NET_KCP_SVR_CONNECT_PACKET "kcp_connect_package conv:"
-#define NET_KCP_SVR_SEND_BACK_CONV_PACKET "kcp_connect_back_package conv:"
+#define NET_KCP_SEND_BACK_CONV_PACKET "kcp_connect_back_package"
+#define NET_KCP_SVR_CONNECT_PACKET "kcp_svr_connect_package conv:"
+#define NET_KCP_SVR_SEND_BACK_CONV_PACKET "kcp_connect_svr_back_package conv:"
 #define NET_KCP_DISCONNECT_PACKET "kcp_disconnect_package"
 #define NET_KCP_HEART_PACKET "kcp_heart_package"
 #define NET_KCP_HEART_BACK_PACKET "kcp_heart_back_package"
@@ -28,17 +28,57 @@ bool kcp_is_send_back_conv_packet(const char* data, size_t len)
 		memcmp(data, NET_KCP_SEND_BACK_CONV_PACKET, sizeof(NET_KCP_SEND_BACK_CONV_PACKET) - 1) == 0);
 }
 
-std::string kcp_making_send_back_conv_packet(uint32_t conv)
+std::string kcp_making_send_back_conv_packet(uint32_t conv, uint32_t port)
 {
 	char str_send_back_conv[256] = "";
-	size_t n = snprintf(str_send_back_conv, sizeof(str_send_back_conv), "%s %u", NET_KCP_SEND_BACK_CONV_PACKET, conv);
+	size_t n = snprintf(str_send_back_conv, sizeof(str_send_back_conv), "%s conv:%u newport:%u", NET_KCP_SEND_BACK_CONV_PACKET, conv, port);
 	return std::string(str_send_back_conv, n);
 }
 
-uint32_t kcp_grab_conv_from_send_back_conv_packet(const char* data, size_t len)
+bool kcp_grab_conv_from_send_back_conv_packet(const char* data, size_t len, uint32_t& out_conv, uint32_t& out_port)
 {
-	uint32_t conv = atol(data + sizeof(NET_KCP_SEND_BACK_CONV_PACKET));
-	return conv;
+	std::string str(data, len);
+
+	const char* conv_key = "conv:";
+	const char* port_key = "newport:";
+
+	std::size_t pos = 0;
+	pos = str.find(conv_key);
+	if (pos != std::string::npos)
+	{
+		std::string str_value;
+		for (size_t i = pos + strlen(conv_key); i <= str.size(); ++i)
+		{
+			if ('0' <= str[i] && str[i] <= '9')
+				str_value.push_back(str[i]);
+			else
+				break;
+		}
+		if (str_value.empty())
+		{
+			return false;
+		}
+		out_conv = atol(str_value.c_str());
+	}
+
+	pos = str.find(port_key);
+	if (pos != std::string::npos)
+	{
+		std::string str_value;
+		for (size_t i = pos + strlen(port_key); i <= str.size(); ++i)
+		{
+			if ('0' <= str[i] && str[i] <= '9')
+				str_value.push_back(str[i]);
+			else
+				break;
+		}
+		if (str_value.empty())
+		{
+			return false;
+		}
+		out_port = atol(str_value.c_str());
+	}
+	return true;
 }
 
 

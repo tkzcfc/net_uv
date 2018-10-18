@@ -66,6 +66,9 @@ unsigned int net_getBufHash(const void *buf, unsigned int len)
 
 unsigned int net_getsockAddrIPAndPort(const struct sockaddr* addr, std::string& outIP, unsigned int& outPort)
 {
+	if (addr == NULL)
+		return 0;
+
 	std::string strip;
 	unsigned int addrlen = 0;
 	unsigned int port = 0;

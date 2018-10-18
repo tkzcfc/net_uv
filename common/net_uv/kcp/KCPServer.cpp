@@ -281,9 +281,12 @@ void KCPServer::onSessionClose(Session* session)
 	if (it != m_allSession.end())
 	{
 		it->second.isInvalid = true;
+		pushThreadMsg(NetThreadMsgType::DIS_CONNECT, session);
 	}
-
-	pushThreadMsg(NetThreadMsgType::DIS_CONNECT, session);
+	else
+	{
+		printf("warning\n");
+	}
 }
 
 void KCPServer::onSessionRecvData(Session* session, char* data, unsigned int len)

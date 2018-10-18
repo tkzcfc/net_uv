@@ -280,9 +280,8 @@ void TCPServer::onSessionClose(Session* session)
 	if (it != m_allSession.end())
 	{
 		it->second.isInvalid = true;
+		pushThreadMsg(NetThreadMsgType::DIS_CONNECT, session);
 	}
-
-	pushThreadMsg(NetThreadMsgType::DIS_CONNECT, session);
 }
 
 void TCPServer::onSessionRecvData(Session* session, char* data, unsigned int len)

@@ -19,17 +19,29 @@ public:
 
 	void remove(KCPSocket* socket);
 
-	void connect(KCPSocket* socket);
-
 	void stop_listen();
 
 	inline void setOwner(KCPSocket* socket);
 
+	inline KCPSocket* getOwner();
+
 	int isContain(const struct sockaddr* addr);
+
+	inline int getAwaitConnectCount();
 
 protected:
 
 	void idleRun();
+
+	void on_socket_connect(Socket* socket, int status);
+
+	void on_socket_close(Socket* socket);
+
+	void connect(KCPSocket* socket);
+
+	void removeAwaitConnectSocket(KCPSocket* socket);
+
+	void clearInvalid();
 
 protected:
 
@@ -46,14 +58,30 @@ protected:
 	uv_loop_t* m_loop;
 	uv_idle_t m_idle;
 	IUINT32 m_convCount;
-	std::vector<SMData> m_allSocket;
+
+	bool m_isConnectArrDirty;
+	bool m_isAwaitConnectArrDirty;
+
+	std::vector<SMData> m_allConnectSocket;
+	std::vector<SMData> m_allAwaitConnectSocket;
 
 	KCPSocket* m_owner;
+	bool m_stop;
 };
 
 void KCPSocketManager::setOwner(KCPSocket* socket)
 {
 	m_owner = socket;
+}
+
+KCPSocket* KCPSocketManager::getOwner()
+{
+	return m_owner;
+}
+
+int KCPSocketManager::getAwaitConnectCount()
+{
+	return (int)m_allAwaitConnectSocket.size();
 }
 
 NS_NET_UV_END
