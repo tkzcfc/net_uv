@@ -18,7 +18,7 @@ NS_NET_UV_BEGIN
 
 // 单次消息发送最大字节
 // 若超过该长度，则进行分片发送
-// (4K)
+// (1K)
 #define KCP_WRITE_MAX_LEN (1024 * 1)
 
 // IP地址长度

@@ -14,7 +14,7 @@ LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
 
 //#define CONNECT_IP "127.0.0.1"
 #define CONNECT_IP "www.kurumi.xin"
-#define CONNECT_PORT 1234
+#define CONNECT_PORT 1002
 
 #define KEY_DOWN(VK_NONAME) ((GetAsyncKeyState(VK_NONAME) & 0x8000) ? 1:0)
 #define CMD_STR_STR(v) (strstr(cmdBuf, v))

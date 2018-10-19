@@ -13,7 +13,7 @@ LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
 
 //#define CONNECT_IP "127.0.0.1"
 #define CONNECT_IP "www.kurumi.xin"
-#define CONNECT_PORT 1234
+#define CONNECT_PORT 1002
 
 bool autosend = true;
 unsigned int keyIndex = 0;
