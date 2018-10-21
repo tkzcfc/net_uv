@@ -34,6 +34,9 @@
     <Filter Include="net_uv\kcp">
       <UniqueIdentifier>{ad77fd7c-f980-42bc-9703-704a3a6ba28c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="net_uv\p2p">
+      <UniqueIdentifier>{be657e1d-0c9c-4fe4-9bfb-1a0c95605f6b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="testClient.cpp">
@@ -156,9 +159,6 @@
     <ClCompile Include="..\common\net_uv\base\Socket.cpp">
       <Filter>net_uv\base</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\base\uv_func.cpp">
-      <Filter>net_uv\base</Filter>
-    </ClCompile>
     <ClCompile Include="..\common\net_uv\base\Client.cpp">
       <Filter>net_uv\base</Filter>
     </ClCompile>
@@ -203,6 +203,15 @@
     </ClCompile>
     <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp">
       <Filter>net_uv\tcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\base\Misc.cpp">
+      <Filter>net_uv\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\P2PServer.cpp">
+      <Filter>net_uv\p2p</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\P2PClient.cpp">
+      <Filter>net_uv\p2p</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -308,9 +317,6 @@
     <ClInclude Include="..\common\net_uv\base\Socket.h">
       <Filter>net_uv\base</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\base\uv_func.h">
-      <Filter>net_uv\base</Filter>
-    </ClInclude>
     <ClInclude Include="..\common\net_uv\base\Buffer.h">
       <Filter>net_uv\base</Filter>
     </ClInclude>
@@ -376,6 +382,24 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\tcp\TCPServer.h">
       <Filter>net_uv\tcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\base\Misc.h">
+      <Filter>net_uv\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\net_uv.h">
+      <Filter>net_uv</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PServer.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PClient.h">
+      <Filter>net_uv\p2p</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

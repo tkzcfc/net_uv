@@ -8,13 +8,6 @@ NS_NET_UV_BEGIN
 class KCPClient : public Client
 {
 protected:
-	enum CONNECTSTATE
-	{
-		CONNECT,		//已连接
-		CONNECTING,		//正在连接
-		DISCONNECTING,	//正在断开
-		DISCONNECT,		//已断开
-	};
 
 	struct clientSessionData
 	{
@@ -30,14 +23,6 @@ protected:
 		KCPSession* session;
 	};
 
-	//客户端所处阶段
-	enum class clientStage
-	{
-		START,
-		CLEAR_SESSION,//清理会话
-		WAIT_EXIT,//即将退出
-		STOP
-	};
 public:
 
 	KCPClient();
@@ -47,23 +32,16 @@ public:
 	/// Client
 	virtual void connect(const char* ip, unsigned int port, unsigned int sessionId)override;
 
-	virtual void disconnect(unsigned int sessionId)override;
-
 	virtual void closeClient()override;
 
 	virtual void updateFrame()override;
 
-	virtual void send(unsigned int sessionId, char* data, unsigned int len)override;
-
 	virtual void removeSession(unsigned int sessionId)override;
 
 	/// SessionManager
-	virtual void send(Session* session, char* data, unsigned int len)override;
+	virtual void send(unsigned int sessionId, char* data, unsigned int len)override;
 
-	virtual void disconnect(Session* session)override;
-
-	/// KCPClient
-	bool isCloseFinish();
+	virtual void disconnect(unsigned int sessionId)override;
 
 	//设置所有socket是否自动重连
 	void setAutoReconnect(bool isAuto);
@@ -116,7 +94,6 @@ protected:
 	// 所有会话
 	std::map<unsigned int, clientSessionData*> m_allSessionMap;
 
-	clientStage m_clientStage;
 	bool m_isStop;
 protected:
 

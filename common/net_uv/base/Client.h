@@ -16,6 +16,24 @@ using ClientRecvCall = std::function<void(Client*, Session*, char*, unsigned int
 using ClientCloseCall = std::function<void(Client*)>;
 using ClientRemoveSessionCall = std::function<void(Client*, Session*)>;
 
+
+enum CONNECTSTATE
+{
+	CONNECT,		//已连接
+	CONNECTING,		//正在连接
+	DISCONNECTING,	//正在断开
+	DISCONNECT,		//已断开
+};
+
+//客户端所处阶段
+enum class clientStage
+{
+	START,
+	CLEAR_SESSION,//清理会话
+	WAIT_EXIT,//即将退出
+	STOP
+};
+
 class Client : public Runnable, public SessionManager
 {
 public:
@@ -25,15 +43,13 @@ public:
 
 	virtual void connect(const char* ip, unsigned int port, unsigned int sessionId) = 0;
 
-	virtual void disconnect(unsigned int sessionId) = 0;
-
 	virtual void closeClient() = 0;
 
 	virtual void updateFrame() = 0;
 
-	virtual void send(unsigned int sessionId, char* data, unsigned int len) = 0;
-
 	virtual void removeSession(unsigned int sessionId) = 0;
+
+	virtual bool isCloseFinish();
 
 	inline void setConnectCallback(const ClientConnectCall& call);
 
@@ -83,6 +99,8 @@ protected:
 	uv_idle_t m_idle;
 	uv_timer_t m_sessionUpdateTimer;
 	uv_loop_t m_loop;
+
+	clientStage m_clientStage;
 };
 
 void Client::setConnectCallback(const ClientConnectCall& call)

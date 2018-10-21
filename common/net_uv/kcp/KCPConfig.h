@@ -6,9 +6,9 @@ NS_NET_UV_BEGIN
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // 套接字最小接收缓存大小
-#define KCP_UV_SOCKET_RECV_BUF_LEN (1024 * 4)
+#define KCP_UV_SOCKET_RECV_BUF_LEN (1024 * 10)
 // 套接字最小发送缓存大小
-#define KCP_UV_SOCKET_SEND_BUF_LEN (1024 * 4)
+#define KCP_UV_SOCKET_SEND_BUF_LEN (1024 * 10)
 
 // 大消息最大发送大小
 // 如果消息头的长度字段大于该值

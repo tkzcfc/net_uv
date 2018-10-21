@@ -95,14 +95,6 @@ void KCPClient::connect(const char* ip, unsigned int port, unsigned int sessionI
 	pushOperation(KCP_CLI_OP_CONNECT, opData, 0U, 0U);
 }
 
-void KCPClient::disconnect(unsigned int sessionId)
-{
-	if (m_isStop)
-		return;
-
-	pushOperation(KCP_CLI_OP_DISCONNECT, NULL, 0U, sessionId);
-}
-
 void KCPClient::closeClient()
 {
 	if (m_isStop)
@@ -200,6 +192,12 @@ void KCPClient::updateFrame()
 	}
 }
 
+void KCPClient::removeSession(unsigned int sessionId)
+{
+	pushOperation(KCP_CLI_OP_REMOVE_SESSION, NULL, 0U, sessionId);
+}
+
+/// SessionManager
 void KCPClient::send(unsigned int sessionId, char* data, unsigned int len)
 {
 	if (m_isStop)
@@ -221,26 +219,12 @@ void KCPClient::send(unsigned int sessionId, char* data, unsigned int len)
 	fc_free(bufArr);
 }
 
-void KCPClient::removeSession(unsigned int sessionId)
+void KCPClient::disconnect(unsigned int sessionId)
 {
-	pushOperation(KCP_CLI_OP_REMOVE_SESSION, NULL, 0U, sessionId);
-}
+	if (m_isStop)
+		return;
 
-/// SessionManager
-void KCPClient::send(Session* session, char* data, unsigned int len)
-{
-	send(session->getSessionID(), data, len);
-}
-
-void KCPClient::disconnect(Session* session)
-{
-	disconnect(session->getSessionID());
-}
-
-/// KCPClient
-bool KCPClient::isCloseFinish()
-{
-	return (m_clientStage == clientStage::STOP);
+	pushOperation(KCP_CLI_OP_DISCONNECT, NULL, 0U, sessionId);
 }
 
 void KCPClient::setAutoReconnect(bool isAuto)

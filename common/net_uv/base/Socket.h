@@ -18,9 +18,12 @@ public:
 	Socket();
 	virtual ~Socket();
 	
-	virtual bool bind(const char* ip, unsigned int port) = 0;
+	// 返回值说明
+	// 0 : bind失败
+	// 其他 : 绑定的端口
+	virtual unsigned int bind(const char* ip, unsigned int port) = 0;
 
-	virtual bool bind6(const char* ip, unsigned int port) = 0;
+	virtual unsigned int bind6(const char* ip, unsigned int port) = 0;
 
 	virtual bool listen() = 0;
 

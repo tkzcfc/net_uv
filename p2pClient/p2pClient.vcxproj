@@ -19,9 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{38535FCC-06AE-42B0-AA22-2BD2552C89AC}</ProjectGuid>
+    <ProjectGuid>{80F610C2-DB04-4A14-BD21-AB40C88E6C38}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>kcpClient</RootNamespace>
+    <RootNamespace>p2pClient</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -102,7 +102,6 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../common/libuv/include;../common/libuv;../common/;../common/libuv/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -118,7 +117,6 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../common/libuv/include;../common/libuv;../common/;../common/libuv/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -136,7 +134,6 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../common/libuv/include;../common/libuv;../common/;../common/libuv/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -145,6 +142,71 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\common\libuv\include\android-ifaddrs.h" />
+    <ClInclude Include="..\common\libuv\include\pthread-barrier.h" />
+    <ClInclude Include="..\common\libuv\include\stdint-msvc2008.h" />
+    <ClInclude Include="..\common\libuv\include\tree.h" />
+    <ClInclude Include="..\common\libuv\include\uv-aix.h" />
+    <ClInclude Include="..\common\libuv\include\uv-bsd.h" />
+    <ClInclude Include="..\common\libuv\include\uv-darwin.h" />
+    <ClInclude Include="..\common\libuv\include\uv-errno.h" />
+    <ClInclude Include="..\common\libuv\include\uv-linux.h" />
+    <ClInclude Include="..\common\libuv\include\uv-os390.h" />
+    <ClInclude Include="..\common\libuv\include\uv-posix.h" />
+    <ClInclude Include="..\common\libuv\include\uv-sunos.h" />
+    <ClInclude Include="..\common\libuv\include\uv-threadpool.h" />
+    <ClInclude Include="..\common\libuv\include\uv-unix.h" />
+    <ClInclude Include="..\common\libuv\include\uv-version.h" />
+    <ClInclude Include="..\common\libuv\include\uv-win.h" />
+    <ClInclude Include="..\common\libuv\include\uv.h" />
+    <ClInclude Include="..\common\libuv\src\heap-inl.h" />
+    <ClInclude Include="..\common\libuv\src\queue.h" />
+    <ClInclude Include="..\common\libuv\src\uv-common.h" />
+    <ClInclude Include="..\common\libuv\src\win\atomicops-inl.h" />
+    <ClInclude Include="..\common\libuv\src\win\handle-inl.h" />
+    <ClInclude Include="..\common\libuv\src\win\internal.h" />
+    <ClInclude Include="..\common\libuv\src\win\req-inl.h" />
+    <ClInclude Include="..\common\libuv\src\win\stream-inl.h" />
+    <ClInclude Include="..\common\libuv\src\win\winapi.h" />
+    <ClInclude Include="..\common\libuv\src\win\winsock.h" />
+    <ClInclude Include="..\common\net_uv\base\Buffer.h" />
+    <ClInclude Include="..\common\net_uv\base\Client.h" />
+    <ClInclude Include="..\common\net_uv\base\Common.h" />
+    <ClInclude Include="..\common\net_uv\base\Config.h" />
+    <ClInclude Include="..\common\net_uv\base\Macros.h" />
+    <ClInclude Include="..\common\net_uv\base\md5.h" />
+    <ClInclude Include="..\common\net_uv\base\Misc.h" />
+    <ClInclude Include="..\common\net_uv\base\Mutex.h" />
+    <ClInclude Include="..\common\net_uv\base\Runnable.h" />
+    <ClInclude Include="..\common\net_uv\base\Server.h" />
+    <ClInclude Include="..\common\net_uv\base\Session.h" />
+    <ClInclude Include="..\common\net_uv\base\SessionManager.h" />
+    <ClInclude Include="..\common\net_uv\base\Socket.h" />
+    <ClInclude Include="..\common\net_uv\common\NetHeart.h" />
+    <ClInclude Include="..\common\net_uv\common\NetUVThreadMsg.h" />
+    <ClInclude Include="..\common\net_uv\kcp\ikcp.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPClient.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPCommon.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPConfig.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPServer.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPSession.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPSocket.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPSocketManager.h" />
+    <ClInclude Include="..\common\net_uv\kcp\KCPUtils.h" />
+    <ClInclude Include="..\common\net_uv\net_uv.h" />
+    <ClInclude Include="..\common\net_uv\p2p\P2PClient.h" />
+    <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h" />
+    <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h" />
+    <ClInclude Include="..\common\net_uv\p2p\P2PServer.h" />
+    <ClInclude Include="..\common\net_uv\tcp\TCPClient.h" />
+    <ClInclude Include="..\common\net_uv\tcp\TCPCommon.h" />
+    <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h" />
+    <ClInclude Include="..\common\net_uv\tcp\TCPServer.h" />
+    <ClInclude Include="..\common\net_uv\tcp\TCPSession.h" />
+    <ClInclude Include="..\common\net_uv\tcp\TCPSocket.h" />
+    <ClInclude Include="..\common\net_uv\tcp\TCPUtils.h" />
+  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\common\libuv\src\fs-poll.c" />
     <ClCompile Include="..\common\libuv\src\inet.c" />
@@ -203,71 +265,7 @@
     <ClCompile Include="..\common\net_uv\tcp\TCPSession.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPSocket.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPUtils.cpp" />
-    <ClCompile Include="testClient.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\common\libuv\include\android-ifaddrs.h" />
-    <ClInclude Include="..\common\libuv\include\pthread-barrier.h" />
-    <ClInclude Include="..\common\libuv\include\stdint-msvc2008.h" />
-    <ClInclude Include="..\common\libuv\include\tree.h" />
-    <ClInclude Include="..\common\libuv\include\uv-aix.h" />
-    <ClInclude Include="..\common\libuv\include\uv-bsd.h" />
-    <ClInclude Include="..\common\libuv\include\uv-darwin.h" />
-    <ClInclude Include="..\common\libuv\include\uv-errno.h" />
-    <ClInclude Include="..\common\libuv\include\uv-linux.h" />
-    <ClInclude Include="..\common\libuv\include\uv-os390.h" />
-    <ClInclude Include="..\common\libuv\include\uv-posix.h" />
-    <ClInclude Include="..\common\libuv\include\uv-sunos.h" />
-    <ClInclude Include="..\common\libuv\include\uv-threadpool.h" />
-    <ClInclude Include="..\common\libuv\include\uv-unix.h" />
-    <ClInclude Include="..\common\libuv\include\uv-version.h" />
-    <ClInclude Include="..\common\libuv\include\uv-win.h" />
-    <ClInclude Include="..\common\libuv\include\uv.h" />
-    <ClInclude Include="..\common\libuv\src\heap-inl.h" />
-    <ClInclude Include="..\common\libuv\src\queue.h" />
-    <ClInclude Include="..\common\libuv\src\uv-common.h" />
-    <ClInclude Include="..\common\libuv\src\win\atomicops-inl.h" />
-    <ClInclude Include="..\common\libuv\src\win\handle-inl.h" />
-    <ClInclude Include="..\common\libuv\src\win\internal.h" />
-    <ClInclude Include="..\common\libuv\src\win\req-inl.h" />
-    <ClInclude Include="..\common\libuv\src\win\stream-inl.h" />
-    <ClInclude Include="..\common\libuv\src\win\winapi.h" />
-    <ClInclude Include="..\common\libuv\src\win\winsock.h" />
-    <ClInclude Include="..\common\net_uv\base\Buffer.h" />
-    <ClInclude Include="..\common\net_uv\base\Client.h" />
-    <ClInclude Include="..\common\net_uv\base\Common.h" />
-    <ClInclude Include="..\common\net_uv\base\Config.h" />
-    <ClInclude Include="..\common\net_uv\base\Macros.h" />
-    <ClInclude Include="..\common\net_uv\base\md5.h" />
-    <ClInclude Include="..\common\net_uv\base\Misc.h" />
-    <ClInclude Include="..\common\net_uv\base\Mutex.h" />
-    <ClInclude Include="..\common\net_uv\base\Runnable.h" />
-    <ClInclude Include="..\common\net_uv\base\Server.h" />
-    <ClInclude Include="..\common\net_uv\base\Session.h" />
-    <ClInclude Include="..\common\net_uv\base\SessionManager.h" />
-    <ClInclude Include="..\common\net_uv\base\Socket.h" />
-    <ClInclude Include="..\common\net_uv\common\NetUVThreadMsg.h" />
-    <ClInclude Include="..\common\net_uv\kcp\ikcp.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPClient.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPCommon.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPConfig.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPServer.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPSession.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPSocket.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPSocketManager.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPUtils.h" />
-    <ClInclude Include="..\common\net_uv\net_uv.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PClient.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PServer.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPClient.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPCommon.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPServer.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPSession.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPSocket.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPUtils.h" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

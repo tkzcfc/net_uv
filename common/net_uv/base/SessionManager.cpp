@@ -8,6 +8,16 @@ SessionManager::SessionManager()
 SessionManager::~SessionManager()
 {}
 
+void SessionManager::send(Session* session, char* data, unsigned int len)
+{
+	send(session->getSessionID(), data, len);
+}
+
+void SessionManager::disconnect(Session* session)
+{
+	disconnect(session->getSessionID());
+}
+
 void SessionManager::pushOperation(int type, void* data, unsigned int len, unsigned int sessionID)
 {
 	SessionManager::SessionOperation operationData;
@@ -20,5 +30,7 @@ void SessionManager::pushOperation(int type, void* data, unsigned int len, unsig
 	m_operationQue.push(operationData);
 	m_operationMutex.unlock();
 }
+
+
 NS_NET_UV_END
 

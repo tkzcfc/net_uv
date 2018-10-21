@@ -15,9 +15,9 @@ public:
 
 	virtual ~TCPSocket();
 
-	virtual bool bind(const char* ip, unsigned int port)override;
+	virtual unsigned int bind(const char* ip, unsigned int port)override;
 
-	virtual bool bind6(const char* ip, unsigned int port)override;
+	virtual unsigned int bind6(const char* ip, unsigned int port)override;
 
 	virtual bool listen()override;
 

@@ -30,6 +30,12 @@
     <Filter Include="net_uv\common">
       <UniqueIdentifier>{47a703c8-bc50-4fd2-b9c9-e4a51d1830af}</UniqueIdentifier>
     </Filter>
+    <Filter Include="net_uv\p2p">
+      <UniqueIdentifier>{710b4eaa-86e9-4695-a258-10be72bed3be}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="net_uv\kcp">
+      <UniqueIdentifier>{2ea4ffbb-ae21-4ea5-892d-5d4b7b0572e9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="testClient.cpp">
@@ -158,9 +164,6 @@
     <ClCompile Include="..\common\net_uv\base\Socket.cpp">
       <Filter>net_uv\base</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\base\uv_func.cpp">
-      <Filter>net_uv\base</Filter>
-    </ClCompile>
     <ClCompile Include="..\common\net_uv\base\Client.cpp">
       <Filter>net_uv\base</Filter>
     </ClCompile>
@@ -178,6 +181,36 @@
     </ClCompile>
     <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp">
       <Filter>net_uv\tcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\base\Misc.cpp">
+      <Filter>net_uv\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\P2PServer.cpp">
+      <Filter>net_uv\p2p</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\P2PClient.cpp">
+      <Filter>net_uv\p2p</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\kcp\KCPServer.cpp">
+      <Filter>net_uv\kcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\kcp\KCPSession.cpp">
+      <Filter>net_uv\kcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\kcp\KCPSocket.cpp">
+      <Filter>net_uv\kcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\kcp\KCPSocketManager.cpp">
+      <Filter>net_uv\kcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\kcp\KCPUtils.cpp">
+      <Filter>net_uv\kcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\kcp\ikcp.c">
+      <Filter>net_uv\kcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\kcp\KCPClient.cpp">
+      <Filter>net_uv\kcp</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -292,9 +325,6 @@
     <ClInclude Include="..\common\net_uv\base\Socket.h">
       <Filter>net_uv\base</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\base\uv_func.h">
-      <Filter>net_uv\base</Filter>
-    </ClInclude>
     <ClInclude Include="..\common\net_uv\base\Buffer.h">
       <Filter>net_uv\base</Filter>
     </ClInclude>
@@ -327,6 +357,48 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\common\NetHeart.h">
       <Filter>net_uv\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\base\Misc.h">
+      <Filter>net_uv\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PServer.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PClient.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\kcp\KCPClient.h">
+      <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\kcp\KCPCommon.h">
+      <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\kcp\KCPConfig.h">
+      <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\kcp\KCPServer.h">
+      <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\kcp\KCPSession.h">
+      <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\kcp\KCPSocket.h">
+      <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\kcp\KCPSocketManager.h">
+      <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\kcp\KCPUtils.h">
+      <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\kcp\ikcp.h">
+      <Filter>net_uv\kcp</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

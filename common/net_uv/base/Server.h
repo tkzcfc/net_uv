@@ -15,6 +15,17 @@ using ServerNewConnectCall = std::function<void(Server*, Session*)>;
 using ServerRecvCall = std::function<void(Server*, Session*, char* data, unsigned int len)>;
 using ServerDisconnectCall = std::function<void(Server*, Session*)>;
 
+//服务器所处阶段
+enum class ServerStage
+{
+	START,		//启动中
+	RUN,		//运行中
+	WAIT_CLOSE_SERVER_SOCKET,// 等待服务器套接字关闭
+	CLEAR,		//清理会话
+	WAIT_SESSION_CLOSE,// 等待会话关闭
+	STOP		//退出
+};
+
 class Server : public Runnable, public SessionManager
 {
 public:
@@ -38,6 +49,16 @@ public:
 
 	inline void setDisconnectCallback(const ServerDisconnectCall& call);
 
+	virtual std::string getIP();
+	
+	virtual unsigned int getPort();
+
+	virtual unsigned int getListenPort();
+
+	virtual bool isIPV6();
+
+	virtual bool isCloseFinish();
+
 protected:
 
 	virtual void onIdleRun() = 0;
@@ -55,6 +76,8 @@ protected:
 	void stopSessionUpdate();
 
 	virtual void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0);
+	
+	inline void setListenPort(unsigned int port);
 
 protected:
 	static void uv_on_idle_run(uv_idle_t* handle);
@@ -78,7 +101,11 @@ protected:
 
 	std::string m_ip;
 	unsigned int m_port;
+	unsigned int m_listenPort;
 	bool m_isIPV6;
+
+	// 服务器所处阶段
+	ServerStage m_serverStage;
 };
 
 void Server::setCloseCallback(const ServerCloseCall& call)
@@ -106,5 +133,9 @@ void Server::setDisconnectCallback(const ServerDisconnectCall& call)
 	m_disconnectCall = std::move(call);
 }
 
+void Server::setListenPort(unsigned int port)
+{
+	m_listenPort = port;
+}
 
 NS_NET_UV_END

@@ -1,6 +1,4 @@
-#include "net_uv/kcp/KCPServer.h"
-#include "net_uv/kcp/KCPClient.h"
-#include "net_uv/kcp/KCPSession.h"
+#include "net_uv/net_uv.h"
 
 NS_NET_UV_OPEN
 

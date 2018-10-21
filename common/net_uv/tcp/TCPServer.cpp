@@ -19,7 +19,6 @@ TCPServer::TCPServer()
 	, m_server(NULL)
 	, m_sessionID(0)
 {
-	m_serverStage = ServerStage::STOP;
 }
 
 TCPServer::~TCPServer()
@@ -43,7 +42,6 @@ void TCPServer::startServer(const char* ip, unsigned int port, bool isIPV6)
 	m_start = true;
 	m_serverStage = ServerStage::START;
 
-	NET_UV_LOG(NET_UV_L_INFO, "TCPServer %s:%d start-up...", ip, port);
 	this->startThread();
 }
 
@@ -126,7 +124,7 @@ void TCPServer::updateFrame()
 	}
 }
 
-void TCPServer::send(Session* session, char* data, unsigned int len)
+void TCPServer::send(unsigned int sessionID, char* data, unsigned int len)
 {
 	int bufCount = 0;
 
@@ -137,19 +135,14 @@ void TCPServer::send(Session* session, char* data, unsigned int len)
 
 	for (int i = 0; i < bufCount; ++i)
 	{
-		pushOperation(TCP_SVR_OP_SEND_DATA, (bufArr + i)->base, (bufArr + i)->len, session->getSessionID());
+		pushOperation(TCP_SVR_OP_SEND_DATA, (bufArr + i)->base, (bufArr + i)->len, sessionID);
 	}
 	fc_free(bufArr);
 }
 
-void TCPServer::disconnect(Session* session)
+void TCPServer::disconnect(unsigned int sessionID)
 {
-	pushOperation(TCP_SVR_OP_DIS_SESSION, NULL, 0, session->getSessionID());
-}
-
-bool TCPServer::isCloseFinish()
-{
-	return (m_serverStage == ServerStage::STOP);
+	pushOperation(TCP_SVR_OP_DIS_SESSION, NULL, 0, sessionID);
 }
 
 void TCPServer::run()
@@ -171,16 +164,29 @@ void TCPServer::run()
 	m_server->setCloseCallback(std::bind(&TCPServer::onServerSocketClose, this, std::placeholders::_1));
 	m_server->setNewConnectionCallback(std::bind(&TCPServer::onNewConnect, this, std::placeholders::_1, std::placeholders::_2));
 
-	bool suc = false;
+	unsigned int outPort = 0U;
 	if (m_isIPV6)
 	{
-		suc = m_server->bind6(m_ip.c_str(), m_port);
+		outPort = m_server->bind6(m_ip.c_str(), m_port);
 	}
 	else
 	{
-		suc = m_server->bind(m_ip.c_str(), m_port);
+		outPort = m_server->bind(m_ip.c_str(), m_port);
 	}
 
+	if (outPort == 0)
+	{
+		m_server->~TCPSocket();
+		fc_free(m_server);
+		m_server = NULL;
+
+		m_serverStage = ServerStage::STOP;
+		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
+		return;
+	}
+	setListenPort(outPort);
+
+	bool suc = m_server->listen();
 	if (!suc)
 	{
 		m_server->~TCPSocket();
@@ -192,17 +198,8 @@ void TCPServer::run()
 		return;
 	}
 
-	suc = m_server->listen();
-	if (!suc)
-	{
-		m_server->~TCPSocket();
-		fc_free(m_server);
-		m_server = NULL;
+	NET_UV_LOG(NET_UV_L_INFO, "TCPServer %s:%u start-up...", m_ip.c_str(), getListenPort());
 
-		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
-		return;
-	}
 	m_serverStage = ServerStage::RUN;
 	pushThreadMsg(NetThreadMsgType::START_SERVER_SUC, NULL);
 
@@ -392,7 +389,7 @@ void TCPServer::onIdleRun()
 	executeOperation();
 	switch (m_serverStage)
 	{
-	case TCPServer::ServerStage::CLEAR:
+	case ServerStage::CLEAR:
 	{
 		for (auto& it : m_allSession)
 		{
@@ -404,7 +401,7 @@ void TCPServer::onIdleRun()
 		m_serverStage = ServerStage::WAIT_SESSION_CLOSE;
 	}
 	break;
-	case TCPServer::ServerStage::WAIT_SESSION_CLOSE:
+	case ServerStage::WAIT_SESSION_CLOSE:
 	{
 		if (m_allSession.empty())
 		{

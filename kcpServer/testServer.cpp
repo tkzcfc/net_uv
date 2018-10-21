@@ -1,5 +1,4 @@
-
-#include "net_uv/kcp/KCPServer.h"
+#include "net_uv/net_uv.h"
 #include <iostream>
 
 NS_NET_UV_OPEN
@@ -39,6 +38,7 @@ void main()
 		if (issuc)
 		{
 			printf("服务器启动成功\n");
+			printf("%u\n", svr->getListenPort());
 		}
 		else
 		{

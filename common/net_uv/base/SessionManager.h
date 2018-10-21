@@ -14,9 +14,13 @@ public:
 
 	virtual ~SessionManager();
 
-	virtual void send(Session* session, char* data, unsigned int len) = 0;
+	virtual void send(unsigned int sessionID, char* data, unsigned int len) = 0;
 
-	virtual void disconnect(Session* session) = 0;
+	void send(Session* session, char* data, unsigned int len);
+
+	virtual void disconnect(unsigned int sessionID) = 0;
+
+	void disconnect(Session* session);
 
 protected:
 

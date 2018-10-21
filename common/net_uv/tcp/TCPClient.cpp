@@ -100,14 +100,6 @@ void TCPClient::connect(const char* ip, unsigned int port, unsigned int sessionI
 	pushOperation(TCP_CLI_OP_CONNECT, opData, 0U, 0U);
 }
 
-void TCPClient::disconnect(unsigned int sessionId)
-{
-	if (m_isStop)
-		return;
-
-	pushOperation(TCP_CLI_OP_DISCONNECT, NULL, 0U, sessionId);
-}
-
 void TCPClient::closeClient()
 {
 	if (m_isStop)
@@ -205,6 +197,21 @@ void TCPClient::updateFrame()
 	}
 }
 
+void TCPClient::removeSession(unsigned int sessionId)
+{
+	pushOperation(TCP_CLI_OP_REMOVE_SESSION, NULL, 0U, sessionId);
+}
+
+/// SessionManager
+
+void TCPClient::disconnect(unsigned int sessionId)
+{
+	if (m_isStop)
+		return;
+
+	pushOperation(TCP_CLI_OP_DISCONNECT, NULL, 0U, sessionId);
+}
+
 void TCPClient::send(unsigned int sessionId, char* data, unsigned int len)
 {
 	if (m_isStop)
@@ -224,22 +231,6 @@ void TCPClient::send(unsigned int sessionId, char* data, unsigned int len)
 		pushOperation(TCP_CLI_OP_SENDDATA, (bufArr + i)->base, (bufArr + i)->len, sessionId);
 	}
 	fc_free(bufArr);
-}
-
-void TCPClient::removeSession(unsigned int sessionId)
-{
-	pushOperation(TCP_CLI_OP_REMOVE_SESSION, NULL, 0U, sessionId);
-}
-
-/// SessionManager
-void TCPClient::send(Session* session, char* data, unsigned int len)
-{
-	send(session->getSessionID(), data, len);
-}
-
-void TCPClient::disconnect(Session* session)
-{
-	disconnect(session->getSessionID());
 }
 
 /// TCPClient

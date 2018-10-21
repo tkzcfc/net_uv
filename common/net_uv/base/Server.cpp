@@ -10,7 +10,9 @@ Server::Server()
 	, m_recvCall(nullptr)
 	, m_disconnectCall(nullptr)
 	, m_port(0)
+	, m_listenPort(0)
 	, m_isIPV6(false)
+	, m_serverStage(ServerStage::STOP)
 {
 	memset(&m_idle, 0, sizeof(uv_idle_t));
 	memset(&m_sessionUpdateTimer, 0, sizeof(uv_timer_t));
@@ -31,6 +33,7 @@ void Server::startServer(const char* ip, unsigned int port, bool isIPV6)
 	m_ip = ip;
 	m_port = port;
 	m_isIPV6 = isIPV6;
+	m_listenPort = port;
 }
 
 
@@ -45,6 +48,31 @@ void Server::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, 
 	m_msgMutex.lock();
 	m_msgQue.push(msg);
 	m_msgMutex.unlock();
+}
+
+std::string Server::getIP()
+{
+	return m_ip;
+}
+
+unsigned int Server::getPort()
+{
+	return m_port;
+}
+
+unsigned int Server::getListenPort()
+{
+	return m_listenPort;
+}
+
+bool Server::isIPV6()
+{
+	return m_isIPV6;
+}
+
+bool Server::isCloseFinish()
+{
+	return (m_serverStage == ServerStage::STOP);
 }
 
 void Server::startIdle()

@@ -1,5 +1,5 @@
 #include "Common.h"
-#include <time.h>
+#include "Misc.h"
 
 #if OPEN_NET_MEM_CHECK == 1
 #include "Mutex.h"
@@ -10,43 +10,6 @@ NS_NET_UV_BEGIN
 typedef void(*uvOutputLoggerType)(int, const char*);
 uvOutputLoggerType uvOutputLogger = 0;
 
-
-std::string getUVError(int errcode)
-{
-	if (0 == errcode)
-	{
-		return "";
-	}
-	std::string err;
-	auto tmpChar = uv_err_name(errcode);
-	if (tmpChar)
-	{
-		err = tmpChar;
-		err += ":";
-	}
-	else
-	{
-		char szCode[16];
-		sprintf(szCode, "%d:", errcode);
-		err = "unknown system errcode ";
-		err.append(szCode);
-	}
-	tmpChar = uv_strerror(errcode);
-	if (tmpChar)
-	{
-		err += tmpChar;
-	}
-	return std::move(err);
-}
-
-string getTime_UV()
-{
-	time_t timep;
-	time(&timep);
-	char tmp[64];
-	strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", localtime(&timep));
-	return tmp;
-}
 
 static const char* net_uv_log_name[NET_UV_L_FATAL + 1] =
 {
@@ -71,7 +34,7 @@ void net_uvLog(int level, const char* format, ...)
 	vsnprintf(buf, sizeof(buf), format, args);
 	va_end(args);
 
-	std::string str = getTime_UV();
+	std::string str = net_getTime();
 	str.append("[NET-UV]-[");
 	str.append(net_uv_log_name[level]);
 	str.append("] ");

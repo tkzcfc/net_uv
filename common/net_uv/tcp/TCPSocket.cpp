@@ -24,7 +24,7 @@ TCPSocket::~TCPSocket()
 	}
 }
 
-bool TCPSocket::bind(const char* ip, unsigned int port)
+unsigned int TCPSocket::bind(const char* ip, unsigned int port)
 {
 	this->setIp(ip);
 	this->setPort(port);
@@ -33,7 +33,7 @@ bool TCPSocket::bind(const char* ip, unsigned int port)
 	int r = uv_ip4_addr(ip, port, &bind_addr);
 	if (r != 0)
 	{
-		return false;
+		return 0;
 	}
 
 	if (m_tcp == NULL)
@@ -46,10 +46,25 @@ bool TCPSocket::bind(const char* ip, unsigned int port)
 	}
 
 	r = uv_tcp_bind(m_tcp, (const struct sockaddr*) &bind_addr, 0);
-	return (r == 0);
+
+	if (r != 0)
+	{
+		return 0;
+	}
+
+	if (port == 0)
+	{
+		struct sockaddr* client_addr = net_tcp_getAddr(m_tcp);
+		
+		if (client_addr == NULL)
+			return 0;
+
+		return net_getAddrPort(client_addr);
+	}
+	return port;
 }
 
-bool TCPSocket::bind6(const char* ip, unsigned int port)
+unsigned int TCPSocket::bind6(const char* ip, unsigned int port)
 {
 	this->setIp(ip);
 	this->setPort(port);
@@ -58,7 +73,7 @@ bool TCPSocket::bind6(const char* ip, unsigned int port)
 	int r = uv_ip6_addr(ip, port, &bind_addr);
 	if (r != 0)
 	{
-		return false;
+		return 0;
 	}
 
 	if (m_tcp == NULL)
@@ -71,7 +86,22 @@ bool TCPSocket::bind6(const char* ip, unsigned int port)
 	}
 
 	r = uv_tcp_bind(m_tcp, (const struct sockaddr*) &bind_addr, 0);
-	return (r == 0);
+
+	if (r != 0)
+	{
+		return 0;
+	}
+
+	if (port == 0)
+	{
+		struct sockaddr* client_addr = net_tcp_getAddr(m_tcp);
+
+		if (client_addr == NULL)
+			return 0;
+
+		return net_getAddrPort(client_addr);
+	}
+	return port;
 }
 
 bool TCPSocket::listen()
@@ -107,6 +137,7 @@ bool TCPSocket::connect(const char* ip, unsigned int port)
 	uv_connect_t* connectReq = (uv_connect_t*)fc_malloc(sizeof(uv_connect_t));
 	connectReq->data = this;
 	int r = uv_tcp_connect(connectReq, tcp, addr, uv_on_after_connect);
+	fc_free(addr);
 	if (r)
 	{
 		return false;
@@ -155,25 +186,10 @@ TCPSocket* TCPSocket::accept(uv_stream_t* server, int status)
 		return NULL;
 	}
 
-	//有的机子调用uv_tcp_getpeername报错
-	//sockaddr_in client_addr;改为 sockaddr_in client_addr[2];
-	//https://blog.csdn.net/readyisme/article/details/28249883
-	//http://msdn.microsoft.com/en-us/library/ms737524(VS.85).aspx
-	//
-	//The buffer size for the local and remote address must be 16 bytes more than the size of the sockaddr structure for 
-	//the transport protocol in use because the addresses are written in an internal format. For example, the size of a 
-	//sockaddr_in (the address structure for TCP/IP) is 16 bytes. Therefore, a buffer size of at least 32 bytes must be 
-	//specified for the local and remote addresses.
+	struct sockaddr* client_addr = net_tcp_getAddr((const uv_tcp_t*)handle);
 
-	int client_addr_length = sizeof(sockaddr_in6) * 2;
-	struct sockaddr* client_addr = (struct sockaddr*)fc_malloc(client_addr_length);
-	memset(client_addr, 0, client_addr_length);
-	
-	r = uv_tcp_getpeername((const uv_tcp_t*)handle, client_addr, &client_addr_length);
-	CHECK_UV_ASSERT(r);
-	if (r != 0)
+	if (client_addr == NULL)
 	{
-		fc_free(client_addr);
 		fc_free(client);
 		return NULL;
 	}

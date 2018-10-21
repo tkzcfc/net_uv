@@ -6,6 +6,7 @@ Client::Client()
 	: m_connectCall(nullptr)
 	, m_disconnectCall(nullptr)
 	, m_recvCall(nullptr)
+	, m_clientStage(clientStage::STOP)
 {
 	memset(&m_idle, 0, sizeof(uv_idle_t));
 	memset(&m_sessionUpdateTimer, 0, sizeof(uv_timer_t));
@@ -14,6 +15,11 @@ Client::Client()
 
 Client::~Client()
 {}
+
+bool Client::isCloseFinish()
+{
+	return (m_clientStage == clientStage::STOP);
+}
 
 void Client::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, unsigned int len)
 {

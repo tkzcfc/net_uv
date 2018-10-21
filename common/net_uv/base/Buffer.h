@@ -103,7 +103,7 @@ public:
 		return m_headBlock->data;
 	}
 
-private:
+protected:
 	block* createBlock()
 	{
 		auto p = (block*)fc_malloc(sizeof(block));

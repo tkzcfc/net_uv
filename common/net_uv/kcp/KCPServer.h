@@ -8,17 +8,6 @@ NS_NET_UV_BEGIN
 
 class KCPServer : public Server
 {
-	//服务器所处阶段
-	enum class ServerStage
-	{
-		START,		//启动中
-		RUN,		//运行中
-		WAIT_CLOSE_SERVER_SOCKET,// 等待服务器套接字关闭
-		CLEAR,		//清理会话
-		WAIT_SESSION_CLOSE,// 等待会话关闭
-		STOP		//退出
-	};
-
 	struct serverSessionData
 	{
 		serverSessionData()
@@ -45,12 +34,16 @@ public:
 	virtual void updateFrame()override;
 
 	/// SessionManager
-	virtual void send(Session* session, char* data, unsigned int len)override;
+	virtual void send(unsigned int sessionID, char* data, unsigned int len)override;
 
-	virtual void disconnect(Session* session)override;
+	virtual void disconnect(unsigned int sessionID)override;
 
 	/// KCPServer
-	bool isCloseFinish();
+	/// 使用服务器Socket向某个地址发送消息
+	/// ip: 仅支持IP地址 不支持域名解析
+	bool svrUdpSend(const char* ip, unsigned int port, bool isIPV6, char* data, unsigned int len);
+
+	bool svrUdpSend(struct sockaddr* addr, unsigned int addrlen, char* data, unsigned int len);
 
 protected:
 
@@ -86,9 +79,6 @@ protected:
 	bool m_start;
 
 	KCPSocket* m_server;
-
-	// 服务器所处阶段
-	ServerStage m_serverStage;
 
 	// 会话管理
 	std::map<unsigned int, serverSessionData> m_allSession;
