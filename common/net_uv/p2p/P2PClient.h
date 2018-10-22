@@ -12,7 +12,7 @@ class P2PClient;
 
 
 // 连接请求返回回调
-/// status: 0 请求成功 1用户不存在 2对方繁忙
+/// status: 0 连接成功 1连接失败，用户不存在 2连接失败，与中央服务器连接失败 3连接失败，与P2PClient的本地服务器连接失败
 using P2PClientConnectResultCall = std::function<void(P2PClient* client, int status, unsigned int userId)>;
 
 // 注册请求返回回调
@@ -166,29 +166,42 @@ protected:
 	KCPClient* m_client;
 	KCPServer* m_server;
 
+	// P2PClient是否连接到中央服务器
 	bool m_isConnectP2PSVR;
+	// 本地服务器是否启动成功
 	bool m_svrStartSuccess;
 	std::string m_name;
+	// 本地服务器用户密码
 	int m_password;
+	// 本地服务器用户ID
 	unsigned int m_userID;
 
+	// 中央服务器IP
+	std::string m_centerSVRIP;
+	// 中央服务器端口
+	unsigned int m_centerSVRPort;
+
+	// 连接信息
 	struct ConnectInfoData
 	{
-		unsigned int userID;
-		bool autoConnect;
-		int password;
+		unsigned int userID;// 对方用户ID
+		bool autoConnect;	// 断线是否自动重连
+		int password;		// 对方密码
+		std::string ip;		// 对方IP
+		unsigned int port;	// 对方端口
+		bool isConnect;		// 是否在连接
 	};
 	std::map<unsigned int, ConnectInfoData> m_connectInfoMap;
 
-
+	// 打洞信息
 	struct BurrowData
 	{
-		struct sockaddr* addr;
-		unsigned int addrlen;
-		std::string ip;
-		unsigned int port;
+		struct sockaddr* addr;	// 地址
+		unsigned int addrlen;	// 地址长度
+		std::string ip;			// 打洞IP
+		unsigned int port;		// 打洞端口
 		IUINT32 endTime;		// 结束时间
-		IUINT32 lastSendTime;	// 上一次发送时间
+		IUINT32 lastSendTime;	// 最后一次发送时间
 	};
 	std::vector<BurrowData> m_allBurrowDataArr;
 

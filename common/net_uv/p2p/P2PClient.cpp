@@ -34,6 +34,8 @@ P2PClient::P2PClient()
 	, m_p2p_getUserListResultCall(nullptr)
 	, m_password(0)
 	, m_userID(0)
+	, m_centerSVRPort(0)
+	, m_centerSVRIP("")
 {
 	m_burrowData = kcp_making_connect_packet();
 	alloc_kcpClient();
@@ -54,6 +56,8 @@ P2PClient::~P2PClient()
 
 void P2PClient::connectToCenterServer(const char* ip, unsigned int port)
 {
+	m_centerSVRIP = ip;
+	m_centerSVRPort = port;
 	m_client->connect(ip, port, P2P_CONNECT_SVR_SESSION_ID);
 }
 
@@ -90,6 +94,16 @@ bool P2PClient::client_connect(unsigned int userID, unsigned int sessionID, int 
 	{
 		if (it->second.userID != userID)
 			return false;
+
+		it->second.password = password;
+		it->second.autoConnect = autoConnect;
+		if (it->second.isConnect == false)
+		{
+			it->second.ip.clear();
+			it->second.port = 0;
+			it->second.isConnect = true;
+			m_client->removeSession(it->first);
+		}
 	}
 	else
 	{
@@ -97,10 +111,12 @@ bool P2PClient::client_connect(unsigned int userID, unsigned int sessionID, int 
 		data.userID = userID;
 		data.autoConnect = autoConnect;
 		data.password = password;
+		data.ip = "";
+		data.port = 0;
+		data.isConnect = true;
 		m_connectInfoMap.insert(std::make_pair(sessionID, data));
 	}
-
-	send_WantConnectMsg(userID, password);
+	m_client->connect(m_centerSVRIP.c_str(), m_centerSVRPort, sessionID);
 
 	return true;
 }
@@ -308,24 +324,67 @@ void P2PClient::on_client_ConnectCall(Client* client, Session* session, int stat
 	}
 	else
 	{
-		if (status == 1)
+		auto it = m_connectInfoMap.find(session->getSessionID());
+		if (it != m_connectInfoMap.end())
 		{
-			// 通知中央服务器已连接
-			auto it = m_connectInfoMap.find(session->getSessionID());
-			if (it != m_connectInfoMap.end())
+			if (status == 1)
 			{
-				send_ConnectSuccess(it->second.userID);
+				KCPClient* kcpClient = (KCPClient*)client;
+				kcpClient->setAutoReconnectBySessionID(it->first, false);
+
+				// 连接到中央服务器成功
+				if (it->second.ip.empty())
+				{
+					// 向中央服务器发送连接请求
+					send_WantConnectMsg(session->getSessionID(), it->second.password);
+				}
+				// 连接到P2PClient的本地服务器成功
+				else
+				{
+					// 通知中央服务器已连接
+					auto it = m_connectInfoMap.find(session->getSessionID());
+					if (it != m_connectInfoMap.end())
+					{
+						send_ConnectSuccess(it->second.userID);
+					}
+					m_client_connectCall(client, session, status);
+				}
+			}
+			else
+			{
+				it->second.ip.clear();
+				it->second.port = 0;
+
+				// 连接到中央服务器失败
+				if (it->second.ip.empty())
+				{
+					if (m_p2p_connectResultCall)
+					{
+						m_p2p_connectResultCall(this, 2, it->second.userID);
+					}
+
+					KCPClient* kcpClient = (KCPClient*)client;
+					kcpClient->setAutoReconnectBySessionID(it->first, it->second.autoConnect);
+				}
+				// 连接到P2PClient的本地服务器失败
+				else
+				{
+					if (it->second.autoConnect)
+					{
+						client->connect(m_centerSVRIP.c_str(), m_centerSVRPort, it->first);
+					}
+					else
+					{
+						it->second.isConnect = false;
+					}
+
+					if (m_p2p_connectResultCall)
+					{
+						m_p2p_connectResultCall(this, 3, it->second.userID);
+					}
+				}
 			}
 		}
-		else
-		{
-			auto it = m_connectInfoMap.find(session->getSessionID());
-			if (it != m_connectInfoMap.end() && it->second.autoConnect)
-			{
-				send_WantConnectMsg(it->second.userID, it->second.password);
-			}
-		}
-		m_client_connectCall(client, session, status);
 	}
 }
 
@@ -337,6 +396,37 @@ void P2PClient::on_client_DisconnectCall(Client* client, Session* session)
 	}
 	else
 	{
+		auto it = m_connectInfoMap.find(session->getSessionID());
+		if (it != m_connectInfoMap.end())
+		{
+			if (session->getIp() == m_centerSVRIP && session->getPort() == m_centerSVRPort)
+			{
+				// 连接标记
+				if (it->second.isConnect)
+				{
+					// 没有获取到对方IP
+					if (it->second.ip.empty())
+					{
+						if (it->second.autoConnect)
+						{
+
+						}
+					}
+					// 已获取到对方IP
+					else
+					{
+						client->connect(it->second.ip.c_str(), it->second.port, it->first);
+					}
+				}
+				else
+				{
+				}
+			}
+			else
+			{
+			}
+		}
+
 		for (auto &it : m_connectInfoMap)
 		{
 			if (it.first == session->getSessionID() && it.second.autoConnect)
