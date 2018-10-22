@@ -38,6 +38,8 @@ public:
 	inline void setCloseCallback(const SocketCloseCall& call);
 
 	inline void setRecvCallback(const SocketRecvCall& call);
+
+	inline unsigned int getBindPort();
 public:
 
 	inline const std::string& getIp();
@@ -58,6 +60,8 @@ public:
 
 	inline uv_loop_t* getLoop();
 
+	inline void setBindPort(unsigned int port);
+
 protected:
 
 	static void uv_on_alloc_buffer(uv_handle_t* handle, size_t  size, uv_buf_t* buf);
@@ -68,6 +72,7 @@ protected:
 	
 	std::string m_ip;
 	unsigned int m_port;
+	unsigned int m_bindPort;
 	bool m_isIPV6;
 
 	void* m_userdata;
@@ -135,6 +140,16 @@ void* Socket::getUserdata()
 uv_loop_t* Socket::getLoop()
 {
 	return m_loop;
+}
+
+unsigned int Socket::getBindPort()
+{
+	return m_bindPort;
+}
+
+void Socket::setBindPort(unsigned int port)
+{
+	m_bindPort = port;
 }
 
 NS_NET_UV_END

@@ -66,6 +66,11 @@ KCPSocket::~KCPSocket()
 
 unsigned int KCPSocket::bind(const char* ip, unsigned int port)
 {
+	if (m_udp != NULL)
+	{
+		return 0;
+	}
+
 	this->setIp(ip);
 	this->setPort(port);
 	this->setIsIPV6(false);
@@ -76,12 +81,6 @@ unsigned int KCPSocket::bind(const char* ip, unsigned int port)
 	if (r != 0)
 	{
 		return 0;
-	}
-
-	if (m_udp)
-	{
-		net_closeHandle((uv_handle_t*)m_udp, net_closehandle_defaultcallback);
-		m_udp = NULL;
 	}
 
 	m_udp = (uv_udp_t*)fc_malloc(sizeof(uv_udp_t));
@@ -105,6 +104,11 @@ unsigned int KCPSocket::bind(const char* ip, unsigned int port)
 
 unsigned int KCPSocket::bind6(const char* ip, unsigned int port)
 {
+	if (m_udp != NULL)
+	{
+		return 0;
+	}
+
 	this->setIp(ip);
 	this->setPort(port);
 	this->setIsIPV6(true);
@@ -115,12 +119,6 @@ unsigned int KCPSocket::bind6(const char* ip, unsigned int port)
 	if (r != 0)
 	{
 		return 0;
-	}
-
-	if (m_udp)
-	{
-		net_closeHandle((uv_handle_t*)m_udp, net_closehandle_defaultcallback);
-		m_udp = NULL;
 	}
 
 	m_udp = (uv_udp_t*)fc_malloc(sizeof(uv_udp_t));
@@ -182,28 +180,26 @@ bool KCPSocket::connect(const char* ip, unsigned int port)
 	this->setPort(port);
 	this->setSocketAddr(addr);
 
-	if (m_udp)
+	if (m_udp == NULL)
 	{
-		net_closeHandle((uv_handle_t*)m_udp, net_closehandle_defaultcallback);
-		m_udp = NULL;
+		m_udp = (uv_udp_t*)fc_malloc(sizeof(uv_udp_t));
+		int r = uv_udp_init(m_loop, m_udp);
+		CHECK_UV_ASSERT(r);
+		m_udp->data = this;
+
+		struct sockaddr_in bind_addr;
+		r = uv_ip4_addr("0.0.0.0", 0, &bind_addr);
+		CHECK_UV_ASSERT(r);
+		r = uv_udp_bind(m_udp, (const struct sockaddr *)&bind_addr, 0);
+		CHECK_UV_ASSERT(r);
+		//r = uv_udp_set_broadcast(m_udp, 1);
+		//CHECK_UV_ASSERT(r);
+
+		net_adjustBuffSize((uv_handle_t*)m_udp, KCP_UV_SOCKET_RECV_BUF_LEN, KCP_UV_SOCKET_SEND_BUF_LEN);
+
+		r = uv_udp_recv_start(m_udp, uv_on_alloc_buffer, uv_on_after_read);
+		CHECK_UV_ASSERT(r);
 	}
-	m_udp = (uv_udp_t*)fc_malloc(sizeof(uv_udp_t));
-	int r = uv_udp_init(m_loop, m_udp);
-	CHECK_UV_ASSERT(r);
-	m_udp->data = this;
-
-	struct sockaddr_in bind_addr;
-	r = uv_ip4_addr("0.0.0.0", 0, &bind_addr);
-	CHECK_UV_ASSERT(r);
-	r = uv_udp_bind(m_udp, (const struct sockaddr *)&bind_addr, 0);
-	CHECK_UV_ASSERT(r);
-	//r = uv_udp_set_broadcast(m_udp, 1);
-	//CHECK_UV_ASSERT(r);
-
-	net_adjustBuffSize((uv_handle_t*)m_udp, KCP_UV_SOCKET_RECV_BUF_LEN, KCP_UV_SOCKET_SEND_BUF_LEN);
-
-	r = uv_udp_recv_start(m_udp, uv_on_alloc_buffer, uv_on_after_read);
-	CHECK_UV_ASSERT(r);
 
 	m_kcpState = State::WAIT_CONNECT;
 	m_firstSendSucTag = false;
@@ -302,23 +298,26 @@ void KCPSocket::svr_connect(struct sockaddr* addr, IUINT32 conv)
 	this->setSocketAddr(addr);
 	this->setConv(conv);
 
-	m_udp = (uv_udp_t*)fc_malloc(sizeof(uv_udp_t));
-	int r = uv_udp_init(m_loop, m_udp);
-	CHECK_UV_ASSERT(r);
-	m_udp->data = this;
+	if (m_udp == NULL)
+	{
+		m_udp = (uv_udp_t*)fc_malloc(sizeof(uv_udp_t));
+		int r = uv_udp_init(m_loop, m_udp);
+		CHECK_UV_ASSERT(r);
+		m_udp->data = this;
 
-	struct sockaddr_in bind_addr;
-	r = uv_ip4_addr("0.0.0.0", 0, &bind_addr);
-	CHECK_UV_ASSERT(r);
-	r = uv_udp_bind(m_udp, (const struct sockaddr *)&bind_addr, 0);
-	CHECK_UV_ASSERT(r);
-	//r = uv_udp_set_broadcast(m_udp, 1);
-	//CHECK_UV_ASSERT(r);
+		struct sockaddr_in bind_addr;
+		r = uv_ip4_addr("0.0.0.0", 0, &bind_addr);
+		CHECK_UV_ASSERT(r);
+		r = uv_udp_bind(m_udp, (const struct sockaddr *)&bind_addr, 0);
+		CHECK_UV_ASSERT(r);
+		//r = uv_udp_set_broadcast(m_udp, 1);
+		//CHECK_UV_ASSERT(r);
 
-	net_adjustBuffSize((uv_handle_t*)m_udp, KCP_UV_SOCKET_RECV_BUF_LEN, KCP_UV_SOCKET_SEND_BUF_LEN);
+		net_adjustBuffSize((uv_handle_t*)m_udp, KCP_UV_SOCKET_RECV_BUF_LEN, KCP_UV_SOCKET_SEND_BUF_LEN);
 
-	r = uv_udp_recv_start(m_udp, uv_on_alloc_buffer, uv_on_after_read);
-	CHECK_UV_ASSERT(r);
+		r = uv_udp_recv_start(m_udp, uv_on_alloc_buffer, uv_on_after_read);
+		CHECK_UV_ASSERT(r);
+	}
 
 	m_kcpState = State::WAIT_CONNECT;
 	m_firstSendSucTag = false;
