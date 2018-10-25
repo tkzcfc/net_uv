@@ -11,3 +11,6 @@
 #include "../base/Server.h"
 #include "../kcp/KCPClient.h"
 #include "../kcp/KCPServer.h"
+#include "../thirdparty/rapidjson/writer.h"
+#include "../thirdparty/rapidjson/reader.h"
+#include "../thirdparty/rapidjson/document.h"

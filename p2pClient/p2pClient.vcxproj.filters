@@ -37,6 +37,12 @@
     <Filter Include="net_uv\p2p">
       <UniqueIdentifier>{50d66d67-3cba-4787-8488-b1a43d03f557}</UniqueIdentifier>
     </Filter>
+    <Filter Include="net_uv\tools">
+      <UniqueIdentifier>{d2a24f13-3d19-401e-a247-2436184f283f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="net_uv\tools\jsoncpp">
+      <UniqueIdentifier>{31982b4c-43dc-43d1-85e5-70a7b6167399}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h">

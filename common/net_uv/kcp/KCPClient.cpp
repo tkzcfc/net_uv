@@ -18,6 +18,7 @@ enum
 	KCP_CLI_OP_CLIENT_CLOSE,	//客户端退出
 	KCP_CLI_OP_REMOVE_SESSION,	//移除会话命令
 	KCP_CLI_OP_DELETE_SESSION,	//删除会话
+	KCP_CLI_OP_CREATE_PRE_SOCKET,// 创建预制socket
 };
 
 // 连接操作
@@ -49,6 +50,12 @@ struct KCPClientReconnectTimeOperation
 };
 
 
+// 创建预制socket返回数据结构
+struct KCPClientCreatePreSocketCallData
+{
+	unsigned int sessionID;
+	unsigned int bindPort;
+};
 
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -56,6 +63,7 @@ KCPClient::KCPClient()
 	: m_reconnect(true)
 	, m_totalTime(3.0f)
 	, m_isStop(false)
+	, m_createPreSocketCall(nullptr)
 {
 	uv_loop_init(&m_loop);
 
@@ -155,13 +163,6 @@ void KCPClient::updateFrame()
 				m_connectCall(this, Msg.pSession, 2);
 			}
 		}break;
-		case NetThreadMsgType::CONNECT_SESSIONID_EXIST:
-		{
-			if (m_connectCall != nullptr)
-			{
-				m_connectCall(this, Msg.pSession, 3);
-			}
-		}break;
 		case NetThreadMsgType::DIS_CONNECT:
 		{
 			if (m_disconnectCall != nullptr)
@@ -180,6 +181,15 @@ void KCPClient::updateFrame()
 				m_removeSessionCall(this, Msg.pSession);
 			}
 			pushOperation(KCP_CLI_OP_DELETE_SESSION, NULL, 0U, Msg.pSession->getSessionID());
+		}break;
+		case NetThreadMsgType::CREATE_PRE_SOCKET:
+		{
+			KCPClientCreatePreSocketCallData* pre_data = (KCPClientCreatePreSocketCallData*)Msg.data;
+			if (m_createPreSocketCall)
+			{
+				m_createPreSocketCall(this, pre_data->sessionID, pre_data->bindPort);
+			}
+			fc_free(pre_data);
 		}break;
 		default:
 			break;
@@ -285,6 +295,15 @@ void KCPClient::setAutoReconnectTimeBySessionID(unsigned int sessionID, float ti
 	opData->time = time;
 
 	pushOperation(KCP_CLI_OP_SET_RECON_TIME, opData, NULL, NULL);
+}
+
+// 创建预制Socket
+void KCPClient::createPrefabricationSocket(unsigned int sessionID)
+{
+	if (m_isStop)
+		return;
+
+	pushOperation(KCP_CLI_OP_CREATE_PRE_SOCKET, NULL, NULL, sessionID);
 }
 
 /// Runnable
@@ -406,6 +425,15 @@ void KCPClient::executeOperation()
 		case KCP_CLI_OP_CLIENT_CLOSE://客户端关闭
 		{
 			m_clientStage = clientStage::CLEAR_SESSION;
+
+			// 清空预制socket
+			for (auto &it : m_allPrefabricationSocket)
+			{
+				it.second.socket->~KCPSocket();
+				fc_free(it.second.socket);
+			}
+			m_allPrefabricationSocket.clear();
+
 			stopSessionUpdate();
 		}break;
 		case KCP_CLI_OP_REMOVE_SESSION:
@@ -438,6 +466,61 @@ void KCPClient::executeOperation()
 				it->second->~clientSessionData();
 				fc_free(it->second);
 				m_allSessionMap.erase(it);
+			}
+		}break;
+		case KCP_CLI_OP_CREATE_PRE_SOCKET:// 创建预制socket
+		{
+			auto it = m_allSessionMap.find(curOperation.sessionID);
+
+			if (it == m_allSessionMap.end() || it->second->removeTag)
+			{
+				auto it_pre = m_allPrefabricationSocket.find(curOperation.sessionID);
+				if (it_pre == m_allPrefabricationSocket.end())
+				{
+					KCPSocket* socket = (KCPSocket*)fc_malloc(sizeof(KCPSocket));
+					new (socket)KCPSocket(&m_loop);
+
+					unsigned int bindPort = socket->bind("0.0.0.0", 0);
+					if (bindPort == 0)
+					{
+						socket->~KCPSocket();
+						fc_free(socket);
+					}
+					else
+					{
+						PrefabricationSocket preData;
+						preData.socket = socket;
+						preData.bindPort = bindPort;
+
+						m_allPrefabricationSocket.insert(std::make_pair(curOperation.sessionID, preData));
+					}
+					KCPClientCreatePreSocketCallData* pre_data = (KCPClientCreatePreSocketCallData*)fc_malloc(sizeof(KCPClientCreatePreSocketCallData));
+					memset(pre_data, 0, sizeof(KCPClientCreatePreSocketCallData));
+					pre_data->bindPort = bindPort;
+					pre_data->sessionID = curOperation.sessionID;
+
+					pushThreadMsg(NetThreadMsgType::CREATE_PRE_SOCKET, NULL, (char*)pre_data, 0);
+				}
+				else
+				{
+					// 预制socket已存在
+					KCPClientCreatePreSocketCallData* pre_data = (KCPClientCreatePreSocketCallData*)fc_malloc(sizeof(KCPClientCreatePreSocketCallData));
+					memset(pre_data, 0, sizeof(KCPClientCreatePreSocketCallData));
+					pre_data->bindPort = it_pre->second.bindPort;
+					pre_data->sessionID = curOperation.sessionID;
+
+					pushThreadMsg(NetThreadMsgType::CREATE_PRE_SOCKET, NULL, (char*)pre_data, 0);
+				}
+			}
+			else
+			{
+				KCPClientCreatePreSocketCallData* pre_data = (KCPClientCreatePreSocketCallData*)fc_malloc(sizeof(KCPClientCreatePreSocketCallData));
+				memset(pre_data, 0, sizeof(KCPClientCreatePreSocketCallData));
+				pre_data->bindPort = 0U;
+				pre_data->sessionID = curOperation.sessionID;
+
+				// sessionID已存在
+				pushThreadMsg(NetThreadMsgType::CREATE_PRE_SOCKET, NULL, (char*)pre_data, 0);
 			}
 		}break;
 		default:
@@ -546,15 +629,11 @@ void KCPClient::createNewConnect(void* data)
 		if (it->second->removeTag)
 			return;
 
-		//对比端口和IP是否一致
-		if (strcmp(opData->ip.c_str(), it->second->ip.c_str()) != 0 && opData->port != it->second->port)
-		{
-			pushThreadMsg(NetThreadMsgType::CONNECT_SESSIONID_EXIST, NULL);
-			return;
-		}
-
 		if (it->second->connectState == CONNECTSTATE::DISCONNECT)
 		{
+			it->second->ip = opData->ip;
+			it->second->port = opData->port;
+
 			if (it->second->session->executeConnect(opData->ip.c_str(), opData->port))
 			{
 				it->second->connectState = CONNECTSTATE::CONNECTING;
@@ -569,8 +648,20 @@ void KCPClient::createNewConnect(void* data)
 	}
 	else
 	{
-		KCPSocket* socket = (KCPSocket*)fc_malloc(sizeof(KCPSocket));
-		new (socket) KCPSocket(&m_loop);
+		auto it_pre = m_allPrefabricationSocket.find(opData->sessionID);
+
+		KCPSocket* socket = NULL;
+		// 存在预制，则使用预制的socket
+		if (it_pre != m_allPrefabricationSocket.end())
+		{
+			socket = it_pre->second.socket;
+			m_allPrefabricationSocket.erase(it_pre);
+		}
+		else
+		{
+			socket = (KCPSocket*)fc_malloc(sizeof(KCPSocket));
+			new (socket) KCPSocket(&m_loop);
+		}
 		socket->setConnectCallback(std::bind(&KCPClient::onSocketConnect, this, std::placeholders::_1, std::placeholders::_2));
 
 		KCPSession* session = KCPSession::createSession(this, socket);
@@ -699,6 +790,13 @@ void KCPClient::clearData()
 		}
 		m_operationQue.pop();
 	}
+
+	for (auto &it : m_allPrefabricationSocket)
+	{
+		it.second.socket->~KCPSocket();
+		fc_free(it.second.socket);
+	}
+	m_allPrefabricationSocket.clear();
 }
 
 void KCPClient::onClientUpdate()

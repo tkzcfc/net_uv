@@ -84,8 +84,6 @@ void* fc_malloc_s(unsigned int len, const char* file, int line)
 	info.line = line;
 	info.len = len;
 
-	block_mutex.lock();
-
 	void* p = malloc(len);
 
 	if (p == NULL)
@@ -98,9 +96,10 @@ void* fc_malloc_s(unsigned int len, const char* file, int line)
 		printf("…Í«Îƒ⁄¥Ê ß∞‹!!!\n");
 		assert(0);
 #endif
-		block_mutex.unlock();
 		return NULL;
 	}
+
+	block_mutex.lock();
 
 	block_size++;
 	block_map.insert(std::make_pair(p, info));

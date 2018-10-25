@@ -6,7 +6,7 @@ NS_NET_UV_BEGIN
 #define P2P_SEND_BURROW_DATA_DURATION 3000
 
 // 打洞数据发送间隔时间(ms)
-#define P2P_SEND_BURROW_DATA_SPACE_TIME 100
+#define P2P_SEND_BURROW_DATA_SPACE_TIME 50
 
 // 打洞数据最大并发数量(超过该数量则不进行打洞处理)
 #define P2P_SEND_BURROW_DATA_MAX_COUNT 10
@@ -36,6 +36,7 @@ P2PClient::P2PClient()
 	, m_userID(0)
 	, m_centerSVRPort(0)
 	, m_centerSVRIP("")
+	, m_token(0)
 {
 	m_burrowData = kcp_making_connect_packet();
 	alloc_kcpClient();
@@ -59,6 +60,7 @@ void P2PClient::connectToCenterServer(const char* ip, unsigned int port)
 	m_centerSVRIP = ip;
 	m_centerSVRPort = port;
 	m_client->connect(ip, port, P2P_CONNECT_SVR_SESSION_ID);
+	m_client->setAutoReconnectBySessionID(P2P_CONNECT_SVR_SESSION_ID, true);
 }
 
 bool P2PClient::server_startServer(const char* name, int password/* = 0*/, const char* ip/* = "0.0.0.0"*/, unsigned int port/* = 0*/, bool isIPV6/* = false*/)
@@ -83,7 +85,63 @@ bool P2PClient::server_stopServer()
 	return m_server->stopServer();
 }
 
-bool P2PClient::client_connect(unsigned int userID, unsigned int sessionID, int password, bool autoConnect/* = false*/)
+// 获取内网IP
+void P2PClient::getIntranetIP(std::vector<P2PMessageInterface_Address>& IPArr)
+{
+	char buf[512];
+	uv_interface_address_t *info;
+	int count, i;
+
+	uv_interface_addresses(&info, &count);
+	i = count;
+
+	P2PMessageInterface_Address addressData;
+	while (i--) 
+	{
+		uv_interface_address_t interface = info[i];
+
+		if (!interface.is_internal)
+		{
+			if (interface.address.address4.sin_family == AF_INET) {
+				uv_ip4_name(&interface.address.address4, buf, sizeof(buf));
+				
+				if(strlen(buf) >= P2P_IP_MAX_LEN)
+					continue;
+
+				strcpy(addressData.szIP, buf);
+
+				uv_ip4_name(&interface.netmask.netmask4, buf, sizeof(buf));
+
+				if (strlen(buf) >= P2P_IP_MAX_LEN)
+					continue;
+
+				strcpy(addressData.szMask, buf);
+
+				IPArr.push_back(addressData);
+			}
+			else if (interface.address.address4.sin_family == AF_INET6) {
+				uv_ip6_name(&interface.address.address6, buf, sizeof(buf));
+
+				if (strlen(buf) >= P2P_IP_MAX_LEN)
+					continue;
+
+				strcpy(addressData.szIP, buf);
+
+				uv_ip6_name(&interface.netmask.netmask6, buf, sizeof(buf));
+
+				if (strlen(buf) >= P2P_IP_MAX_LEN)
+					continue;
+
+				strcpy(addressData.szMask, buf);
+
+				IPArr.push_back(addressData);
+			}
+		}
+	}
+	uv_free_interface_addresses(info, count);
+}
+
+bool P2PClient::client_connect(unsigned int userID, unsigned int sessionID, int password)
 {
 	assert(sessionID != P2P_CONNECT_SVR_SESSION_ID);
 	if (!m_isConnectP2PSVR)
@@ -96,39 +154,66 @@ bool P2PClient::client_connect(unsigned int userID, unsigned int sessionID, int 
 			return false;
 
 		it->second.password = password;
-		it->second.autoConnect = autoConnect;
-		if (it->second.isConnect == false)
+
+		if (it->second.state == ConnectInfoData::ConnectState::WAIT_CENTER_MSG)
 		{
-			it->second.ip.clear();
-			it->second.port = 0;
-			it->second.isConnect = true;
-			m_client->removeSession(it->first);
+			send_WantConnectMsg(userID, password, it->second.bindPort);
 		}
 	}
 	else
 	{
 		ConnectInfoData data;
 		data.userID = userID;
-		data.autoConnect = autoConnect;
 		data.password = password;
-		data.ip = "";
-		data.port = 0;
-		data.isConnect = true;
+		data.state = ConnectInfoData::ConnectState::CREATE_PRE_SOCKET;
 		m_connectInfoMap.insert(std::make_pair(sessionID, data));
-	}
-	m_client->connect(m_centerSVRIP.c_str(), m_centerSVRPort, sessionID);
 
+		m_client->removeSession(sessionID);
+		m_client->createPrefabricationSocket(sessionID);
+	}
 	return true;
 }
 
-void P2PClient::client_setAutoReconnectBySessionID(unsigned int sessionID, bool isAuto)
+void P2PClient::client_removeSessionByUserID(unsigned int userID)
 {
-	m_client->setAutoReconnectBySessionID(sessionID, isAuto);
+	for (auto it = m_connectInfoMap.begin(); it != m_connectInfoMap.end(); ++it)
+	{
+		if (it->second.userID == userID)
+		{
+			m_client->removeSession(it->first);
+			m_connectInfoMap.erase(it);
+			break;
+		}
+	}
+	send_ConnectSuccess(userID);
+}
 
-	auto it = m_connectInfoMap.find(sessionID);
+void P2PClient::client_removeSession(unsigned int sessionId)
+{
+	assert(P2P_CONNECT_SVR_SESSION_ID != sessionId);
+
+	auto it = m_connectInfoMap.find(sessionId);
 	if (it != m_connectInfoMap.end())
 	{
-		it->second.autoConnect = isAuto;
+		m_connectInfoMap.erase(it);
+	}
+
+	m_client->removeSession(sessionId);
+}
+
+void P2PClient::client_disconnect(unsigned int sessionId)
+{
+	assert(P2P_CONNECT_SVR_SESSION_ID != sessionId);
+	client_removeSession(sessionId);
+}
+
+void P2PClient::client_send(unsigned int sessionId, char* data, unsigned int len)
+{
+	assert(P2P_CONNECT_SVR_SESSION_ID != sessionId);
+	auto it = m_connectInfoMap.find(sessionId);
+	if (it != m_connectInfoMap.end() && it->second.state == ConnectInfoData::ConnectState::CONNECT)
+	{
+		m_client->send(sessionId, data, len);
 	}
 }
 
@@ -179,10 +264,13 @@ void P2PClient::alloc_kcpClient()
 
 	m_client->setUserData(this);
 
+	// 关闭所有自动重连
+	m_client->setAutoReconnect(false);
 	m_client->setClientCloseCallback(std::bind(&P2PClient::on_client_ClientCloseCall, this, std::placeholders::_1));
 	m_client->setConnectCallback(std::bind(&P2PClient::on_client_ConnectCall, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 	m_client->setRecvCallback(std::bind(&P2PClient::on_client_RecvCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
 	m_client->setDisconnectCallback(std::bind(&P2PClient::on_client_DisconnectCall, this, std::placeholders::_1, std::placeholders::_2));
+	m_client->setCreatePreSocketCallback(std::bind(&P2PClient::on_client_CreatePreSocketCall, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 }
 
 void P2PClient::free_kcpServer()
@@ -209,19 +297,20 @@ void P2PClient::do_burrowLogic()
 {
 	if (m_server == NULL || !m_svrStartSuccess || m_allBurrowDataArr.empty())
 		return;
-
+	
 	IUINT32 clock = iclock();
 	for (auto it = m_allBurrowDataArr.begin(); it != m_allBurrowDataArr.end(); )
 	{
-		if (it->endTime >= clock)
+		if (it->endTime < clock)
 		{
 			fc_free(it->addr);
 			it = m_allBurrowDataArr.erase(it);
 		}
 		else
 		{
-			if (clock - it->lastSendTime > P2P_SEND_BURROW_DATA_SPACE_TIME)
+			if (P2P_SEND_BURROW_DATA_SPACE_TIME < clock - it->lastSendTime)
 			{
+				it->lastSendTime = clock;
 				send_BurrowData(it->addr, it->addrlen);
 			}
 			it++;
@@ -253,51 +342,208 @@ void P2PClient::clear_burrowData()
 
 //////////////////////////////////////////////////////////////////////////
 
-void P2PClient::sendMsg(unsigned int sessionID, unsigned int msgID, char* data, unsigned int len)
+// 发送消息
+void P2PClient::sendMsg(unsigned int msgID, const char* msgContent)
 {
-	P2PMessageBase* msgData = (P2PMessageBase*)fc_malloc(sizeof(P2PMessageBase) + len);
-	msgData->ID = msgID;
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
 
-	if (len > 0)
-	{
-		memcpy(msgData + sizeof(P2PMessageBase), data, len);
-	}
-	m_client->send(sessionID, (char*)msgData, len);
-	fc_free(msgData);
+	writer.StartObject();
+
+	writer.Key("msgID");
+	writer.Uint(msgID);
+
+	writer.Key("msgContent");
+	writer.String(msgContent);
+
+	writer.EndObject();
+
+	const char* sendData = s.GetString();
+
+	m_client->send(P2P_CONNECT_SVR_SESSION_ID, (char*)sendData, strlen(sendData));
+
+	printf("send [%d]:\n%s\n", msgID, sendData);
 }
 
-void P2PClient::try_send_RegisterMsg()
+// 发送登录消息
+void P2PClient::send_LoginMeg()
+{
+	if (m_intranetIPInfoArr.empty())
+	{
+		getIntranetIP(m_intranetIPInfoArr);
+	}
+
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+
+	writer.StartObject();               
+	writer.Key("userID");
+	writer.Uint(m_userID);
+
+	writer.Key("token");
+	writer.Uint(m_token);
+
+	writer.Key("intranetInfo");
+	writer.StartObject();
+
+	writer.StartArray();
+	for (std::size_t i = 0; i < m_intranetIPInfoArr.size(); i++)
+	{
+		writer.StartObject();
+
+		writer.Key("IP");
+		writer.String(m_intranetIPInfoArr[i].szIP);
+
+		writer.Key("mask");
+		writer.String(m_intranetIPInfoArr[i].szMask);
+
+		writer.EndObject();
+	}
+	writer.EndArray();
+
+	writer.EndObject();
+	writer.EndObject();
+
+	sendMsg(P2P_MSG_ID_C2S_LOGIN, s.GetString());
+}
+
+// 发送登出消息
+void P2PClient::send_LogoutMeg()
+{
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+
+	writer.StartObject();
+
+	writer.Key("userID");
+	writer.Uint(m_userID);
+
+	writer.Key("token");
+	writer.Uint(m_token);
+
+	writer.EndObject();
+
+	sendMsg(P2P_MSG_ID_C2S_LOGOUT, s.GetString());
+}
+
+void P2PClient::try_send_RegisterSVRMsg()
 {
 	if (m_svrStartSuccess && m_isConnectP2PSVR)
 	{
-		send_RegisterMsg();
+		send_RegisterSVRMsg();
 	}
 }
 
-void P2PClient::send_RegisterMsg()
+void P2PClient::send_RegisterSVRMsg()
 {
-	P2PMessage_C2S_Register data;
-	data.password = m_password;
-	data.port = m_server->getListenPort();
-	data.userID = m_userID;
-	strcpy(data.szName, m_name.c_str());
+	if (m_intranetIPInfoArr.empty())
+	{
+		getIntranetIP(m_intranetIPInfoArr);
+	}
 
-	sendMsg(P2P_CONNECT_SVR_SESSION_ID, P2P_MSG_ID_C2S_REGISTER, (char*)&data, sizeof(P2PMessage_C2S_Register));
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+
+	writer.StartObject();
+	writer.Key("svrID");
+	writer.Uint(m_svrID);
+	writer.Key("svrToken");
+	writer.Uint(m_svrToken);
+	writer.Key("svrPassword");
+	writer.Uint(m_svrPassword);
+	writer.Key("svrName");
+	writer.String(m_svrName.c_str());
+
+	writer.Key("intranetInfo");
+	writer.StartObject();
+	writer.StartArray();
+	for (std::size_t i = 0; i < m_intranetIPInfoArr.size(); i++)
+	{
+		writer.StartObject();
+
+		writer.Key("IP");
+		writer.String(m_intranetIPInfoArr[i].szIP);
+		writer.Key("mask");
+		writer.String(m_intranetIPInfoArr[i].szMask);
+
+		writer.EndObject();
+	}
+	writer.EndArray();
+	writer.EndObject();
+	writer.EndObject();
+
+	sendMsg(P2P_MSG_ID_C2S_REGISTER_SVR, s.GetString());
 }
 
-void P2PClient::send_WantConnectMsg(unsigned int userId, int password)
+// 发送取消服务器注册消息
+void P2PClient::send_UnRegisterSVRMsg()
 {
-	P2PMessage_C2S_WantToConnect data;
-	data.userID = userId;
-	data.password = password;
-	sendMsg(P2P_CONNECT_SVR_SESSION_ID, P2P_MSG_ID_C2S_WANT_TO_CONNECT, (char*)&data, sizeof(P2PMessage_C2S_WantToConnect));
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+
+	writer.StartObject();
+
+	writer.Key("svrID");
+	writer.Uint(m_svrID);
+	writer.Key("svrToken");
+	writer.Uint(m_svrToken);
+
+	writer.EndObject();
+
+	sendMsg(P2P_MSG_ID_C2S_UN_REGISTER_SVR, s.GetString());
 }
 
-void P2PClient::send_GetUserList(int pageIndex)
+
+// 发送想要连接到某个服务器消息
+void P2PClient::send_WantConnectMsg(unsigned int userId, const std::string& password, unsigned int port)
 {
-	P2PMessage_C2S_GetUserList data;
-	data.pageIndex = pageIndex;
-	sendMsg(P2P_CONNECT_SVR_SESSION_ID, P2P_MSG_ID_C2S_GET_USER_LIST, (char*)&data, sizeof(P2PMessage_C2S_GetUserList));
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+
+	writer.StartObject();
+
+	writer.Key("svrID");
+	writer.Uint(m_svrID);
+
+	writer.Key("password");
+	writer.String(password.c_str());
+
+	writer.Key("port");
+	writer.Uint(port);
+
+	writer.EndObject();
+
+	sendMsg(P2P_MSG_ID_C2S_WANT_TO_CONNECT, s.GetString());
+}
+
+void P2PClient::send_ConnectSuccess(unsigned int svrID)
+{
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+
+	writer.StartObject();
+
+	writer.Key("svrID");
+	writer.Uint(m_svrID);
+
+	writer.EndObject();
+
+	sendMsg(P2P_MSG_ID_C2S_CONNECT_SUCCESS, s.GetString());
+}
+
+void P2PClient::send_GetSVRList(int pageIndex)
+{
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+
+	writer.StartObject();
+
+	writer.Key("pageIndex");
+	writer.Int(pageIndex);
+
+	writer.EndObject();
+
+	sendMsg(P2P_MSG_ID_C2S_GET_SVR_LIST, s.GetString());
 }
 
 void P2PClient::send_BurrowData(struct sockaddr* addr, unsigned int addrlen)
@@ -308,19 +554,12 @@ void P2PClient::send_BurrowData(struct sockaddr* addr, unsigned int addrlen)
 	}
 }
 
-void P2PClient::send_ConnectSuccess(unsigned int userId)
-{
-	P2PMessage_C2S_ConnectSuccess data;
-	data.userID = userId;
-	sendMsg(0, P2P_MSG_ID_C2S_CONNECT_SUCCESS, (char*)&data, sizeof(P2PMessage_C2S_ConnectSuccess));
-}
 
 void P2PClient::on_client_ConnectCall(Client* client, Session* session, int status)
 {
 	if (session->getSessionID() == P2P_CONNECT_SVR_SESSION_ID)
 	{
-		m_isConnectP2PSVR = (status == 1);
-		try_send_RegisterMsg();
+		NET_UV_LOG(NET_UV_L_INFO, "连接到中央服务器%s", (status == 1) ? "成功" : "失败");
 	}
 	else
 	{
@@ -329,61 +568,32 @@ void P2PClient::on_client_ConnectCall(Client* client, Session* session, int stat
 		{
 			if (status == 1)
 			{
-				KCPClient* kcpClient = (KCPClient*)client;
-				kcpClient->setAutoReconnectBySessionID(it->first, false);
-
-				// 连接到中央服务器成功
-				if (it->second.ip.empty())
+				it->second.state = ConnectInfoData::ConnectState::CONNECT;
+				// 连接成功
+				if (m_p2p_connectResultCall)
 				{
-					// 向中央服务器发送连接请求
-					send_WantConnectMsg(session->getSessionID(), it->second.password);
-				}
-				// 连接到P2PClient的本地服务器成功
-				else
-				{
-					// 通知中央服务器已连接
-					auto it = m_connectInfoMap.find(session->getSessionID());
-					if (it != m_connectInfoMap.end())
-					{
-						send_ConnectSuccess(it->second.userID);
-					}
-					m_client_connectCall(client, session, status);
+					m_p2p_connectResultCall(this, 0, it->second.userID);
 				}
 			}
 			else
 			{
-				it->second.ip.clear();
-				it->second.port = 0;
+				auto userID = it->second.userID;
+				send_ConnectSuccess(userID);
+				m_connectInfoMap.erase(it);
 
-				// 连接到中央服务器失败
-				if (it->second.ip.empty())
+				client->removeSession(session->getSessionID());
+
+				// 连接失败，与P2PClient的本地服务器连接失败
+				if (m_p2p_connectResultCall)
 				{
-					if (m_p2p_connectResultCall)
-					{
-						m_p2p_connectResultCall(this, 2, it->second.userID);
-					}
-
-					KCPClient* kcpClient = (KCPClient*)client;
-					kcpClient->setAutoReconnectBySessionID(it->first, it->second.autoConnect);
-				}
-				// 连接到P2PClient的本地服务器失败
-				else
-				{
-					if (it->second.autoConnect)
-					{
-						client->connect(m_centerSVRIP.c_str(), m_centerSVRPort, it->first);
-					}
-					else
-					{
-						it->second.isConnect = false;
-					}
-
-					if (m_p2p_connectResultCall)
-					{
-						m_p2p_connectResultCall(this, 3, it->second.userID);
-					}
+					m_p2p_connectResultCall(this, 3, userID);
 				}
 			}
+			m_client_connectCall(client, session, status);
+		}
+		else
+		{
+			client->removeSession(session->getSessionID());
 		}
 	}
 }
@@ -393,48 +603,12 @@ void P2PClient::on_client_DisconnectCall(Client* client, Session* session)
 	if (session->getSessionID() == P2P_CONNECT_SVR_SESSION_ID)
 	{
 		m_isConnectP2PSVR = false;
+		NET_UV_LOG(NET_UV_L_INFO, "与中央服务器断开连接");
 	}
 	else
 	{
-		auto it = m_connectInfoMap.find(session->getSessionID());
-		if (it != m_connectInfoMap.end())
-		{
-			if (session->getIp() == m_centerSVRIP && session->getPort() == m_centerSVRPort)
-			{
-				// 连接标记
-				if (it->second.isConnect)
-				{
-					// 没有获取到对方IP
-					if (it->second.ip.empty())
-					{
-						if (it->second.autoConnect)
-						{
+		client_removeSession(session->getSessionID());
 
-						}
-					}
-					// 已获取到对方IP
-					else
-					{
-						client->connect(it->second.ip.c_str(), it->second.port, it->first);
-					}
-				}
-				else
-				{
-				}
-			}
-			else
-			{
-			}
-		}
-
-		for (auto &it : m_connectInfoMap)
-		{
-			if (it.first == session->getSessionID() && it.second.autoConnect)
-			{
-				send_WantConnectMsg(it.second.userID, it.second.password);
-				break;
-			}
-		}
 		m_client_disconnectCall(client, session);
 	}
 }
@@ -447,47 +621,90 @@ void P2PClient::on_client_RecvCallback(Client* client, Session* session, char* d
 		return;
 	}
 
-	P2PMessageBase* Msg = (P2PMessageBase*)data;
-	
-	void* MsgContent = data + sizeof(P2PMessageBase);
-	unsigned int ContentLen = len - sizeof(P2PMessageBase);
-	switch (Msg->ID)
+	rapidjson::Document d;
+	d.Parse(data, len);
+
+	if (!d.HasParseError())
 	{
-	case P2P_MSG_ID_S2C_REGISTER_RESULT:// 注册结果
+		if (d.HasMember("msgID") && d.HasMember("msgContent"))
+		{
+			rapidjson::Value& v_msgID = d["msgID"];
+			
+			unsigned int msgID = v_msgID.GetUint();
+			if (msgID <= P2PMessageType::P2P_MSG_ID_BEGIN || msgID >= P2PMessageType::P2P_MSG_ID_END)
+			{
+				NET_UV_LOG(NET_UV_L_ERROR, "msgid error: %d", msgID);
+				return;
+			}
+			rapidjson::Value& v_Content = d["msgContent"];
+			const char* content_json = v_Content.GetString();
+
+			if (strlen(content_json) <= 0)
+			{
+				on_net_DispatchMsg(session, msgID, d);
+			}
+			else
+			{
+				d.Parse(content_json);
+				if (!d.HasParseError())
+				{
+					on_net_DispatchMsg(session, msgID, d);
+				}
+				else
+				{
+					NET_UV_LOG(NET_UV_L_ERROR, "json content parse error: %d", d.GetParseError());
+				}
+			}
+		}
+	}
+	else
 	{
-		on_net_RegisterResult(MsgContent, ContentLen);
-	}break;
-	case P2P_MSG_ID_S2C_LOGOUT_RESULT:	// 登出结果
-	{
-		m_server->stopServer();
-	}break;
-	case P2P_MSG_ID_S2C_USER_LIST:		// 用户列表
-	{
-		on_net_UserListResult(MsgContent, ContentLen);
-	}break;
-	case P2P_MSG_ID_S2C_WANT_TO_CONNECT_RESULT:// 连接请求结果
-	{
-		on_net_ConnectResult(MsgContent, ContentLen);
-	}break;
-	case P2P_MSG_ID_S2C_START_BURROW: // 开始打洞指令
-	{
-		on_net_StartBurrow(MsgContent, ContentLen);
-	}break;
-	case P2P_MSG_ID_S2C_STOP_BURROW: // 停止打洞指令
-	{
-		on_net_StopBurrow(MsgContent, ContentLen);
-	}break;
-	default:
-		break;
+		NET_UV_LOG(NET_UV_L_ERROR, "json parse error: %d", d.GetParseError());
 	}
 }
 
 void P2PClient::on_client_ClientCloseCall(Client* client)
 {
+	m_connectInfoMap.clear();
 	m_isConnectP2PSVR = false;
 	if (m_client_clientCloseCall)
 	{
 		m_client_clientCloseCall(client);
+	}
+}
+
+void P2PClient::on_client_CreatePreSocketCall(KCPClient* client, unsigned int sessionID, unsigned int bindPort)
+{
+	auto it = m_connectInfoMap.find(sessionID);
+	
+	if (it != m_connectInfoMap.end())
+	{
+		if (it->second.state == ConnectInfoData::ConnectState::CREATE_PRE_SOCKET)
+		{
+			if (bindPort == 0)
+			{
+				auto userID = it->second.userID;
+				m_connectInfoMap.erase(it);
+
+				// 4连接失败，创建预制socket失败，sessionID冲突
+				if (m_p2p_connectResultCall)
+				{
+					m_p2p_connectResultCall(this, 4, userID);
+				}
+				printf("预制socket创建失败\n");
+			}
+			else
+			{
+				printf("预制socket创建成功 %d\n", bindPort);
+				it->second.state = ConnectInfoData::ConnectState::WAIT_CENTER_MSG;
+				it->second.bindPort = bindPort;
+				send_WantConnectMsg(it->second.userID, it->second.password, bindPort);
+			}
+		}
+		else
+		{
+			m_connectInfoMap.erase(it);
+		}
 	}
 }
 
@@ -524,23 +741,102 @@ void P2PClient::on_server_DisconnectCall(Server* svr, Session* session)
 }
 
 //////////////////////////////////////////////////////////////////////////
+void P2PClient::on_net_DispatchMsg(Session* session, unsigned int msgID, rapidjson::Document& doc)
+{
 
-void P2PClient::on_net_RegisterResult(void* data, unsigned int len)
+	switch (msgID)
+	{
+	case P2P_MSG_ID_S2C_REGISTER_SVR_RESULT:// 注册结果
+	{
+		on_net_RegisterSVRResult(session, doc);
+	}break;
+	case P2P_MSG_ID_S2C_UN_REGISTER_SVR_RESULT:// 取消注册结果
+	{
+		on_net_UnRegisterSVRResult(session, doc);
+	}break;
+	case P2P_MSG_ID_S2C_LOGIN_RESULT:  // 登录结果
+	{}break;
+	case P2P_MSG_ID_S2C_LOGOUT_RESULT:	// 登出结果
+	{
+	}break;
+	case P2P_MSG_ID_S2C_USER_LIST:		// 用户列表
+	{
+		printf("\nRecv: 用户列表\n");
+		on_net_UserListResult(session, MsgContent, ContentLen);
+	}break;
+	case P2P_MSG_ID_S2C_WANT_TO_CONNECT_RESULT:// 连接请求结果
+	{
+		printf("\nRecv: 连接请求结果\n");
+		on_net_ConnectResult(session, MsgContent, ContentLen);
+	}break;
+	case P2P_MSG_ID_S2C_START_BURROW: // 开始打洞指令
+	{
+		printf("\nRecv: 开始打洞指令\n");
+		on_net_StartBurrow(session, MsgContent, ContentLen);
+	}break;
+	case P2P_MSG_ID_S2C_STOP_BURROW: // 停止打洞指令
+	{
+		printf("\nRecv: 停止打洞指令\n");
+		on_net_StopBurrow(session, MsgContent, ContentLen);
+	}break;
+	default:
+		printf("\nRecv: 其他消息\n");
+		break;
+	}
+}
+
+void P2PClient::on_net_RegisterSVRResult(Session* session, rapidjson::Document& doc)
+{
+	m_svrID = doc["svrID"].GetUint();
+	m_svrToken = doc["svrToken"].GetUint();
+	
+	int code = doc["code"].GetInt();
+	if (m_p2p_registerResultCall)
+	{
+		m_p2p_registerResultCall(this, code);
+	}
+}
+
+void P2PClient::on_net_UnRegisterSVRResult(Session* session, rapidjson::Document& doc)
+{
+	m_server->stopServer();
+}
+
+void P2PClient::on_net_LoginResult(Session* session, rapidjson::Document& doc)
+{
+	m_userID = doc["userID"].GetUint();
+	m_token = doc["token"].GetUint();
+
+	m_isConnectP2PSVR = true;
+	try_send_RegisterSVRMsg();
+}
+
+void P2PClient::on_net_LogoutResult(Session* session, rapidjson::Document& doc)
+{
+	m_userID = 0;
+	m_token = 0;
+	m_isConnectP2PSVR = false;
+}
+
+void P2PClient::on_net_RegisterResult(Session* session, rapidjson::Document& doc)
 {
 	P2P_MSG_LEN_CHECK(P2PMessage_S2C_Register_Result);
 
 	P2PMessage_S2C_Register_Result* result = (P2PMessage_S2C_Register_Result*)data;
 	m_userID = result->userID;
+	m_token = result->token;
+
 	if (m_p2p_registerResultCall)
 	{
 		m_p2p_registerResultCall(this, result->code);
 	}
 }
 
-void P2PClient::on_net_UserListResult(void* data, unsigned int len)
+void P2PClient::on_net_UserListResult(Session* session, rapidjson::Document& doc)
 {
-	P2P_MSG_LEN_CHECK(P2PMessage_S2C_UserList);
-
+	if (sizeof(P2PMessage_S2C_UserList) > len)
+		return;
+	
 	if (m_p2p_getUserListResultCall == nullptr)
 		return;
 
@@ -557,43 +853,36 @@ void P2PClient::on_net_UserListResult(void* data, unsigned int len)
 	m_p2p_getUserListResultCall(this, list, userList);
 }
 
-void P2PClient::on_net_ConnectResult(void* data, unsigned int len)
+void P2PClient::on_net_ConnectResult(Session* session, rapidjson::Document& doc)
 {
 	P2P_MSG_LEN_CHECK(P2PMessage_C2S_WantToConnectResult);
 
 	P2PMessage_C2S_WantToConnectResult* result = (P2PMessage_C2S_WantToConnectResult*)data;
-	if (result->code == 0)
-	{
-		for (auto &it : m_connectInfoMap)
-		{
-			if (it.second.userID == result->userID)
-			{
-				m_client->connect(result->ip, result->port, it.first);
-				m_client->setAutoReconnectBySessionID(it.first, it.second.autoConnect);
-				break;
-			}
-		}
-	}
-	else
-	{
-		for (auto it = m_connectInfoMap.begin(); it != m_connectInfoMap.end(); ++it)
-		{
-			if (it->second.userID == result->userID)
-			{
-				m_client->removeSession(it->first);
-				m_connectInfoMap.erase(it);
-				break;
-			}
-		}
-	}
 
-	if (m_p2p_connectResultCall)
+	for (auto& it : m_connectInfoMap)
 	{
-		m_p2p_connectResultCall(this, result->code, result->userID);
+		if (it.second.userID == result->userID)
+		{
+			// 请求成功
+			if (result->code == 0)
+			{
+				printf("开始连接到%s:%d\n", result->ip, result->port);
+				it.second.state = ConnectInfoData::ConnectState::CONNECTING;
+				m_client->connect(result->ip, result->port, it.first);
+			}
+			else
+			{
+				// 1连接失败，用户不存在
+				if (m_p2p_connectResultCall)
+				{
+					m_p2p_connectResultCall(this, 1, result->userID);
+				}
+			}
+		}
 	}
 }
 
-void P2PClient::on_net_StartBurrow(void* data, unsigned int len)
+void P2PClient::on_net_StartBurrow(Session* session, rapidjson::Document& doc)
 {
 	P2P_MSG_LEN_CHECK(P2PMessage_S2C_StartBurrow);
 
@@ -605,6 +894,7 @@ void P2PClient::on_net_StartBurrow(void* data, unsigned int len)
 
 	P2PMessage_S2C_StartBurrow* result = (P2PMessage_S2C_StartBurrow*)data;
 
+	printf("开始打洞:%s:%d\n", result->ip, result->port);
 	for (auto& it : m_allBurrowDataArr)
 	{
 		if (strcmp(it.ip.c_str(), result->ip) == 0 && it.port == result->port)
@@ -638,12 +928,12 @@ void P2PClient::on_net_StartBurrow(void* data, unsigned int len)
 	burrowData.endTime = clock + P2P_SEND_BURROW_DATA_DURATION;
 	burrowData.lastSendTime = clock;
 
-	m_allBurrowDataArr.emplace_back(burrowData);
+	m_allBurrowDataArr.push_back(burrowData);
 
 	send_BurrowData(addr, addrlen);
 }
 
-void P2PClient::on_net_StopBurrow(void* data, unsigned int len)
+void P2PClient::on_net_StopBurrow(Session* session, rapidjson::Document& doc)
 {
 	P2P_MSG_LEN_CHECK(P2PMessage_S2C_StopBurrow);
 

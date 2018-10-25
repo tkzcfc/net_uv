@@ -49,7 +49,7 @@ protected:
 
 	void socketUpdate(IUINT32 clock);
 
-	void shutdownSocket();
+	void shutdownSocket(bool isCallClose = true);
 
 	void setSocketAddr(struct sockaddr* addr);
 

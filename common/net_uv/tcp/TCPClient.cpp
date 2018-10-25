@@ -160,13 +160,6 @@ void TCPClient::updateFrame()
 				m_connectCall(this, Msg.pSession, 2);
 			}
 		}break;
-		case NetThreadMsgType::CONNECT_SESSIONID_EXIST:
-		{
-			if (m_connectCall != nullptr)
-			{
-				m_connectCall(this, Msg.pSession, 3);
-			}
-		}break;
 		case NetThreadMsgType::DIS_CONNECT:
 		{
 			if (m_disconnectCall != nullptr)
@@ -599,13 +592,6 @@ void TCPClient::createNewConnect(void* data)
 	{
 		if (it->second->removeTag)
 			return;
-
-		//对比端口和IP是否一致
-		if (strcmp(opData->ip.c_str(), it->second->ip.c_str()) != 0 && opData->port != it->second->port)
-		{
-			pushThreadMsg(NetThreadMsgType::CONNECT_SESSIONID_EXIST, NULL);
-			return;
-		}
 
 		if (it->second->connectState == CONNECTSTATE::DISCONNECT)
 		{

@@ -12,7 +12,7 @@ class P2PClient;
 
 
 // 连接请求返回回调
-/// status: 0 连接成功 1连接失败，用户不存在 2连接失败，与中央服务器连接失败 3连接失败，与P2PClient的本地服务器连接失败
+/// status: 0 连接成功 1连接失败，用户不存在 2连接失败，与中央服务器连接失败 3连接失败，与P2PClient的本地服务器连接失败 4 sessionID冲突
 using P2PClientConnectResultCall = std::function<void(P2PClient* client, int status, unsigned int userId)>;
 
 // 注册请求返回回调
@@ -45,22 +45,24 @@ public:
 
 	inline unsigned int server_getListenPort();
 
+	// 获取内网IP
+	void getIntranetIP(std::vector<P2PMessageInterface_Address>& IPArr);
 
 	// client
 
 	// 连接其他P2P客户端
 	/// sessionID 不能为0,0为保留会话ID，用于和P2P服务器连接
-	bool client_connect(unsigned int userID, unsigned int sessionID, int password, bool autoConnect = false);
-
-	void client_setAutoReconnectBySessionID(unsigned int sessionID, bool isAuto);
-
-	inline void client_disconnect(unsigned int sessionId);
+	bool client_connect(unsigned int userID, unsigned int sessionID, int password);
+	
+	void client_removeSessionByUserID(unsigned int userID);
+	
+	void client_disconnect(unsigned int sessionId);
 
 	inline void client_closeClient();
 
-	inline void client_send(unsigned int sessionId, char* data, unsigned int len);
+	void client_send(unsigned int sessionId, char* data, unsigned int len);
 
-	inline void client_removeSession(unsigned int sessionId);
+	void client_removeSession(unsigned int sessionId);
 
 	inline KCPClient* getKCPClient();
 
@@ -114,20 +116,32 @@ protected:
 	void clear_burrowData();
 
 	//////////////////////////////////////////////////////////////////////////
-	void sendMsg(unsigned int sessionID, unsigned int msgID, char* data, unsigned int len);
+	// 发送消息
+	void sendMsg(unsigned int msgID, const char* msgContent);
 
-	void try_send_RegisterMsg();
+	// 发送登录消息
+	void send_LoginMeg();
+	// 发送登出消息
+	void send_LogoutMeg();
 
-	void send_RegisterMsg();
+	// 发送注册服务器消息
+	void try_send_RegisterSVRMsg();
+	void send_RegisterSVRMsg();
 
-	void send_WantConnectMsg(unsigned int userId, int password);
-
-	void send_GetUserList(int pageIndex);
-
-	void send_BurrowData(struct sockaddr* addr, unsigned int addrlen);
+	// 发送取消服务器注册消息
+	void send_UnRegisterSVRMsg();
 	
-	void send_ConnectSuccess(unsigned int userId);
+	// 发送想要连接到某个服务器消息
+	void send_WantConnectMsg(unsigned int svrID, const std::string& password, unsigned int port);
 
+	// 发送连接到某个服务器成功消息
+	void send_ConnectSuccess(unsigned int svrID);
+
+	// 发送获取服务器列表
+	void send_GetSVRList(int pageIndex);
+
+	// 发送打洞数据
+	void send_BurrowData(struct sockaddr* addr, unsigned int addrlen);
 	//////////////////////////////////////////////////////////////////////////
 	
 protected:
@@ -139,6 +153,8 @@ protected:
 	void on_client_RecvCallback(Client* client, Session* session, char* data, unsigned int len);
 
 	void on_client_ClientCloseCall(Client* client);
+
+	void on_client_CreatePreSocketCall(KCPClient* client, unsigned int sessionID, unsigned int bindPort);
 
 	void on_server_StartCall(Server* svr, bool issuc);
 
@@ -152,15 +168,23 @@ protected:
 
 
 	/// net
-	void on_net_RegisterResult(void* data, unsigned int len);
+	void on_net_DispatchMsg(Session* session, unsigned int msgID, rapidjson::Document& doc);
 
-	void on_net_UserListResult(void* data, unsigned int len);
+	void on_net_RegisterSVRResult(Session* session, rapidjson::Document& doc);
 
-	void on_net_ConnectResult(void* data, unsigned int len);
+	void on_net_UnRegisterSVRResult(Session* session, rapidjson::Document& doc);
 
-	void on_net_StartBurrow(void* data, unsigned int len);
+	void on_net_LoginResult(Session* session, rapidjson::Document& doc);
 
-	void on_net_StopBurrow(void* data, unsigned int len);
+	void on_net_LogoutResult(Session* session, rapidjson::Document& doc);
+
+	void on_net_UserListResult(Session* session, rapidjson::Document& doc);
+
+	void on_net_ConnectResult(Session* session, rapidjson::Document& doc);
+
+	void on_net_StartBurrow(Session* session, rapidjson::Document& doc);
+
+	void on_net_StopBurrow(Session* session, rapidjson::Document& doc);
 	
 protected:
 	KCPClient* m_client;
@@ -170,26 +194,43 @@ protected:
 	bool m_isConnectP2PSVR;
 	// 本地服务器是否启动成功
 	bool m_svrStartSuccess;
-	std::string m_name;
-	// 本地服务器用户密码
-	int m_password;
-	// 本地服务器用户ID
+	
+	// 用户ID
 	unsigned int m_userID;
+	// 用户令牌
+	unsigned int m_token;
+
+
+	// 服务器密码
+	int m_svrPassword;
+	// 服务器ID
+	unsigned int m_svrID;
+	// 服务器令牌
+	unsigned int m_svrToken;
+	// 服务器名称
+	std::string m_svrName;
 
 	// 中央服务器IP
 	std::string m_centerSVRIP;
 	// 中央服务器端口
 	unsigned int m_centerSVRPort;
 
+	std::vector<P2PMessageInterface_Address> m_intranetIPInfoArr;
+
 	// 连接信息
 	struct ConnectInfoData
 	{
+		enum class ConnectState
+		{
+			CREATE_PRE_SOCKET,	// 创建预制socket
+			WAIT_CENTER_MSG,	// 等待中央服务器消息结果
+			CONNECTING,			// 连接中...
+			CONNECT,			// 已连接
+		};
 		unsigned int userID;// 对方用户ID
-		bool autoConnect;	// 断线是否自动重连
 		int password;		// 对方密码
-		std::string ip;		// 对方IP
-		unsigned int port;	// 对方端口
-		bool isConnect;		// 是否在连接
+		unsigned int bindPort; // 绑定的端口
+		ConnectState state;
 	};
 	std::map<unsigned int, ConnectInfoData> m_connectInfoMap;
 
@@ -234,27 +275,9 @@ unsigned int P2PClient::server_getListenPort()
 	return 0;
 }
 
-void P2PClient::client_disconnect(unsigned int sessionId)
-{
-	assert(P2P_CONNECT_SVR_SESSION_ID != sessionId);
-	m_client->disconnect(sessionId);
-}
-
 void P2PClient::client_closeClient()
 {
 	m_client->closeClient();
-}
-
-void P2PClient::client_send(unsigned int sessionId, char* data, unsigned int len)
-{
-	assert(P2P_CONNECT_SVR_SESSION_ID != sessionId);
-	m_client->send(sessionId, data, len);
-}
-
-void P2PClient::client_removeSession(unsigned int sessionId)
-{
-	assert(P2P_CONNECT_SVR_SESSION_ID != sessionId);
-	m_client->removeSession(sessionId);
 }
 
 void P2PClient::set_client_ConnectCallback(const ClientConnectCall& call)

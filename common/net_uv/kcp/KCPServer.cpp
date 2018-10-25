@@ -403,7 +403,6 @@ void KCPServer::executeOperation()
 		case KCP_SVR_OP_SVR_SOCKET_SEND:
 		{
 			KCPServerSVRSendOperation* opData = (KCPServerSVRSendOperation*)curOperation.operationData;
-			
 			m_server->udpSend((const char*)opData->sendData, curOperation.operationDataLen, (const struct sockaddr*)opData->addrData);
 			
 			fc_free(opData->sendData); 

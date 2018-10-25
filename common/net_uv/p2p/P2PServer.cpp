@@ -10,6 +10,7 @@ P2PServer::P2PServer()
 	, m_userIDSpawn(0)
 {
 	alloc_server();
+	isSameLAN(NULL, NULL);
 }
 
 P2PServer::~P2PServer()
@@ -20,6 +21,11 @@ P2PServer::~P2PServer()
 void P2PServer::startServer(const char* ip, unsigned int port, bool isIPV6/* = false*/)
 {
 	m_server->startServer(ip, port, isIPV6);
+}
+
+void P2PServer::stopServer()
+{
+	m_server->stopServer();
 }
 
 void P2PServer::updateFrame()
@@ -46,8 +52,46 @@ void P2PServer::free_server()
 	if (m_server)
 	{
 		m_server->~KCPServer();
+		fc_free(m_server);
 		m_server = NULL;
 	}
+}
+
+bool P2PServer::isSameLAN(const P2P_SVR_UserInfo* info1, const P2P_SVR_UserInfo* info2)
+{
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+
+	writer.StartObject();               // Between StartObject()/EndObject(),
+	writer.Key("hello");                // output a key,
+	writer.String("world");             // follow by a value.
+	writer.Key("t");
+	writer.Bool(true);
+	writer.Key("f");
+	writer.Bool(false);
+	writer.Key("n");
+	writer.Null();
+	writer.Key("i");
+	writer.Uint(123);
+	writer.Key("pi");
+	writer.Double(3.1416);
+	writer.Key("a");
+	writer.StartArray();                // Between StartArray()/EndArray(),
+	for (unsigned i = 0; i < 4; i++)
+	{
+		std::string strKey = "key";
+		strKey.append(std::to_string(i));
+		writer.StartObject();
+		writer.Key(strKey.c_str());
+		writer.Uint(i);                 // all values are elements of the array.
+		writer.EndObject();
+	}
+	writer.EndArray();
+	writer.EndObject();
+	// {"hello":"world","t":true,"f":false,"n":null,"i":123,"pi":3.1416,"a":[0,1,2,3]}
+	printf("%s\n", s.GetString());
+
+	return true;
 }
 
 void P2PServer::on_server_StartCall(Server* svr, bool issuc)
@@ -129,17 +173,19 @@ void P2PServer::sendMsg(unsigned int sessionID, unsigned int msgID, char* data, 
 
 	if (len > 0)
 	{
-		memcpy(msgData + sizeof(P2PMessageBase), data, len);
+		char* begin = (char*)msgData;
+		memcpy(begin + sizeof(P2PMessageBase), data, len);
 	}
-	m_server->send(sessionID, (char*)msgData, len);
+	m_server->send(sessionID, (char*)msgData, len + sizeof(P2PMessageBase));
 	fc_free(msgData);
 }
 
-void P2PServer::send_RegisterResult(unsigned int sessionID, int code, unsigned int userId)
+void P2PServer::send_RegisterResult(unsigned int sessionID, int code, unsigned int userId, unsigned int token)
 {
 	P2PMessage_S2C_Register_Result data;
 	data.code = code;
 	data.userID = userId;
+	data.token = token;
 	sendMsg(sessionID, P2P_MSG_ID_S2C_REGISTER_RESULT, (char*)&data, sizeof(P2PMessage_S2C_Register_Result));
 }
 
@@ -152,14 +198,14 @@ void P2PServer::send_UserListResult(unsigned int sessionID, int pageIndex, int p
 	}
 
 	int endIndex = beginIndex + pageMaxCount;
-	if (endIndex > m_userList.size() - 1)
+	if (endIndex > m_userList.size())
 	{
-		endIndex = m_userList.size() - 1;
+		endIndex = m_userList.size();
 	}
 
 	int curUserCount = endIndex - beginIndex;
 	const int memSize = sizeof(P2PMessageBase) + sizeof(P2PMessage_S2C_UserList) + sizeof(P2PClientUserInfo) * curUserCount;
-
+	
 	char* data = (char*)fc_malloc(memSize);;
 	memset(data, 0, memSize);
 
@@ -178,10 +224,17 @@ void P2PServer::send_UserListResult(unsigned int sessionID, int pageIndex, int p
 	userList->curUserCount = curUserCount;
 	
 	// P2PClientUserInfo
-	P2PClientUserInfo* userInfoArr = (P2PClientUserInfo*)(data + sizeof(P2PMessage_S2C_UserList));
+	P2PClientUserInfo* userInfoArr = (P2PClientUserInfo*)(data + sizeof(P2PMessageBase) + sizeof(P2PMessage_S2C_UserList));
 
 	if (curUserCount > 0)
 	{
+		P2P_SVR_UserInfo* sessionUserInfo = NULL;
+		auto session_it = m_userList.find(sessionID);
+		if (session_it != m_userList.end())
+		{
+			sessionUserInfo = &session_it->second;
+		}
+
 		int curIndex = 0;
 		for (auto it : m_userList)
 		{
@@ -193,6 +246,8 @@ void P2PServer::send_UserListResult(unsigned int sessionID, int pageIndex, int p
 				}
 				userInfoArr[curIndex - beginIndex].hasPassword = (it.second.passworld != 0);
 				userInfoArr[curIndex - beginIndex].userID = it.second.userID;
+				userInfoArr[curIndex - beginIndex].sameLAN = isSameLAN(sessionUserInfo, &it.second);
+
 				strcpy(userInfoArr[curIndex - beginIndex].szName, it.second.szName.c_str());
 			}
 			curIndex++;
@@ -243,14 +298,15 @@ void P2PServer::send_StopBurrow(unsigned int sessionID, const std::string& ip, u
 //////////////////////////////////////////////////////////////////////////
 void P2PServer::on_net_RegisterRequest(Session* session, void* data, unsigned int len)
 {
-	P2P_SVR_MSG_LEN_CHECK(P2PMessage_C2S_Register);
+	if (len < sizeof(P2PMessage_C2S_Register))
+		return;
 	
 	P2PMessage_C2S_Register* Msg = (P2PMessage_C2S_Register*)data;
 
-	if (Msg->szName[P2P_CLIENT_USER_NAME_MAX_LEN - 1] != '0' || strlen(Msg->szName) <= 0)
+	if (strlen(Msg->szName) >= P2P_CLIENT_USER_NAME_MAX_LEN || strlen(Msg->szName) <= 0)
 	{
 		// 名称非法
-		send_RegisterResult(session->getSessionID(), 2, 0);
+		send_RegisterResult(session->getSessionID(), 2, 0, 0);
 		return;
 	}
 
@@ -266,21 +322,30 @@ void P2PServer::on_net_RegisterRequest(Session* session, void* data, unsigned in
 			}
 		}
 
-		if (it != m_userList.end() && !it->second.isOnline)
+		// 断线重连
+		if (it != m_userList.end() && it->second.token == Msg->token)
 		{
 			auto userData = it->second;
 			m_userList.erase(it);
 
 			userData.isOnline = true;
+			userData.overdueTime = 0;
 			userData.passworld = Msg->password;
 			userData.port = Msg->port;
 			userData.szName = Msg->szName;
 			userData.szIP = session->getIp();
-			userData.overdueTime = 0;
+			userData.token = net_getBufHash(&userData, sizeof(userData));
+
+			userData.interfaceAddress.clear();
+			P2PMessageInterface_Address* pAddress = (P2PMessageInterface_Address*)(&Msg[1]);
+			for (int i = 0; i < Msg->intranet_IP_Count; ++i)
+			{
+				userData.interfaceAddress.push_back(pAddress[i]);
+			}
 
 			m_userList.insert(std::make_pair(session->getSessionID(), userData));
 			// 注册成功
-			send_RegisterResult(session->getSessionID(), 0, userData.userID);
+			send_RegisterResult(session->getSessionID(), 0, userData.userID, userData.token);
 			return;
 		}
 	}
@@ -289,8 +354,8 @@ void P2PServer::on_net_RegisterRequest(Session* session, void* data, unsigned in
 	{
 		if (strcmp(it->second.szName.c_str(), Msg->szName) == 0)
 		{			
-			// 名称重复成功
-			send_RegisterResult(session->getSessionID(), 1, 0);
+			// 名称重复
+			send_RegisterResult(session->getSessionID(), 1, 0, 0);
 			return;
 		}
 	}
@@ -303,11 +368,19 @@ void P2PServer::on_net_RegisterRequest(Session* session, void* data, unsigned in
 	userData.szIP = session->getIp();
 	userData.szName = Msg->szName;
 	userData.userID = createNewUserID();
+	userData.token = net_getBufHash(&userData, sizeof(userData));
+
+	userData.interfaceAddress.clear();
+	P2PMessageInterface_Address* pAddress = (P2PMessageInterface_Address*)(&Msg[1]);
+	for (int i = 0; i < Msg->intranet_IP_Count; ++i)
+	{
+		userData.interfaceAddress.push_back(pAddress[i]);
+	}
 
 	m_userList.insert(std::make_pair(session->getSessionID(), userData));
 
 	// 注册成功
-	send_RegisterResult(session->getSessionID(), 0, userData.userID);
+	send_RegisterResult(session->getSessionID(), 0, userData.userID, 0);
 }
 
 void P2PServer::on_net_LogoutRequest(Session* session, void* data, unsigned int len)
@@ -352,7 +425,7 @@ void P2PServer::on_net_ConnectRequest(Session* session, void* data, unsigned int
 	P2P_SVR_MSG_LEN_CHECK(P2PMessage_C2S_WantToConnect);
 
 	P2PMessage_C2S_WantToConnect* Msg = (P2PMessage_C2S_WantToConnect*)data;
-	
+
 	for (auto it : m_userList)
 	{
 		if (it.second.userID == Msg->userID)
@@ -360,9 +433,9 @@ void P2PServer::on_net_ConnectRequest(Session* session, void* data, unsigned int
 			if (it.second.isOnline)
 			{
 				// 开始打洞指令
-				send_StartBurrow(session->getSessionID(), session->getIp(), session->getPort(), false);
+				send_StartBurrow(it.first, "192.168.199.179"/*session->getIp()*/, Msg->port, false);
 				// 返回连接请求
-				send_ConnectResult(session->getSessionID(), 0, Msg->userID, it.second.port, it.second.szIP);
+				send_ConnectResult(session->getSessionID(), 0, Msg->userID, it.second.port, "192.168.199.179"/*it.second.szIP*/);
 			}
 			else
 			{
@@ -383,13 +456,13 @@ void P2PServer::on_net_ConnectSuccessRequest(Session* session, void* data, unsig
 
 	P2PMessage_C2S_ConnectSuccess* Msg = (P2PMessage_C2S_ConnectSuccess*)data;
 	
-	for (auto& it : m_userList)
-	{
-		if (it.second.userID == Msg->userID)
-		{
-			send_StopBurrow(it.first, session->getIp(), session->getPort());
-		}
-	}
+	//for (auto& it : m_userList)
+	//{
+	//	if (it.second.userID == Msg->userID)
+	//	{
+	//		send_StopBurrow(it.first, session->getIp(), session->getPort());
+	//	}
+	//}
 }
 
 NS_NET_UV_END

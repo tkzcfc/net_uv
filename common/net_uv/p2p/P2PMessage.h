@@ -8,23 +8,27 @@ enum P2PMessageType : unsigned int
 {
 	P2P_MSG_ID_BEGIN,
 	
-	P2P_MSG_ID_C2S_REGISTER,		// P2PClient向中央服务器发送注册请求
-	P2P_MSG_ID_S2C_REGISTER_RESULT,	// P2PClient注册结果
+	P2P_MSG_ID_C2S_REGISTER_SVR,			// 向中央服务器发送注册服务器请求
+	P2P_MSG_ID_S2C_REGISTER_SVR_RESULT,		// 注册结果
 
-	P2P_MSG_ID_C2S_LOGOUT,			// P2PClient向中央服务器发送登出请求
-	P2P_MSG_ID_S2C_LOGOUT_RESULT,	// P2PClient登出结果
+	P2P_MSG_ID_C2S_UN_REGISTER_SVR,			// 向中央服务器发送取消注册服务器请求
+	P2P_MSG_ID_S2C_UN_REGISTER_SVR_RESULT,	// 取消注册结果
 
-	P2P_MSG_ID_C2S_GET_USER_LIST,	// P2PClient向中央服务器请求用户列表
-	P2P_MSG_ID_S2C_USER_LIST,		// 中央服务器向P2PClient推送用户列表
+	P2P_MSG_ID_C2S_LOGIN,					// 向中央服务器发送登录请求
+	P2P_MSG_ID_S2C_LOGIN_RESULT,			// 登录结果
 
-	P2P_MSG_ID_C2S_WANT_TO_CONNECT, // P2PClient向中央服务器发送想要连接到某个连接请求
-	P2P_MSG_ID_S2C_WANT_TO_CONNECT_RESULT, //请求返回
-	P2P_MSG_ID_C2S_CONNECT_SUCCESS, // P2PClient告诉中央服务器已经连接成功
+	P2P_MSG_ID_C2S_LOGOUT,					// 向中央服务器发送登出请求
+	P2P_MSG_ID_S2C_LOGOUT_RESULT,			// 登出结果
 
-	P2P_MSG_ID_S2C_START_BURROW,	// 中央服务器向某个P2PClient发送开始打洞指令
-	P2P_MSG_ID_S2C_STOP_BURROW,	// 中央服务器向某个P2PClient发送停止打洞指令
+	P2P_MSG_ID_C2S_GET_SVR_LIST,			// 向中央服务器请求服务器列表
+	P2P_MSG_ID_S2C_SVR_LIST,				// 推送服务器列表
 
-	P2P_MSG_ID_C2C_SONME_DATA,		// 打洞数据
+	P2P_MSG_ID_C2S_WANT_TO_CONNECT,			// 向中央服务器发送想要连接到某个服务器请求
+	P2P_MSG_ID_S2C_WANT_TO_CONNECT_RESULT,	// 请求返回
+	P2P_MSG_ID_C2S_CONNECT_SUCCESS,			// 告诉中央服务器已经连接成功
+
+	P2P_MSG_ID_S2C_START_BURROW,			// 中央服务器向某个服务器发送开始打洞指令
+	P2P_MSG_ID_S2C_STOP_BURROW,				// 中央服务器向某个服务器发送停止打洞指令
 
 	P2P_MSG_ID_END
 };
@@ -37,46 +41,56 @@ struct P2PMessageBase
 
 //////////////////////////////////////////////////////////////////////////
 #define P2P_IP_MAX_LEN NET_UV_INET6_ADDRSTRLEN
-#define P2P_CLIENT_USER_NAME_MAX_LEN 128
+#define P2P_CLIENT_USER_NAME_MAX_LEN 32
 
 // 用户信息
 struct P2PClientUserInfo
 {
-	P2PClientUserInfo()
-	{
-		memset(szName, P2P_CLIENT_USER_NAME_MAX_LEN, 0);
-	}
 	// ID
 	unsigned int userID;
 
+	// 是否需要密码
+	bool hasPassword;
+
+	// 是否处于同一局域网内
+	bool sameLAN;
+
 	// 名称
 	char szName[P2P_CLIENT_USER_NAME_MAX_LEN];
-
-	// 是否需要密码
-	bool hasPassword;								
 };
 
+// 内网IP信息
+struct P2PMessageInterface_Address
+{
+	char szIP[P2P_IP_MAX_LEN];		// IP
+	char szMask[P2P_IP_MAX_LEN];	// 子网掩码
+};
 
 //////////////////////////////////////////////////////////////////////////
 
 struct P2PMessage_C2S_Register
 {
-	P2PMessage_C2S_Register()
-	{
-		memset(szName, 0, P2P_CLIENT_USER_NAME_MAX_LEN);
-	}
 	// P2PClient 监听端口
 	unsigned int port;	
-
-	// 用户名
-	char szName[P2P_CLIENT_USER_NAME_MAX_LEN];
 
 	// 用户ID，0表示由服务器分配，其他则表示断线重连
 	// 如果服务器确认该断线重连有效则返回此ID，否则服务器重新分配一个新的ID
 	unsigned int userID;
 
 	// 进入密码，如果为0则表明不需要密码
-	int password;		 
+	int password;
+
+	// 令牌
+	unsigned int token;
+
+	// 用户名
+	char szName[P2P_CLIENT_USER_NAME_MAX_LEN];
+
+	// 内网IP个数
+	unsigned int intranet_IP_Count;
+
+	// 自己内网IP
+	// P2PMessageInterface_Address[intranet_IP_Count]
 };
 
 struct P2PMessage_S2C_Register_Result
@@ -86,6 +100,9 @@ struct P2PMessage_S2C_Register_Result
 
 	// 用户ID
 	unsigned int userID;
+
+	// 令牌
+	unsigned int token;
 };
 
 struct P2PMessage_C2S_GetUserList
@@ -114,6 +131,15 @@ struct P2PMessage_C2S_WantToConnect
 
 	// 连接密码
 	int password;
+
+	// 端口
+	unsigned int port;
+
+	// 内网IP个数
+	unsigned int intranet_IP_Count;
+
+	// 自己内网IP
+	// P2PMessageInterface_Address[intranet_IP_Count]
 };
 
 struct P2PMessage_C2S_WantToConnectResult

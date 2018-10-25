@@ -94,6 +94,7 @@ unsigned int KCPSocket::bind(const char* ip, unsigned int port)
 	{
 		return 0;
 	}
+	net_adjustBuffSize((uv_handle_t*)m_udp, KCP_UV_SOCKET_RECV_BUF_LEN, KCP_UV_SOCKET_SEND_BUF_LEN);
 
 	if (port == 0)
 	{
@@ -132,6 +133,7 @@ unsigned int KCPSocket::bind6(const char* ip, unsigned int port)
 	{
 		return 0;
 	}
+	net_adjustBuffSize((uv_handle_t*)m_udp, KCP_UV_SOCKET_RECV_BUF_LEN, KCP_UV_SOCKET_SEND_BUF_LEN);
 
 	if (port == 0)
 	{
@@ -148,10 +150,12 @@ bool KCPSocket::listen()
 	if (m_udp == NULL)
 		return false;
 
-	net_adjustBuffSize((uv_handle_t*)m_udp, KCP_UV_SOCKET_RECV_BUF_LEN, KCP_UV_SOCKET_SEND_BUF_LEN);
-
 	int r = uv_udp_recv_start(m_udp, uv_on_alloc_buffer, uv_on_after_read);
-	CHECK_UV_ASSERT(r);
+	if (r != 0)
+	{
+		NET_UV_LOG(NET_UV_L_ERROR, "uv_udp_recv_start error: %s", net_getUVError(r).c_str());
+		return false;
+	}
 
 	m_kcpState = State::LISTEN;
 
@@ -196,9 +200,13 @@ bool KCPSocket::connect(const char* ip, unsigned int port)
 		//CHECK_UV_ASSERT(r);
 
 		net_adjustBuffSize((uv_handle_t*)m_udp, KCP_UV_SOCKET_RECV_BUF_LEN, KCP_UV_SOCKET_SEND_BUF_LEN);
+	}
 
-		r = uv_udp_recv_start(m_udp, uv_on_alloc_buffer, uv_on_after_read);
-		CHECK_UV_ASSERT(r);
+	int r = uv_udp_recv_start(m_udp, uv_on_alloc_buffer, uv_on_after_read);
+	if (r != 0)
+	{
+		NET_UV_LOG(NET_UV_L_ERROR, "uv_udp_recv_start error: %s", net_getUVError(r).c_str());
+		return false;
 	}
 
 	m_kcpState = State::WAIT_CONNECT;
@@ -413,7 +421,7 @@ void KCPSocket::socketUpdate(IUINT32 clock)
 	}
 }
 
-void KCPSocket::shutdownSocket()
+void KCPSocket::shutdownSocket(bool isCallClose)
 {
 	m_first_send_connect_msg_time = 0;
 	m_last_send_connect_msg_time = 0;
@@ -426,7 +434,14 @@ void KCPSocket::shutdownSocket()
 		return;
 	}
 	uv_udp_recv_stop(m_udp);
-	net_closeHandle((uv_handle_t*)m_udp, uv_on_close_socket);
+	if (!isCallClose)
+	{
+		net_closeHandle((uv_handle_t*)m_udp, net_closehandle_defaultcallback);
+	}
+	else
+	{
+		net_closeHandle((uv_handle_t*)m_udp, uv_on_close_socket);
+	}
 	m_udp = NULL;
 
 	stopIdle();
@@ -491,9 +506,9 @@ void KCPSocket::kcpInput(const char* data, long size)
 {
 	if (size <= 0)
 		return;
-
+	
 	m_last_kcp_packet_recv_time = m_last_update_time;
-	m_firstSendSucTag = true;
+	
 	ikcp_input(m_kcp, data, size);
 
 	int kcp_recvd_bytes = 0;
@@ -604,7 +619,7 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			this->setSocketAddr(addr);
 
 			// 向新端口发送数据
-			doSendConnectMsgPack(m_last_update_time);
+			doSendConnectMsgPack(iclock());
 
 			setConv(conv);
 		}
@@ -646,6 +661,7 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			setConv(conv);
 			initKcp(conv);
 			connectResult(1);
+			return;
 		}
 	}
 	else if (kcp_is_svr_send_back_conv_packet(buf->base, nread)) 
@@ -661,6 +677,7 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			}
 			initKcp(conv);
 			connectResult(1);
+			return;
 		}
 	}
 	// 连接请求，客户端不进行处理，该消息可用于内网打洞，不影响kcpinput
@@ -672,6 +689,11 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 		{
 			kcpInput(buf->base, nread);
 		}
+	}
+
+	if (m_kcpState == State::CONNECT)
+	{
+		m_firstSendSucTag = true;
 	}
 }
 
@@ -710,6 +732,7 @@ void KCPSocket::doSendConnectMsgPack(IUINT32 clock)
 void KCPSocket::doConnectTimeout()
 {
 	stopIdle();
+	shutdownSocket(false);
 	connectResult(2);
 }
 

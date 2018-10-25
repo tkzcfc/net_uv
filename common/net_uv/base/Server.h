@@ -9,11 +9,11 @@
 NS_NET_UV_BEGIN
 
 class Server;
-using ServerStartCall = std::function<void(Server*, bool)>;
-using ServerCloseCall = std::function<void(Server*)>;
-using ServerNewConnectCall = std::function<void(Server*, Session*)>;
-using ServerRecvCall = std::function<void(Server*, Session*, char* data, unsigned int len)>;
-using ServerDisconnectCall = std::function<void(Server*, Session*)>;
+using ServerStartCall = std::function<void(Server* svr, bool suc)>;
+using ServerCloseCall = std::function<void(Server* svr)>;
+using ServerNewConnectCall = std::function<void(Server* svr, Session* session)>;
+using ServerRecvCall = std::function<void(Server* svr, Session* session, char* data, unsigned int len)>;
+using ServerDisconnectCall = std::function<void(Server* svr, Session* session)>;
 
 //服务器所处阶段
 enum class ServerStage

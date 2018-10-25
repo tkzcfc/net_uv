@@ -7,14 +7,16 @@ NS_NET_UV_BEGIN
 
 struct P2P_SVR_UserInfo
 {
-	unsigned int userID;
-	std::string szName;
-	std::string szIP;
-	unsigned int port;
-	int passworld;
-	bool isOnline;
-	// 过期时间
-	IUINT32 overdueTime;
+	unsigned int userID; // 用户ID
+	std::string szName;	//用户名
+	std::string szIP;	//公网IP地址
+	std::string szIntranetIP;//内网IP地址
+	unsigned int port;	// 监听端口号
+	int passworld;		// 连接密码
+	bool isOnline;		// 是否在线
+	unsigned int token;	// 令牌
+	IUINT32 overdueTime;// 过期时间
+	std::vector<P2PMessageInterface_Address> interfaceAddress; // 内网地址信息
 };
 
 class P2PServer
@@ -27,6 +29,8 @@ public:
 	virtual ~P2PServer();
 
 	void startServer(const char* ip, unsigned int port, bool isIPV6 = false);
+
+	void stopServer();
 
 	void updateFrame();
 
@@ -42,8 +46,11 @@ protected:
 
 	inline unsigned int createNewUserID();
 
+	bool isSameLAN(const P2P_SVR_UserInfo* info1, const P2P_SVR_UserInfo* info2);
+
 protected:
 
+	// svr
 	void on_server_StartCall(Server* svr, bool issuc);
 
 	void on_server_CloseCall(Server* svr);
@@ -54,10 +61,10 @@ protected:
 
 	void on_server_DisconnectCall(Server* svr, Session* session);
 
-
+	// send
 	void sendMsg(unsigned int sessionID, unsigned int msgID, char* data, unsigned int len);
 
-	void send_RegisterResult(unsigned int sessionID, int code, unsigned int userId);
+	void send_RegisterResult(unsigned int sessionID, int code, unsigned int userId, unsigned int token);
 
 	void send_UserListResult(unsigned int sessionID, int pageIndex, int pageMaxCount);
 
