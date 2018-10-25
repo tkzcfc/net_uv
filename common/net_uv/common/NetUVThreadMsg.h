@@ -28,7 +28,7 @@ struct NetThreadMsg
 	NetThreadMsgType msgType;
 	Session* pSession;
 	char* data;
-	unsigned int dataLen;
+	uint32_t dataLen;
 };
 
 NS_NET_UV_END

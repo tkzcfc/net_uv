@@ -15,10 +15,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kcpClient", "kcpClient\kcpC
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kcpControl", "kcpControl\kcpControl.vcxproj", "{056D11A8-B3C7-4897-8A43-02667F78A53F}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "p2pServer", "p2pServer\p2pServer.vcxproj", "{851D0373-2600-4D10-82D5-948AD6E0C2B6}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "p2pClient", "p2pClient\p2pClient.vcxproj", "{80F610C2-DB04-4A14-BD21-AB40C88E6C38}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -75,22 +71,6 @@ Global
 		{056D11A8-B3C7-4897-8A43-02667F78A53F}.Release|x64.Build.0 = Release|x64
 		{056D11A8-B3C7-4897-8A43-02667F78A53F}.Release|x86.ActiveCfg = Release|Win32
 		{056D11A8-B3C7-4897-8A43-02667F78A53F}.Release|x86.Build.0 = Release|Win32
-		{851D0373-2600-4D10-82D5-948AD6E0C2B6}.Debug|x64.ActiveCfg = Debug|x64
-		{851D0373-2600-4D10-82D5-948AD6E0C2B6}.Debug|x64.Build.0 = Debug|x64
-		{851D0373-2600-4D10-82D5-948AD6E0C2B6}.Debug|x86.ActiveCfg = Debug|Win32
-		{851D0373-2600-4D10-82D5-948AD6E0C2B6}.Debug|x86.Build.0 = Debug|Win32
-		{851D0373-2600-4D10-82D5-948AD6E0C2B6}.Release|x64.ActiveCfg = Release|x64
-		{851D0373-2600-4D10-82D5-948AD6E0C2B6}.Release|x64.Build.0 = Release|x64
-		{851D0373-2600-4D10-82D5-948AD6E0C2B6}.Release|x86.ActiveCfg = Release|Win32
-		{851D0373-2600-4D10-82D5-948AD6E0C2B6}.Release|x86.Build.0 = Release|Win32
-		{80F610C2-DB04-4A14-BD21-AB40C88E6C38}.Debug|x64.ActiveCfg = Debug|x64
-		{80F610C2-DB04-4A14-BD21-AB40C88E6C38}.Debug|x64.Build.0 = Debug|x64
-		{80F610C2-DB04-4A14-BD21-AB40C88E6C38}.Debug|x86.ActiveCfg = Debug|Win32
-		{80F610C2-DB04-4A14-BD21-AB40C88E6C38}.Debug|x86.Build.0 = Debug|Win32
-		{80F610C2-DB04-4A14-BD21-AB40C88E6C38}.Release|x64.ActiveCfg = Release|x64
-		{80F610C2-DB04-4A14-BD21-AB40C88E6C38}.Release|x64.Build.0 = Release|x64
-		{80F610C2-DB04-4A14-BD21-AB40C88E6C38}.Release|x86.ActiveCfg = Release|Win32
-		{80F610C2-DB04-4A14-BD21-AB40C88E6C38}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

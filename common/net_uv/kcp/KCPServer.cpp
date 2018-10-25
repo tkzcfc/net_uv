@@ -38,7 +38,7 @@ KCPServer::~KCPServer()
 	NET_UV_LOG(NET_UV_L_INFO, "KCPServer destroy...");
 }
 
-void KCPServer::startServer(const char* ip, unsigned int port, bool isIPV6)
+void KCPServer::startServer(const char* ip, uint32_t port, bool isIPV6)
 {
 	if (m_serverStage != ServerStage::STOP)
 		return;
@@ -132,31 +132,31 @@ void KCPServer::updateFrame()
 	}
 }
 
-void KCPServer::send(unsigned int sessionID, char* data, unsigned int len)
+void KCPServer::send(uint32_t sessionID, char* data, uint32_t len)
 {
-	int bufCount = 0;
+	int32_t bufCount = 0;
 
 	uv_buf_t* bufArr = kcp_packageData(data, len, &bufCount);
 
 	if (bufArr == NULL)
 		return;
 
-	for (int i = 0; i < bufCount; ++i)
+	for (int32_t i = 0; i < bufCount; ++i)
 	{
 		pushOperation(KCP_SVR_OP_SEND_DATA, (bufArr + i)->base, (bufArr + i)->len, sessionID);
 	}
 	fc_free(bufArr);
 }
 
-void KCPServer::disconnect(unsigned int sessionID)
+void KCPServer::disconnect(uint32_t sessionID)
 {
 	pushOperation(KCP_SVR_OP_DIS_SESSION, NULL, 0, sessionID);
 }
 
 /// KCPServer
-bool KCPServer::svrUdpSend(const char* ip, unsigned int port, bool isIPV6, char* data, unsigned int len)
+bool KCPServer::svrUdpSend(const char* ip, uint32_t port, bool isIPV6, char* data, uint32_t len)
 {
-	unsigned int addrlen;
+	uint32_t addrlen;
 	struct sockaddr* addr = net_getsocketAddr_no(ip, port, isIPV6, &addrlen);
 
 	if (addr == NULL)
@@ -169,7 +169,7 @@ bool KCPServer::svrUdpSend(const char* ip, unsigned int port, bool isIPV6, char*
 	return ret;
 }
 
-bool KCPServer::svrUdpSend(struct sockaddr* addr, unsigned int addrlen, char* data, unsigned int len)
+bool KCPServer::svrUdpSend(struct sockaddr* addr, uint32_t addrlen, char* data, uint32_t len)
 {
 	if (addr == NULL || data == NULL || len <= 0)
 		return false;
@@ -190,7 +190,7 @@ bool KCPServer::svrUdpSend(struct sockaddr* addr, unsigned int addrlen, char* da
 
 void KCPServer::run()
 {
-	int r = uv_loop_init(&m_loop);
+	int32_t r = uv_loop_init(&m_loop);
 	CHECK_UV_ASSERT(r);
 
 	startIdle();
@@ -208,7 +208,7 @@ void KCPServer::run()
 	m_server->setNewConnectionCallback(std::bind(&KCPServer::onNewConnect, this, std::placeholders::_1));
 	m_server->setConnectFilterCallback(std::bind(&KCPServer::onServerSocketConnectFilter, this, std::placeholders::_1));
 
-	unsigned int outPort = 0;
+	uint32_t outPort = 0;
 	if (m_isIPV6)
 	{
 		outPort = m_server->bind6(m_ip.c_str(), m_port);
@@ -326,7 +326,7 @@ void KCPServer::onSessionClose(Session* session)
 	}
 }
 
-void KCPServer::onSessionRecvData(Session* session, char* data, unsigned int len)
+void KCPServer::onSessionRecvData(Session* session, char* data, uint32_t len)
 {
 	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len);
 }

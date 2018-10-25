@@ -10,9 +10,9 @@ NS_NET_UV_BEGIN
 class Client;
 class Session;
 
-using ClientConnectCall = std::function<void(Client* client, Session* session, int status)>; // 0失败 1成功 2超时
+using ClientConnectCall = std::function<void(Client* client, Session* session, int32_t status)>; // 0失败 1成功 2超时
 using ClientDisconnectCall = std::function<void(Client* client, Session* session)>;
-using ClientRecvCall = std::function<void(Client* client, Session* session, char* data, unsigned int len)>;
+using ClientRecvCall = std::function<void(Client* client, Session* session, char* data, uint32_t len)>;
 using ClientCloseCall = std::function<void(Client* client)>;
 using ClientRemoveSessionCall = std::function<void(Client* client, Session* session)>;
 
@@ -41,13 +41,13 @@ public:
 
 	virtual ~Client();
 
-	virtual void connect(const char* ip, unsigned int port, unsigned int sessionId) = 0;
+	virtual void connect(const char* ip, uint32_t port, uint32_t sessionId) = 0;
 
 	virtual void closeClient() = 0;
 
 	virtual void updateFrame() = 0;
 
-	virtual void removeSession(unsigned int sessionId) = 0;
+	virtual void removeSession(uint32_t sessionId) = 0;
 
 	virtual bool isCloseFinish();
 
@@ -72,11 +72,11 @@ protected:
 
 	void stopIdle();
 
-	void startSessionUpdate(unsigned int time);
+	void startSessionUpdate(uint32_t time);
 
 	void stopSessionUpdate();
 
-	virtual void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0);
+	virtual void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, uint32_t len = 0);
 
 protected:
 	static void uv_on_idle_run(uv_idle_t* handle);

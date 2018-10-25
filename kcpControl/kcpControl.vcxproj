@@ -196,8 +196,6 @@
     <ClCompile Include="..\common\net_uv\kcp\KCPSocket.cpp" />
     <ClCompile Include="..\common\net_uv\kcp\KCPSocketManager.cpp" />
     <ClCompile Include="..\common\net_uv\kcp\KCPUtils.cpp" />
-    <ClCompile Include="..\common\net_uv\p2p\P2PClient.cpp" />
-    <ClCompile Include="..\common\net_uv\p2p\P2PServer.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPClient.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPSession.cpp" />
@@ -258,10 +256,6 @@
     <ClInclude Include="..\common\net_uv\kcp\KCPSocketManager.h" />
     <ClInclude Include="..\common\net_uv\kcp\KCPUtils.h" />
     <ClInclude Include="..\common\net_uv\net_uv.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PClient.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PServer.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPClient.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPCommon.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h" />

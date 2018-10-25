@@ -14,14 +14,14 @@ LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
 #define CONNECT_PORT 1002
 
 bool autosend = true;
-unsigned int keyIndex = 0;
+uint32_t keyIndex = 0;
 char *szWriteBuf = new char[1024];
 
 bool clientClose = false;
 
 
 // 命令解析
-bool cmdResolve(char* cmd, unsigned int key);
+bool cmdResolve(char* cmd, uint32_t key);
 
 KCPClient* client = new KCPClient();
 
@@ -38,7 +38,7 @@ void main()
 		printf("客户端已关闭\n");
 	});
 
-	client->setConnectCallback([=](Client*, Session* session, int status)
+	client->setConnectCallback([=](Client*, Session* session, int32_t status)
 	{
 		if (status == 0)
 		{
@@ -63,7 +63,7 @@ void main()
 		printf("[%d]删除连接\n", session->getSessionID());
 	});
 
-	client->setRecvCallback([](Client*, Session* session, char* data, unsigned int len)
+	client->setRecvCallback([](Client*, Session* session, char* data, uint32_t len)
 	{
 		char* msg = (char*)fc_malloc(len + 1);
 		memcpy(msg, data, len);
@@ -91,12 +91,12 @@ void main()
 		}
 	});
 
-	for (int i = 0; i < 10; ++i)
+	for (int32_t i = 0; i < 10; ++i)
 	{
 		client->connect(CONNECT_IP, CONNECT_PORT, keyIndex++);
 	}
 
-	int curCount = 0;
+	int32_t curCount = 0;
 	while (!clientClose)
 	{
 		client->updateFrame();
@@ -107,10 +107,10 @@ void main()
 			curCount++;
 			if (curCount > 200)
 			{
-				for (int i = 0; i < keyIndex; ++i)
+				for (int32_t i = 0; i < keyIndex; ++i)
 				{
 					sprintf(szWriteBuf, "this is %d send data...", i);
-					client->send(i, szWriteBuf, (unsigned int)strlen(szWriteBuf));
+					client->send(i, szWriteBuf, (uint32_t)strlen(szWriteBuf));
 				}
 				curCount = 0;
 			}
@@ -129,7 +129,7 @@ void main()
 
 #define CMD_STRCMP(v) (strcmp(cmd, v) == 0)
 
-bool cmdResolve(char* cmd, unsigned int key)
+bool cmdResolve(char* cmd, uint32_t key)
 {
 	if (CMD_STRCMP("print"))
 	{
@@ -139,7 +139,7 @@ bool cmdResolve(char* cmd, unsigned int key)
 	else if (CMD_STRCMP("dis"))
 	{
 		//断开连接
-		for (int i = 0; i < keyIndex; ++i)
+		for (int32_t i = 0; i < keyIndex; ++i)
 		{
 			client->disconnect(i);
 		}
@@ -167,14 +167,14 @@ bool cmdResolve(char* cmd, unsigned int key)
 	}
 	else if (CMD_STRCMP("big"))
 	{
-		int msgLen = KCP_WRITE_MAX_LEN * 100 * 4;
+		int32_t msgLen = KCP_WRITE_MAX_LEN * 100 * 4;
 		char* szMsg = (char*)fc_malloc(msgLen);
-		for (int i = 0; i < msgLen; ++i)
+		for (int32_t i = 0; i < msgLen; ++i)
 		{
 			szMsg[i] = 'A';
 		}
 		szMsg[msgLen - 1] = '\0';
-		client->send(key, szMsg, (unsigned int)strlen(szMsg));
+		client->send(key, szMsg, (uint32_t)strlen(szMsg));
 		fc_free(szMsg);
 	}
 	else

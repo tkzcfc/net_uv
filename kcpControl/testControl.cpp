@@ -27,9 +27,9 @@ char *szWriteBuf = new char[1024];
 
 bool exitloop = false;
 
-unsigned int control_key = 0;
+uint32_t control_key = 0;
 
-void myPrintLog(int level, const char* log)
+void myPrintLog(int32_t level, const char* log)
 {
 	if (level > NET_UV_L_HEART)
 	{
@@ -59,7 +59,7 @@ void main()
 		printf("客户端已关闭\n");
 		exitloop = true;
 	});
-	instance->setConnectCallback([=](Client*, Session* session, int status) {
+	instance->setConnectCallback([=](Client*, Session* session, int32_t status) {
 		if (status == 0)
 		{
 			printf("[%d]连接失败\n", session->getSessionID());
@@ -76,7 +76,7 @@ void main()
 	instance->setDisconnectCallback([](Client*, Session* session) {
 		printf("[%d]断开连接\n", session->getSessionID());
 	});
-	instance->setRecvCallback([](Client*, Session* session, char* data, unsigned int len)
+	instance->setRecvCallback([](Client*, Session* session, char* data, uint32_t len)
 	{
 		char* msg = (char*)fc_malloc(len + 1);
 		memcpy(msg, data, len);

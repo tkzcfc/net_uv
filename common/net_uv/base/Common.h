@@ -11,6 +11,7 @@
 #include <functional>
 #include <assert.h>
 #include "uv.h"
+#include <stdint.h>
 
 
 NS_NET_UV_BEGIN
@@ -23,7 +24,7 @@ NS_NET_UV_BEGIN
 
 #define fc_malloc(len) fc_malloc_s(len, __FILE__, __LINE__)
 
-void* fc_malloc_s(unsigned int len, const char* file, int line);
+void* fc_malloc_s(uint32_t len, const char* file, int32_t line);
 void fc_free(void* p);
 
 //打印内存信息
@@ -58,9 +59,9 @@ void printMemInfo();
 #endif
 
 //日志输出
-void net_uvLog(int level, const char* format, ...);
+void net_uvLog(int32_t level, const char* format, ...);
 
 //设置日志输出函数
-void setNetUVLogPrintFunc(void(*func)(int, const char*));
+void setNetUVLogPrintFunc(void(*func)(int32_t, const char*));
 
 NS_NET_UV_END

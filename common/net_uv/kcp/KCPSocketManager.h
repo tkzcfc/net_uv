@@ -25,15 +25,15 @@ public:
 
 	inline KCPSocket* getOwner();
 
-	int isContain(const struct sockaddr* addr);
+	int32_t isContain(const struct sockaddr* addr);
 
-	inline int getAwaitConnectCount();
+	inline int32_t getAwaitConnectCount();
 
 protected:
 
 	void idleRun();
 
-	void on_socket_connect(Socket* socket, int status);
+	void on_socket_connect(Socket* socket, int32_t status);
 
 	void on_socket_close(Socket* socket);
 
@@ -79,7 +79,7 @@ KCPSocket* KCPSocketManager::getOwner()
 	return m_owner;
 }
 
-int KCPSocketManager::getAwaitConnectCount()
+int32_t KCPSocketManager::getAwaitConnectCount()
 {
 	return (int)m_allAwaitConnectSocket.size();
 }

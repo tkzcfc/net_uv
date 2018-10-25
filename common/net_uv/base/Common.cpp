@@ -7,7 +7,7 @@
 
 NS_NET_UV_BEGIN
 
-typedef void(*uvOutputLoggerType)(int, const char*);
+typedef void(*uvOutputLoggerType)(int32_t, const char*);
 uvOutputLoggerType uvOutputLogger = 0;
 
 
@@ -20,7 +20,7 @@ static const char* net_uv_log_name[NET_UV_L_FATAL + 1] =
 	"FATAL"
 };
 
-void net_uvLog(int level, const char* format, ...)
+void net_uvLog(int32_t level, const char* format, ...)
 {
 	if (level < NET_UV_L_MIN_LEVEL)
 	{
@@ -56,7 +56,7 @@ void net_uvLog(int level, const char* format, ...)
 	//printf("\n");
 }
 
-void setNetUVLogPrintFunc(void(*func)(int, const char*))
+void setNetUVLogPrintFunc(void(*func)(int32_t, const char*))
 {
 	uvOutputLogger = func;
 }
@@ -68,16 +68,16 @@ void setNetUVLogPrintFunc(void(*func)(int, const char*))
 #if OPEN_NET_MEM_CHECK == 1
 struct mallocBlockInfo
 {
-	unsigned int len;
+	uint32_t len;
 	std::string file;
 	int line;
 };
 
 Mutex block_mutex;
-unsigned int block_size = 0;
+uint32_t block_size = 0;
 std::map<void*, mallocBlockInfo> block_map;
 
-void* fc_malloc_s(unsigned int len, const char* file, int line)
+void* fc_malloc_s(uint32_t len, const char* file, int32_t line)
 {
 	mallocBlockInfo info;
 	info.file = file;

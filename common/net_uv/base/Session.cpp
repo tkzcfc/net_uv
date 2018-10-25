@@ -14,7 +14,7 @@ Session::Session(SessionManager* manager)
 Session::~Session()
 {}
 
-void Session::send(char* data, unsigned int len)
+void Session::send(char* data, uint32_t len)
 {
 	getSessionManager()->send(this, data, len);
 }

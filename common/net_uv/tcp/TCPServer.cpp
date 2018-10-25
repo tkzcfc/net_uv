@@ -30,7 +30,7 @@ TCPServer::~TCPServer()
 	NET_UV_LOG(NET_UV_L_INFO, "TCPServer destroy...");
 }
 
-void TCPServer::startServer(const char* ip, unsigned int port, bool isIPV6)
+void TCPServer::startServer(const char* ip, uint32_t port, bool isIPV6)
 {
 	if (m_serverStage != ServerStage::STOP)
 		return;
@@ -124,30 +124,30 @@ void TCPServer::updateFrame()
 	}
 }
 
-void TCPServer::send(unsigned int sessionID, char* data, unsigned int len)
+void TCPServer::send(uint32_t sessionID, char* data, uint32_t len)
 {
-	int bufCount = 0;
+	int32_t bufCount = 0;
 
 	uv_buf_t* bufArr = tcp_packageData(data, len, &bufCount);
 
 	if (bufArr == NULL)
 		return;
 
-	for (int i = 0; i < bufCount; ++i)
+	for (int32_t i = 0; i < bufCount; ++i)
 	{
 		pushOperation(TCP_SVR_OP_SEND_DATA, (bufArr + i)->base, (bufArr + i)->len, sessionID);
 	}
 	fc_free(bufArr);
 }
 
-void TCPServer::disconnect(unsigned int sessionID)
+void TCPServer::disconnect(uint32_t sessionID)
 {
 	pushOperation(TCP_SVR_OP_DIS_SESSION, NULL, 0, sessionID);
 }
 
 void TCPServer::run()
 {
-	int r = uv_loop_init(&m_loop);
+	int32_t r = uv_loop_init(&m_loop);
 	CHECK_UV_ASSERT(r);
 
 	startIdle();
@@ -164,7 +164,7 @@ void TCPServer::run()
 	m_server->setCloseCallback(std::bind(&TCPServer::onServerSocketClose, this, std::placeholders::_1));
 	m_server->setNewConnectionCallback(std::bind(&TCPServer::onNewConnect, this, std::placeholders::_1, std::placeholders::_2));
 
-	unsigned int outPort = 0U;
+	uint32_t outPort = 0U;
 	if (m_isIPV6)
 	{
 		outPort = m_server->bind6(m_ip.c_str(), m_port);
@@ -216,7 +216,7 @@ void TCPServer::run()
 }
 
 
-void TCPServer::onNewConnect(uv_stream_t* server, int status)
+void TCPServer::onNewConnect(uv_stream_t* server, int32_t status)
 {
 	TCPSocket* client = m_server->accept(server, status);
 	if (client != NULL)
@@ -281,7 +281,7 @@ void TCPServer::onSessionClose(Session* session)
 	}
 }
 
-void TCPServer::onSessionRecvData(Session* session, char* data, unsigned int len)
+void TCPServer::onSessionRecvData(Session* session, char* data, uint32_t len)
 {
 	pushThreadMsg(NetThreadMsgType::RECV_DATA, session, data, len);
 }

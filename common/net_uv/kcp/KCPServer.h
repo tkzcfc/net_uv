@@ -27,23 +27,23 @@ public:
 	virtual ~KCPServer();
 
 	/// Server
-	virtual void startServer(const char* ip, unsigned int port, bool isIPV6)override;
+	virtual void startServer(const char* ip, uint32_t port, bool isIPV6)override;
 
 	virtual bool stopServer()override;
 
 	virtual void updateFrame()override;
 
 	/// SessionManager
-	virtual void send(unsigned int sessionID, char* data, unsigned int len)override;
+	virtual void send(uint32_t sessionID, char* data, uint32_t len)override;
 
-	virtual void disconnect(unsigned int sessionID)override;
+	virtual void disconnect(uint32_t sessionID)override;
 
 	/// KCPServer
 	/// 使用服务器Socket向某个地址发送消息
 	/// ip: 仅支持IP地址 不支持域名解析
-	bool svrUdpSend(const char* ip, unsigned int port, bool isIPV6, char* data, unsigned int len);
+	bool svrUdpSend(const char* ip, uint32_t port, bool isIPV6, char* data, uint32_t len);
 
-	bool svrUdpSend(struct sockaddr* addr, unsigned int addrlen, char* data, unsigned int len);
+	bool svrUdpSend(struct sockaddr* addr, uint32_t addrlen, char* data, uint32_t len);
 
 protected:
 
@@ -60,7 +60,7 @@ protected:
 
 	bool onServerSocketConnectFilter(const struct sockaddr* addr);
 
-	void onSessionRecvData(Session* session, char* data, unsigned int len);
+	void onSessionRecvData(Session* session, char* data, uint32_t len);
 
 	/// Server
 	virtual void onIdleRun()override;
@@ -81,7 +81,7 @@ protected:
 	KCPSocket* m_server;
 
 	// 会话管理
-	std::map<unsigned int, serverSessionData> m_allSession;
+	std::map<uint32_t, serverSessionData> m_allSession;
 };
 
 

@@ -22,7 +22,7 @@ Server::Server()
 Server::~Server()
 {}
 
-void Server::startServer(const char* ip, unsigned int port, bool isIPV6)
+void Server::startServer(const char* ip, uint32_t port, bool isIPV6)
 {
 	assert(m_startCall != nullptr);
 	assert(m_closeCall != nullptr);
@@ -37,7 +37,7 @@ void Server::startServer(const char* ip, unsigned int port, bool isIPV6)
 }
 
 
-void Server::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, unsigned int len)
+void Server::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, uint32_t len)
 {
 	NetThreadMsg msg;
 	msg.msgType = type;
@@ -55,12 +55,12 @@ std::string Server::getIP()
 	return m_ip;
 }
 
-unsigned int Server::getPort()
+uint32_t Server::getPort()
 {
 	return m_port;
 }
 
-unsigned int Server::getListenPort()
+uint32_t Server::getListenPort()
 {
 	return m_listenPort;
 }
@@ -94,7 +94,7 @@ void Server::stopIdle()
 	}
 }
 
-void Server::startSessionUpdate(unsigned int time)
+void Server::startSessionUpdate(uint32_t time)
 {
 	stopSessionUpdate();
 

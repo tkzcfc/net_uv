@@ -30,7 +30,7 @@ void main()
 #endif
 
 	printf("请输入端口号:");
-	int port;
+	int32_t port;
 	std::cin >> port;
 
 	KCPServer* svr = new KCPServer();
@@ -58,7 +58,7 @@ void main()
 		printf("[%d] %s:%d进入服务器\n", session->getSessionID(), session->getIp().c_str(), session->getPort());
 	});
 
-	svr->setRecvCallback([=](Server* svr, Session* session, char* data, unsigned int len)
+	svr->setRecvCallback([=](Server* svr, Session* session, char* data, uint32_t len)
 	{
 		char* msg = (char*)fc_malloc(len + 1);
 		memcpy(msg, data, len);

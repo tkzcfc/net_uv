@@ -6,7 +6,7 @@
 NS_NET_UV_BEGIN
 
 // 创建预制socket回调
-using KCPClientCreatePreSocketCall = std::function<void(KCPClient* client, unsigned int sessionID, unsigned int bindPort)>;
+using KCPClientCreatePreSocketCall = std::function<void(KCPClient* client, uint32_t sessionID, uint32_t bindPort)>;
 
 class KCPClient : public Client
 {
@@ -22,7 +22,7 @@ protected:
 		float curtime;
 		float totaltime;
 		std::string ip;
-		unsigned int port;
+		uint32_t port;
 		KCPSession* session;
 	};
 
@@ -33,18 +33,18 @@ public:
 	virtual ~KCPClient();
 
 	/// Client
-	virtual void connect(const char* ip, unsigned int port, unsigned int sessionId)override;
+	virtual void connect(const char* ip, uint32_t port, uint32_t sessionId)override;
 
 	virtual void closeClient()override;
 
 	virtual void updateFrame()override;
 
-	virtual void removeSession(unsigned int sessionId)override;
+	virtual void removeSession(uint32_t sessionId)override;
 
 	/// SessionManager
-	virtual void send(unsigned int sessionId, char* data, unsigned int len)override;
+	virtual void send(uint32_t sessionId, char* data, uint32_t len)override;
 
-	virtual void disconnect(unsigned int sessionId)override;
+	virtual void disconnect(uint32_t sessionId)override;
 
 	//设置所有socket是否自动重连
 	void setAutoReconnect(bool isAuto);
@@ -53,13 +53,13 @@ public:
 	void setAutoReconnectTime(float time);
 
 	//是否自动重连
-	void setAutoReconnectBySessionID(unsigned int sessionID, bool isAuto);
+	void setAutoReconnectBySessionID(uint32_t sessionID, bool isAuto);
 
 	//自动重连时间(单位：S)
-	void setAutoReconnectTimeBySessionID(unsigned int sessionID, float time);
+	void setAutoReconnectTimeBySessionID(uint32_t sessionID, float time);
 
 	// 创建预制Socket
-	void createPrefabricationSocket(unsigned int sessionID);
+	void createPrefabricationSocket(uint32_t sessionID);
 
 	inline void setCreatePreSocketCallback(const KCPClientCreatePreSocketCall& call);
 
@@ -77,17 +77,17 @@ protected:
 	virtual void onSessionUpdateRun()override;
 
 	/// KCPClient
-	void onSocketConnect(Socket* socket, int status);
+	void onSocketConnect(Socket* socket, int32_t status);
 
 	void onSessionClose(Session* session);
 
-	void onSessionRecvData(Session* session, char* data, unsigned int len);
+	void onSessionRecvData(Session* session, char* data, uint32_t len);
 
 	void createNewConnect(void* data);
 
 	void clearData();
 
-	clientSessionData* getClientSessionDataBySessionId(unsigned int sessionId);
+	clientSessionData* getClientSessionDataBySessionId(uint32_t sessionId);
 
 	clientSessionData* getClientSessionDataBySession(Session* session);
 
@@ -100,16 +100,16 @@ protected:
 	float m_totalTime;		// 断线重连时间
 
 	// 所有会话
-	std::map<unsigned int, clientSessionData*> m_allSessionMap;
+	std::map<uint32_t, clientSessionData*> m_allSessionMap;
 
 
 	// 预制socket数据
 	struct PrefabricationSocket
 	{
 		KCPSocket* socket;
-		unsigned int bindPort;
+		uint32_t bindPort;
 	};
-	std::map<unsigned int, PrefabricationSocket> m_allPrefabricationSocket;
+	std::map<uint32_t, PrefabricationSocket> m_allPrefabricationSocket;
 
 	bool m_isStop;
 

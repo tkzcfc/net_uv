@@ -34,9 +34,6 @@
     <Filter Include="net_uv\kcp">
       <UniqueIdentifier>{ad77fd7c-f980-42bc-9703-704a3a6ba28c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="net_uv\p2p">
-      <UniqueIdentifier>{be657e1d-0c9c-4fe4-9bfb-1a0c95605f6b}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="testClient.cpp">
@@ -206,12 +203,6 @@
     </ClCompile>
     <ClCompile Include="..\common\net_uv\base\Misc.cpp">
       <Filter>net_uv\base</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\p2p\P2PServer.cpp">
-      <Filter>net_uv\p2p</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\net_uv\p2p\P2PClient.cpp">
-      <Filter>net_uv\p2p</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -389,17 +380,8 @@
     <ClInclude Include="..\common\net_uv\net_uv.h">
       <Filter>net_uv</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h">
-      <Filter>net_uv\p2p</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h">
-      <Filter>net_uv\p2p</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\p2p\P2PServer.h">
-      <Filter>net_uv\p2p</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\p2p\P2PClient.h">
-      <Filter>net_uv\p2p</Filter>
+    <ClInclude Include="..\common\net_uv\common\NetHeart.h">
+      <Filter>net_uv\common</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

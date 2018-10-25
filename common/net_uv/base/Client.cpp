@@ -21,7 +21,7 @@ bool Client::isCloseFinish()
 	return (m_clientStage == clientStage::STOP);
 }
 
-void Client::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, unsigned int len)
+void Client::pushThreadMsg(NetThreadMsgType type, Session* session, char* data, uint32_t len)
 {
 	NetThreadMsg msg;
 	msg.msgType = type;
@@ -53,7 +53,7 @@ void Client::stopIdle()
 	}
 }
 
-void Client::startSessionUpdate(unsigned int time)
+void Client::startSessionUpdate(uint32_t time)
 {
 	stopSessionUpdate();
 

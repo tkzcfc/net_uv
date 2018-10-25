@@ -23,15 +23,15 @@ public:
 
 	virtual ~KCPSocket();
 
-	virtual unsigned int bind(const char* ip, unsigned int port)override;
+	virtual uint32_t bind(const char* ip, uint32_t port)override;
 
-	virtual unsigned int bind6(const char* ip, unsigned int port)override;
+	virtual uint32_t bind6(const char* ip, uint32_t port)override;
 
 	virtual bool listen()override;
 
-	virtual bool connect(const char* ip, unsigned int port)override;
+	virtual bool connect(const char* ip, uint32_t port)override;
 
-	virtual bool send(char* data, int len)override;
+	virtual bool send(char* data, int32_t len)override;
 
 	virtual void disconnect()override;
 
@@ -55,17 +55,17 @@ protected:
 
 	inline struct sockaddr* getSocketAddr();
 
-	void udpSend(const char* data, int len);
+	void udpSend(const char* data, int32_t len);
 
-	void udpSend(const char* data, int len, const struct sockaddr* addr);
+	void udpSend(const char* data, int32_t len, const struct sockaddr* addr);
 
 	void kcpInput(const char* data, long size);
 
 	void initKcp(IUINT32 conv);
 
-	void onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
+	void onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, uint32_t flags);
 
-	void connectResult(int status);
+	void connectResult(int32_t status);
 
 	void doSendSvrConnectMsgPack(IUINT32 clock);
 
@@ -127,9 +127,9 @@ protected:
 	friend class KCPSession;
 protected:
 	static void uv_on_close_socket(uv_handle_t* socket);
-	static void uv_on_udp_send(uv_udp_send_t *req, int status);
+	static void uv_on_udp_send(uv_udp_send_t *req, int32_t status);
 	static void uv_on_after_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags);
-	static int udp_output(const char *buf, int len, ikcpcb *kcp, void *user);
+	static int32_t udp_output(const char *buf, int32_t len, ikcpcb *kcp, void *user);
 };
 
 uv_udp_t* KCPSocket::getUdp()

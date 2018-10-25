@@ -4,7 +4,7 @@
 NS_NET_UV_BEGIN
 
 
-std::string net_getUVError(int errcode)
+std::string net_getUVError(int32_t errcode)
 {
 	if (0 == errcode)
 	{
@@ -61,10 +61,10 @@ void net_closeHandle(uv_handle_t* handle, uv_close_cb closecb)
 }
 
 // 调整socket缓冲区大小
-void net_adjustBuffSize(uv_handle_t* handle, int minRecvBufSize, int minSendBufSize)
+void net_adjustBuffSize(uv_handle_t* handle, int32_t minRecvBufSize, int32_t minSendBufSize)
 {
-	int len = 0;
-	int r = uv_recv_buffer_size(handle, &len);
+	int32_t len = 0;
+	int32_t r = uv_recv_buffer_size(handle, &len);
 	CHECK_UV_ASSERT(r);
 
 	if (len < minRecvBufSize)
@@ -87,11 +87,11 @@ void net_adjustBuffSize(uv_handle_t* handle, int minRecvBufSize, int minSendBufS
 }
 
 // hash
-unsigned int net_getBufHash(const void *buf, unsigned int len)
+uint32_t net_getBufHash(const void *buf, uint32_t len)
 {
-	unsigned int seed = 131; // 31 131 1313 13131 131313 etc..
-	unsigned int hash = 0;
-	unsigned int i = 0;
+	uint32_t seed = 131; // 31 131 1313 13131 131313 etc..
+	uint32_t hash = 0;
+	uint32_t i = 0;
 	char *str = (char *)buf;
 	while (i < len)
 	{
@@ -102,14 +102,14 @@ unsigned int net_getBufHash(const void *buf, unsigned int len)
 	return (hash & 0x7FFFFFFF);
 }
 
-unsigned int net_getsockAddrIPAndPort(const struct sockaddr* addr, std::string& outIP, unsigned int& outPort)
+uint32_t net_getsockAddrIPAndPort(const struct sockaddr* addr, std::string& outIP, uint32_t& outPort)
 {
 	if (addr == NULL)
 		return 0;
 
 	std::string strip;
-	unsigned int addrlen = 0;
-	unsigned int port = 0;
+	uint32_t addrlen = 0;
+	uint32_t port = 0;
 
 	if (addr->sa_family == AF_INET6)
 	{
@@ -118,7 +118,7 @@ unsigned int net_getsockAddrIPAndPort(const struct sockaddr* addr, std::string& 
 		const struct sockaddr_in6* addr_in = (const struct sockaddr_in6*) addr;
 
 		char szIp[NET_UV_INET6_ADDRSTRLEN + 1] = { 0 };
-		int r = uv_ip6_name(addr_in, szIp, NET_UV_INET6_ADDRSTRLEN);
+		int32_t r = uv_ip6_name(addr_in, szIp, NET_UV_INET6_ADDRSTRLEN);
 		if (r != 0)
 		{
 			return 0;
@@ -134,7 +134,7 @@ unsigned int net_getsockAddrIPAndPort(const struct sockaddr* addr, std::string& 
 		const struct sockaddr_in* addr_in = (const struct sockaddr_in*) addr;
 
 		char szIp[NET_UV_INET_ADDRSTRLEN + 1] = { 0 };
-		int r = uv_ip4_name(addr_in, szIp, NET_UV_INET_ADDRSTRLEN);
+		int32_t r = uv_ip4_name(addr_in, szIp, NET_UV_INET_ADDRSTRLEN);
 		if (r != 0)
 		{
 			return 0;
@@ -150,7 +150,7 @@ unsigned int net_getsockAddrIPAndPort(const struct sockaddr* addr, std::string& 
 	return addrlen;
 }
 
-struct sockaddr* net_getsocketAddr(const char* ip, unsigned int port, unsigned int* outAddrLen)
+struct sockaddr* net_getsocketAddr(const char* ip, uint32_t port, uint32_t* outAddrLen)
 {
 	struct addrinfo hints;
 	struct addrinfo* ainfo;
@@ -212,7 +212,7 @@ struct sockaddr* net_getsocketAddr(const char* ip, unsigned int port, unsigned i
 	return NULL;
 }
 
-struct sockaddr* net_getsocketAddr_no(const char* ip, unsigned int port, bool isIPV6, unsigned int* outAddrLen)
+struct sockaddr* net_getsocketAddr_no(const char* ip, uint32_t port, bool isIPV6, uint32_t* outAddrLen)
 {
 	if (outAddrLen)
 	{
@@ -222,7 +222,7 @@ struct sockaddr* net_getsocketAddr_no(const char* ip, unsigned int port, bool is
 	if (isIPV6)
 	{
 		struct sockaddr_in6* send_addr = (struct sockaddr_in6*)fc_malloc(sizeof(struct sockaddr_in6));
-		int r = uv_ip6_addr(ip, port, send_addr);
+		int32_t r = uv_ip6_addr(ip, port, send_addr);
 
 		if (r != 0)
 		{
@@ -238,7 +238,7 @@ struct sockaddr* net_getsocketAddr_no(const char* ip, unsigned int port, bool is
 		return (struct sockaddr*)send_addr;
 	}
 	struct sockaddr_in* send_addr = (struct sockaddr_in*)fc_malloc(sizeof(struct sockaddr_in));
-	int r = uv_ip4_addr(ip, port, send_addr);
+	int32_t r = uv_ip4_addr(ip, port, send_addr);
 
 	if (r != 0)
 	{
@@ -254,7 +254,7 @@ struct sockaddr* net_getsocketAddr_no(const char* ip, unsigned int port, bool is
 	return (struct sockaddr*)send_addr;
 }
 
-unsigned int net_getsockAddrPort(const struct sockaddr* addr)
+uint32_t net_getsockAddrPort(const struct sockaddr* addr)
 {
 	if (addr->sa_family == AF_INET6)
 	{
@@ -278,11 +278,11 @@ struct sockaddr* net_tcp_getAddr(const uv_tcp_t* handle)
 	//sockaddr_in (the address structure for TCP/IP) is 16 bytes. Therefore, a buffer size of at least 32 bytes must be 
 	//specified for the local and remote addresses.
 
-	int client_addr_length = sizeof(sockaddr_in6) * 2;
+	int32_t client_addr_length = sizeof(sockaddr_in6) * 2;
 	struct sockaddr* client_addr = (struct sockaddr*)fc_malloc(client_addr_length);
 	memset(client_addr, 0, client_addr_length);
 
-	int r = uv_tcp_getpeername(handle, client_addr, &client_addr_length);
+	int32_t r = uv_tcp_getpeername(handle, client_addr, &client_addr_length);
 
 	if (r != 0)
 	{
@@ -292,9 +292,9 @@ struct sockaddr* net_tcp_getAddr(const uv_tcp_t* handle)
 	return client_addr;
 }
 
-unsigned int net_getAddrPort(const struct sockaddr* addr)
+uint32_t net_getAddrPort(const struct sockaddr* addr)
 {
-	unsigned int outPort = 0;
+	uint32_t outPort = 0;
 	if (addr->sa_family == AF_INET6)
 	{
 		const struct sockaddr_in6* addr_in = (const struct sockaddr_in6*) addr;
@@ -308,16 +308,16 @@ unsigned int net_getAddrPort(const struct sockaddr* addr)
 	return outPort;
 }
 
-unsigned int net_udp_getPort(uv_udp_t* handle)
+uint32_t net_udp_getPort(uv_udp_t* handle)
 {
-	int client_addr_length = sizeof(sockaddr_in6) * 2;
+	int32_t client_addr_length = sizeof(sockaddr_in6) * 2;
 	struct sockaddr* client_addr = (struct sockaddr*)fc_malloc(client_addr_length);
 	memset(client_addr, 0, client_addr_length);
 
-	int r = uv_udp_getsockname(handle, client_addr, &client_addr_length);
+	int32_t r = uv_udp_getsockname(handle, client_addr, &client_addr_length);
 	CHECK_UV_ASSERT(r);
 
-	unsigned int outPort = 0;
+	uint32_t outPort = 0;
 
 	if (r == 0)
 	{

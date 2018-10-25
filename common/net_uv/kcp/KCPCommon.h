@@ -21,7 +21,7 @@ NS_NET_UV_BEGIN
 
 struct KCPMsgHead
 {
-	unsigned int len;// 消息长度，不包括本结构体
+	uint32_t len;// 消息长度，不包括本结构体
 #if KCP_OPEN_UV_THREAD_HEARTBEAT == 1
 	NET_HEART_TYPE tag;// 消息标记
 #endif

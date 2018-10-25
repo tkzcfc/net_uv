@@ -12,7 +12,7 @@ class Server;
 using ServerStartCall = std::function<void(Server* svr, bool suc)>;
 using ServerCloseCall = std::function<void(Server* svr)>;
 using ServerNewConnectCall = std::function<void(Server* svr, Session* session)>;
-using ServerRecvCall = std::function<void(Server* svr, Session* session, char* data, unsigned int len)>;
+using ServerRecvCall = std::function<void(Server* svr, Session* session, char* data, uint32_t len)>;
 using ServerDisconnectCall = std::function<void(Server* svr, Session* session)>;
 
 //服务器所处阶段
@@ -32,7 +32,7 @@ public:
 	Server();
 	virtual ~Server();
 
-	virtual void startServer(const char* ip, unsigned int port, bool isIPV6);
+	virtual void startServer(const char* ip, uint32_t port, bool isIPV6);
 
 	virtual bool stopServer() = 0;
 
@@ -51,9 +51,9 @@ public:
 
 	virtual std::string getIP();
 	
-	virtual unsigned int getPort();
+	virtual uint32_t getPort();
 
-	virtual unsigned int getListenPort();
+	virtual uint32_t getListenPort();
 
 	virtual bool isIPV6();
 
@@ -71,13 +71,13 @@ protected:
 
 	void stopIdle();
 
-	void startSessionUpdate(unsigned int time);
+	void startSessionUpdate(uint32_t time);
 
 	void stopSessionUpdate();
 
-	virtual void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, unsigned int len = 0);
+	virtual void pushThreadMsg(NetThreadMsgType type, Session* session, char* data = NULL, uint32_t len = 0);
 	
-	inline void setListenPort(unsigned int port);
+	inline void setListenPort(uint32_t port);
 
 protected:
 	static void uv_on_idle_run(uv_idle_t* handle);
@@ -100,8 +100,8 @@ protected:
 	uv_loop_t m_loop;
 
 	std::string m_ip;
-	unsigned int m_port;
-	unsigned int m_listenPort;
+	uint32_t m_port;
+	uint32_t m_listenPort;
 	bool m_isIPV6;
 
 	// 服务器所处阶段
@@ -133,7 +133,7 @@ void Server::setDisconnectCallback(const ServerDisconnectCall& call)
 	m_disconnectCall = std::move(call);
 }
 
-void Server::setListenPort(unsigned int port)
+void Server::setListenPort(uint32_t port)
 {
 	m_listenPort = port;
 }

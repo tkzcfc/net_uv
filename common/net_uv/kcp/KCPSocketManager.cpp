@@ -75,11 +75,11 @@ void KCPSocketManager::stop_listen()
 	}
 }
 
-int KCPSocketManager::isContain(const struct sockaddr* addr)
+int32_t KCPSocketManager::isContain(const struct sockaddr* addr)
 {
 	std::string strip;
-	unsigned int port;
-	unsigned int addrlen = net_getsockAddrIPAndPort(addr, strip, port);
+	uint32_t port;
+	uint32_t addrlen = net_getsockAddrIPAndPort(addr, strip, port);
 	if (addrlen == 0)
 	{
 		return -1;
@@ -103,7 +103,7 @@ int KCPSocketManager::isContain(const struct sockaddr* addr)
 	return 0;
 }
 
-void KCPSocketManager::on_socket_connect(Socket* socket, int status)
+void KCPSocketManager::on_socket_connect(Socket* socket, int32_t status)
 {
 	if (!m_stop && status == 1)
 	{
