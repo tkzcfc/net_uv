@@ -18,6 +18,3 @@
 #include "kcp/KCPServer.h"
 
 
-// p2p
-#include "p2p/P2PClient.h"
-#include "p2p/P2PServer.h"

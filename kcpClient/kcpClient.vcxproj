@@ -201,6 +201,7 @@
     <ClCompile Include="..\common\net_uv\tcp\TCPSession.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPSocket.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPUtils.cpp" />
+    <ClCompile Include="..\common\net_uv\udp\UDPSocket.cpp" />
     <ClCompile Include="testClient.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -263,6 +264,7 @@
     <ClInclude Include="..\common\net_uv\tcp\TCPSession.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPSocket.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPUtils.h" />
+    <ClInclude Include="..\common\net_uv\udp\UDPSocket.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

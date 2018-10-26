@@ -359,16 +359,18 @@ void KCPSocket::socketUpdate(IUINT32 clock)
 
 		if (m_kcp)
 		{
-			// kcp没有收到过数据
-			if (!m_firstSendSucTag)
-			{
-				// kcp数据发送后3S没有数据返回则表明该连接未连接成功
-				if (m_last_kcp_packet_send_time > 0 && m_last_kcp_packet_send_time - m_last_kcp_packet_recv_time > 3000)
-				{
-					doSendTimeout();
-					return;
-				}
-			}
+			// 这段代码，在打开心跳时此段代码可以注释，在没有打开心跳时，此段代码如果注释了并且没有任何数据返回
+			// 将会在一分钟后判断连接为发送超时自动断开，要打开此段代码可将时间改长一点，3S有些短
+			//// kcp没有收到过数据
+			//if (!m_firstSendSucTag)
+			//{
+			//	// kcp数据发送后3S没有数据返回则表明该连接未连接成功
+			//	if (m_last_kcp_packet_send_time > 0 && m_last_kcp_packet_send_time - m_last_kcp_packet_recv_time > 3000)
+			//	{
+			//		doSendTimeout();
+			//		return;
+			//	}
+			//}
 			ikcp_update(m_kcp, clock);
 		}
 	}
