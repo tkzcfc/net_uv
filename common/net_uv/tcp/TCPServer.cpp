@@ -30,19 +30,58 @@ TCPServer::~TCPServer()
 	NET_UV_LOG(NET_UV_L_INFO, "TCPServer destroy...");
 }
 
-void TCPServer::startServer(const char* ip, uint32_t port, bool isIPV6)
+bool TCPServer::startServer(const char* ip, uint32_t port, bool isIPV6)
 {
-	if (m_serverStage != ServerStage::STOP)
-		return;
-	if (m_start)
-		return;
+	if (m_serverStage != ServerStage::STOP || m_start)
+	{
+		return false;
+	}
 
 	Server::startServer(ip, port, isIPV6);
 
-	m_start = true;
-	m_serverStage = ServerStage::START;
+	int32_t r = uv_loop_init(&m_loop);
+	CHECK_UV_ASSERT(r);
 
-	this->startThread();
+	m_server = (TCPSocket*)fc_malloc(sizeof(TCPSocket));
+	if (m_server == NULL)
+	{
+		return false;
+	}
+	new (m_server) TCPSocket(&m_loop);
+	m_server->setCloseCallback(std::bind(&TCPServer::onServerSocketClose, this, std::placeholders::_1));
+	m_server->setNewConnectionCallback(std::bind(&TCPServer::onNewConnect, this, std::placeholders::_1, std::placeholders::_2));
+
+	uint32_t outPort = 0U;
+	if (m_isIPV6)
+	{
+		outPort = m_server->bind6(m_ip.c_str(), m_port);
+	}
+	else
+	{
+		outPort = m_server->bind(m_ip.c_str(), m_port);
+	}
+
+	if (outPort == 0)
+	{
+		startFailureLogic();
+		return false;
+	}
+
+	bool suc = m_server->listen();
+	if (!suc)
+	{
+		startFailureLogic();
+		return false;
+	}
+	NET_UV_LOG(NET_UV_L_INFO, "TCPServer %s:%u start-up...", m_ip.c_str(), getListenPort());
+
+	m_start = true;
+	m_serverStage = ServerStage::RUN;
+
+	setListenPort(outPort);
+	startThread();
+
+	return true;
 }
 
 bool TCPServer::stopServer()
@@ -85,20 +124,6 @@ void TCPServer::updateFrame()
 		{
 			m_recvCall(this, Msg.pSession, Msg.data, Msg.dataLen);
 			fc_free(Msg.data);
-		}break;
-		case NetThreadMsgType::START_SERVER_SUC:
-		{
-			if (m_startCall != nullptr)
-			{
-				m_startCall(this, true);
-			}
-		}break;
-		case NetThreadMsgType::START_SERVER_FAIL:
-		{
-			if (m_startCall != nullptr)
-			{
-				m_startCall(this, false);
-			}
 		}break;
 		case NetThreadMsgType::NEW_CONNECT:
 		{
@@ -147,61 +172,8 @@ void TCPServer::disconnect(uint32_t sessionID)
 
 void TCPServer::run()
 {
-	int32_t r = uv_loop_init(&m_loop);
-	CHECK_UV_ASSERT(r);
-
 	startIdle();
 	startSessionUpdate(TCP_HEARTBEAT_TIMER_DELAY);
-
-	m_server = (TCPSocket*)fc_malloc(sizeof(TCPSocket));
-	if (m_server == NULL)
-	{
-		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
-		return;
-	}
-	new (m_server) TCPSocket(&m_loop);
-	m_server->setCloseCallback(std::bind(&TCPServer::onServerSocketClose, this, std::placeholders::_1));
-	m_server->setNewConnectionCallback(std::bind(&TCPServer::onNewConnect, this, std::placeholders::_1, std::placeholders::_2));
-
-	uint32_t outPort = 0U;
-	if (m_isIPV6)
-	{
-		outPort = m_server->bind6(m_ip.c_str(), m_port);
-	}
-	else
-	{
-		outPort = m_server->bind(m_ip.c_str(), m_port);
-	}
-
-	if (outPort == 0)
-	{
-		m_server->~TCPSocket();
-		fc_free(m_server);
-		m_server = NULL;
-
-		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
-		return;
-	}
-	setListenPort(outPort);
-
-	bool suc = m_server->listen();
-	if (!suc)
-	{
-		m_server->~TCPSocket();
-		fc_free(m_server);
-		m_server = NULL;
-
-		m_serverStage = ServerStage::STOP;
-		pushThreadMsg(NetThreadMsgType::START_SERVER_FAIL, NULL);
-		return;
-	}
-
-	NET_UV_LOG(NET_UV_L_INFO, "TCPServer %s:%u start-up...", m_ip.c_str(), getListenPort());
-
-	m_serverStage = ServerStage::RUN;
-	pushThreadMsg(NetThreadMsgType::START_SERVER_SUC, NULL);
 
 	uv_run(&m_loop, UV_RUN_DEFAULT);
 
@@ -250,6 +222,19 @@ void TCPServer::onNewConnect(uv_stream_t* server, int32_t status)
 void TCPServer::onServerSocketClose(Socket* svr)
 {
 	m_serverStage = ServerStage::CLEAR;
+}
+
+void TCPServer::startFailureLogic()
+{
+	m_server->~TCPSocket();
+	fc_free(m_server);
+	m_server = NULL;
+
+	uv_run(&m_loop, UV_RUN_DEFAULT);
+
+	uv_loop_close(&m_loop);
+
+	m_serverStage = ServerStage::STOP;
 }
 
 void TCPServer::addNewSession(TCPSession* session)

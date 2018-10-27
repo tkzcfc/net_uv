@@ -37,6 +37,9 @@
     <Filter Include="net_uv\udp">
       <UniqueIdentifier>{553374a5-8990-4b62-b96a-8a8a286821a2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="net_uv\p2p">
+      <UniqueIdentifier>{3b103c55-be8c-4867-a648-ede5e834cf51}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="testClient.cpp">
@@ -209,6 +212,9 @@
     </ClCompile>
     <ClCompile Include="..\common\net_uv\udp\UDPSocket.cpp">
       <Filter>net_uv\udp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\Turn.cpp">
+      <Filter>net_uv\p2p</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -391,6 +397,15 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\udp\UDPSocket.h">
       <Filter>net_uv\udp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\Turn.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h">
+      <Filter>net_uv\p2p</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

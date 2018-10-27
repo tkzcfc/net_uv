@@ -5,7 +5,6 @@ NS_NET_UV_BEGIN
 
 Server::Server()
 	: m_closeCall(nullptr)
-	, m_startCall(nullptr)
 	, m_newConnectCall(nullptr)
 	, m_recvCall(nullptr)
 	, m_disconnectCall(nullptr)
@@ -22,9 +21,8 @@ Server::Server()
 Server::~Server()
 {}
 
-void Server::startServer(const char* ip, uint32_t port, bool isIPV6)
+bool Server::startServer(const char* ip, uint32_t port, bool isIPV6)
 {
-	assert(m_startCall != nullptr);
 	assert(m_closeCall != nullptr);
 	assert(m_newConnectCall != nullptr);
 	assert(m_recvCall != nullptr);
@@ -34,6 +32,8 @@ void Server::startServer(const char* ip, uint32_t port, bool isIPV6)
 	m_port = port;
 	m_isIPV6 = isIPV6;
 	m_listenPort = port;
+	
+	return true;
 }
 
 

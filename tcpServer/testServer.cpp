@@ -35,16 +35,6 @@ void main()
 	std::cin >> port;
 
 	TCPServer* svr = new TCPServer();
-	svr->setStartCallback([](Server* svr, bool issuc) {
-		if (issuc)
-		{
-			printf("服务器启动成功\n");
-		}
-		else
-		{
-			printf("服务器启动失败\n");
-		}
-	});
 
 	svr->setCloseCallback([](Server* svr)
 	{
@@ -115,14 +105,25 @@ void main()
 		}
 	});
 
-	svr->startServer("0.0.0.0", port, false);
+	bool issuc = svr->startServer("0.0.0.0", port, false);
+	if (issuc)
+	{
+		printf("服务器启动成功\n");
+	}
+	else
+	{
+		printf("服务器启动失败\n");
+		gServerStop = true;
+	}
 
 	while (!gServerStop)
 	{
 		svr->updateFrame();
 		ThreadSleep(1);
 	}
+
 	delete svr;
+
 	printf("-----------------------------\n");
 	printMemInfo();
 	printf("\n-----------------------------\n");

@@ -27,7 +27,7 @@ public:
 	virtual ~TCPServer();
 
 	/// Server
-	virtual void startServer(const char* ip, uint32_t port, bool isIPV6)override;
+	virtual bool startServer(const char* ip, uint32_t port, bool isIPV6)override;
 
 	virtual bool stopServer()override;
 
@@ -59,6 +59,8 @@ protected:
 	virtual void onSessionUpdateRun()override;
 	
 protected:
+
+	void startFailureLogic();
 
 	void addNewSession(TCPSession* session);
 

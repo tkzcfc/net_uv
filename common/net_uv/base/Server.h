@@ -9,7 +9,6 @@
 NS_NET_UV_BEGIN
 
 class Server;
-using ServerStartCall = std::function<void(Server* svr, bool suc)>;
 using ServerCloseCall = std::function<void(Server* svr)>;
 using ServerNewConnectCall = std::function<void(Server* svr, Session* session)>;
 using ServerRecvCall = std::function<void(Server* svr, Session* session, char* data, uint32_t len)>;
@@ -18,7 +17,6 @@ using ServerDisconnectCall = std::function<void(Server* svr, Session* session)>;
 //服务器所处阶段
 enum class ServerStage
 {
-	START,		//启动中
 	RUN,		//运行中
 	WAIT_CLOSE_SERVER_SOCKET,// 等待服务器套接字关闭
 	CLEAR,		//清理会话
@@ -32,7 +30,7 @@ public:
 	Server();
 	virtual ~Server();
 
-	virtual void startServer(const char* ip, uint32_t port, bool isIPV6);
+	virtual bool startServer(const char* ip, uint32_t port, bool isIPV6);
 
 	virtual bool stopServer() = 0;
 
@@ -40,9 +38,7 @@ public:
 	virtual void updateFrame() = 0;
 
 	inline void setCloseCallback(const ServerCloseCall& call);
-
-	inline void setStartCallback(const ServerStartCall& call);
-
+	
 	inline void setNewConnectCallback(const ServerNewConnectCall& call);
 
 	inline void setRecvCallback(const ServerRecvCall& call);
@@ -84,7 +80,6 @@ protected:
 
 	static void uv_on_session_update_timer_run(uv_timer_t* handle);
 protected:
-	ServerStartCall m_startCall;
 	ServerCloseCall m_closeCall;
 	ServerNewConnectCall m_newConnectCall;
 	ServerRecvCall m_recvCall;
@@ -111,11 +106,6 @@ protected:
 void Server::setCloseCallback(const ServerCloseCall& call)
 {
 	m_closeCall = std::move(call);
-}
-
-void Server::setStartCallback(const ServerStartCall& call)
-{
-	m_startCall = std::move(call);
 }
 
 void Server::setNewConnectCallback(const ServerNewConnectCall& call)
