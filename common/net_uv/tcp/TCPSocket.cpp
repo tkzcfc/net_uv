@@ -7,12 +7,11 @@ NS_NET_UV_BEGIN
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-TCPSocket::TCPSocket(uv_loop_t* loop, uv_tcp_t* tcp)
+TCPSocket::TCPSocket(uv_loop_t* loop)
 	: m_newConnectionCall(nullptr)
 	, m_tcp(NULL)
 {
 	m_loop = loop;
-	m_tcp = tcp;
 }
 
 TCPSocket::~TCPSocket()
@@ -210,9 +209,11 @@ TCPSocket* TCPSocket::accept(uv_stream_t* server, int32_t status)
 	net_adjustBuffSize((uv_handle_t*)client, TCP_UV_SOCKET_RECV_BUF_LEN, TCP_UV_SOCKET_SEND_BUF_LEN);
 
 	TCPSocket* newSocket = (TCPSocket*)fc_malloc(sizeof(TCPSocket));
-	new (newSocket) TCPSocket(m_loop, client);
+	new (newSocket) TCPSocket(m_loop);
+
 	client->data = newSocket;
 
+	newSocket->setTcp(client);
 	newSocket->setIp(strip);
 	newSocket->setPort(port);
 	newSocket->setIsIPV6(isIPV6);

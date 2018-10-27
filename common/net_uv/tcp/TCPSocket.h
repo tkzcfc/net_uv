@@ -11,7 +11,7 @@ class TCPSocket : public Socket
 public:
 	TCPSocket() = delete;
 	TCPSocket(const TCPSocket&) = delete;
-	TCPSocket(uv_loop_t* loop, uv_tcp_t* tcp = NULL);
+	TCPSocket(uv_loop_t* loop);
 
 	virtual ~TCPSocket();
 
