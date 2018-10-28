@@ -197,7 +197,6 @@
     <ClCompile Include="..\common\net_uv\kcp\KCPSocketManager.cpp" />
     <ClCompile Include="..\common\net_uv\kcp\KCPUtils.cpp" />
     <ClCompile Include="..\common\net_uv\p2p\P2PNode.cpp" />
-    <ClCompile Include="..\common\net_uv\p2p\P2PUtils.cpp" />
     <ClCompile Include="..\common\net_uv\p2p\UDPPipe.cpp" />
     <ClCompile Include="..\common\net_uv\p2p\Turn.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPClient.cpp" />
@@ -264,7 +263,6 @@
     <ClInclude Include="..\common\net_uv\p2p\P2PNode.h" />
     <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h" />
     <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PUtils.h" />
     <ClInclude Include="..\common\net_uv\p2p\UDPPipe.h" />
     <ClInclude Include="..\common\net_uv\p2p\Turn.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPClient.h" />
