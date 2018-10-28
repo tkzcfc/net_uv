@@ -1,22 +1,30 @@
-//#include "net_uv/net_uv.h"
-//
-//NS_NET_UV_OPEN
-//
-//#if OPEN_NET_UV_DEBUG == 1
-//#include "DbgHelp.h"
-//#pragma comment(lib, "DbgHelp.lib")
-//// 处理Unhandled Exception的回调函数
-//LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
-//#endif
-//
-////#define CONNECT_IP "127.0.0.1"
-//#define CONNECT_IP "www.kurumi.xin"
-//#define CONNECT_PORT 1002
+#include "../TestCommon.h"
+
+
+
+void main()
+{
+	REGISTER_EXCEPTION("p2pNode.dmp");
+
+	P2PNode* node = new P2PNode();
+
+	node->start("39.105.20.204", 1234);
+	//node->start("127.0.0.1", 1234);
+
+	while (true)
+	{
+		Sleep(1);
+	}
+
+	system("pause");
+}
+
+
+
 //
 //bool autosend = true;
 //uint32_t keyIndex = 0;
-//char *szWriteBuf = new char[1024];
-//
+//char szWriteBuf[1024] = {0};
 //bool clientClose = false;
 //
 //
@@ -27,11 +35,8 @@
 //
 //void main()
 //{
-//#if OPEN_NET_UV_DEBUG == 1
-//	// 注册异常处理函数
-//	SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)ApplicationCrashHandler);
-//#endif
-//
+//	REGISTER_EXCEPTION("kcpClient.dmp");
+//	
 //	client->setClientCloseCallback([](Client*)
 //	{
 //		clientClose = true;
@@ -93,7 +98,7 @@
 //
 //	for (int32_t i = 0; i < 10; ++i)
 //	{
-//		client->connect(CONNECT_IP, CONNECT_PORT, keyIndex++);
+//		client->connect(KCP_CONNECT_IP, KCP_CONNECT_PORT, keyIndex++);
 //	}
 //
 //	int32_t curCount = 0;
@@ -127,8 +132,6 @@
 //}
 //
 //
-//#define CMD_STRCMP(v) (strcmp(cmd, v) == 0)
-//
 //bool cmdResolve(char* cmd, uint32_t key)
 //{
 //	if (CMD_STRCMP("print"))
@@ -147,7 +150,7 @@
 //	else if (CMD_STRCMP("add"))
 //	{
 //		//新添加连接
-//		client->connect(CONNECT_IP, CONNECT_PORT, keyIndex++);
+//		client->connect(KCP_CONNECT_IP, KCP_CONNECT_PORT, keyIndex++);
 //	}
 //	else if (CMD_STRCMP("close"))
 //	{
@@ -183,44 +186,3 @@
 //	}
 //	return true;
 //}
-//
-//
-//#if OPEN_NET_UV_DEBUG == 1
-//// 创建dump文件
-//void CreateDempFile(LPCWSTR lpstrDumpFilePathName, EXCEPTION_POINTERS* pException)
-//{
-//	HANDLE hDumpFile = CreateFile(lpstrDumpFilePathName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-//	//dump信息
-//	MINIDUMP_EXCEPTION_INFORMATION dumpInfo;
-//	dumpInfo.ExceptionPointers = pException;
-//	dumpInfo.ThreadId = GetCurrentThreadId();
-//	dumpInfo.ClientPointers = TRUE;
-//	// 写入dump文件内容
-//	MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, MiniDumpNormal, &dumpInfo, NULL, NULL);
-//	CloseHandle(hDumpFile);
-//}
-//
-//LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException)
-//{
-//	CreateDempFile(TEXT("kcpClient.dmp"), pException);
-//	return EXCEPTION_EXECUTE_HANDLER;
-//}
-//#endif
-
-
-#include "net_uv/net_uv.h"
-#include "net_uv/p2p/Turn.h"
-
-
-NS_NET_UV_OPEN
-
-void main()
-{
-	Turn* turn = new Turn();
-	turn->start("0.0.0.0", 0);
-	delete turn;
-
-	printMemInfo();
-
-	system("pause");
-}

@@ -17,4 +17,9 @@
 #include "kcp/KCPClient.h"
 #include "kcp/KCPServer.h"
 
+// udp
+#include "udp/UDPSocket.h"
 
+// p2p
+#include "p2p/P2PNode.h"
+#include "p2p/Turn.h"

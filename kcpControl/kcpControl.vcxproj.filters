@@ -34,6 +34,12 @@
     <Filter Include="net_uv\tcp">
       <UniqueIdentifier>{5e24caf6-0e1c-4e60-989e-2639e2c9fe84}</UniqueIdentifier>
     </Filter>
+    <Filter Include="net_uv\p2p">
+      <UniqueIdentifier>{cc6b8b0a-f8fa-42ad-9736-d4a50b8c41f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="net_uv\udp">
+      <UniqueIdentifier>{52bc22e5-c5d6-41d9-9e72-3f5c877f62fc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="testControl.cpp">
@@ -203,6 +209,21 @@
     </ClCompile>
     <ClCompile Include="..\common\net_uv\base\Misc.cpp">
       <Filter>net_uv\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\udp\UDPSocket.cpp">
+      <Filter>net_uv\udp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\P2PUtils.cpp">
+      <Filter>net_uv\p2p</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\Turn.cpp">
+      <Filter>net_uv\p2p</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\UDPPipe.cpp">
+      <Filter>net_uv\p2p</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\P2PNode.cpp">
+      <Filter>net_uv\p2p</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -382,6 +403,27 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\base\Misc.h">
       <Filter>net_uv\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\udp\UDPSocket.h">
+      <Filter>net_uv\udp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PUtils.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\Turn.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\UDPPipe.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PNode.h">
+      <Filter>net_uv\p2p</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

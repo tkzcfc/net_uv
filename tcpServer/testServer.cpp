@@ -1,34 +1,13 @@
+#include "../TestCommon.h"
 
-#include "net_uv/tcp/TCPServer.h"
-#include <iostream>
-
-NS_NET_UV_OPEN
-
-#if OPEN_NET_UV_DEBUG == 1
-#include "DbgHelp.h"
-#pragma comment(lib, "DbgHelp.lib")
-// 处理Unhandled Exception的回调函数
-LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
-#endif
-
-
-void sendString(Session* s, char* szMsg)
-{
-	s->send(szMsg, strlen(szMsg));
-}
 
 Session* controlClient = NULL;
 bool gServerStop = false;
-
-
 std::vector<Session*> allSession;
 
 void main()
 {
-#if OPEN_NET_UV_DEBUG == 1
-	// 注册异常处理函数
-	SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)ApplicationCrashHandler);
-#endif
+	REGISTER_EXCEPTION("tcpServer.dmp");
 
 	printf("请输入端口号:");
 	int32_t port;
@@ -130,27 +109,3 @@ void main()
 
 	system("pause");
 }
-
-
-
-#if OPEN_NET_UV_DEBUG == 1
-// 创建dump文件
-void CreateDempFile(LPCWSTR lpstrDumpFilePathName, EXCEPTION_POINTERS* pException)
-{
-	HANDLE hDumpFile = CreateFile(lpstrDumpFilePathName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	//dump信息
-	MINIDUMP_EXCEPTION_INFORMATION dumpInfo;
-	dumpInfo.ExceptionPointers = pException;
-	dumpInfo.ThreadId = GetCurrentThreadId();
-	dumpInfo.ClientPointers = TRUE;
-	// 写入dump文件内容
-	MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, MiniDumpNormal, &dumpInfo, NULL, NULL);
-	CloseHandle(hDumpFile);
-}
-
-LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException)
-{
-	CreateDempFile(TEXT("tcpServer.dmp"), pException);
-	return EXCEPTION_EXECUTE_HANDLER;
-}
-#endif

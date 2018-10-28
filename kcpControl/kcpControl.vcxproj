@@ -196,11 +196,16 @@
     <ClCompile Include="..\common\net_uv\kcp\KCPSocket.cpp" />
     <ClCompile Include="..\common\net_uv\kcp\KCPSocketManager.cpp" />
     <ClCompile Include="..\common\net_uv\kcp\KCPUtils.cpp" />
+    <ClCompile Include="..\common\net_uv\p2p\P2PNode.cpp" />
+    <ClCompile Include="..\common\net_uv\p2p\P2PUtils.cpp" />
+    <ClCompile Include="..\common\net_uv\p2p\Turn.cpp" />
+    <ClCompile Include="..\common\net_uv\p2p\UDPPipe.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPClient.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPSession.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPSocket.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPUtils.cpp" />
+    <ClCompile Include="..\common\net_uv\udp\UDPSocket.cpp" />
     <ClCompile Include="testControl.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -256,6 +261,12 @@
     <ClInclude Include="..\common\net_uv\kcp\KCPSocketManager.h" />
     <ClInclude Include="..\common\net_uv\kcp\KCPUtils.h" />
     <ClInclude Include="..\common\net_uv\net_uv.h" />
+    <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h" />
+    <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h" />
+    <ClInclude Include="..\common\net_uv\p2p\P2PNode.h" />
+    <ClInclude Include="..\common\net_uv\p2p\P2PUtils.h" />
+    <ClInclude Include="..\common\net_uv\p2p\Turn.h" />
+    <ClInclude Include="..\common\net_uv\p2p\UDPPipe.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPClient.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPCommon.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h" />
@@ -263,6 +274,7 @@
     <ClInclude Include="..\common\net_uv\tcp\TCPSession.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPSocket.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPUtils.h" />
+    <ClInclude Include="..\common\net_uv\udp\UDPSocket.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -216,6 +216,15 @@
     <ClCompile Include="..\common\net_uv\p2p\Turn.cpp">
       <Filter>net_uv\p2p</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\P2PUtils.cpp">
+      <Filter>net_uv\p2p</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\P2PNode.cpp">
+      <Filter>net_uv\p2p</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\p2p\UDPPipe.cpp">
+      <Filter>net_uv\p2p</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\libuv\include\tree.h">
@@ -405,6 +414,15 @@
       <Filter>net_uv\p2p</Filter>
     </ClInclude>
     <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PUtils.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\P2PNode.h">
+      <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\p2p\UDPPipe.h">
       <Filter>net_uv\p2p</Filter>
     </ClInclude>
   </ItemGroup>

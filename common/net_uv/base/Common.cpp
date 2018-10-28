@@ -113,7 +113,7 @@ void fc_free(void* p)
 {
 	if (p == NULL)
 	{
-		assert(0);
+		//assert(0);
 		return;
 	}
 	block_mutex.lock();

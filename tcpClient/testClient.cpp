@@ -1,25 +1,8 @@
-#include "net_uv/tcp/TCPServer.h"
-#include "net_uv/tcp/TCPClient.h"
-#include "net_uv/tcp/TCPSession.h"
-
-NS_NET_UV_OPEN
-
-#if OPEN_NET_UV_DEBUG == 1
-#include "DbgHelp.h"
-#pragma comment(lib, "DbgHelp.lib")
-// 处理Unhandled Exception的回调函数
-LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
-#endif
-
-//#define CONNECT_IP "127.0.0.1"
-#define CONNECT_IP "www.kurumi.xin"
-#define CONNECT_PORT 1001
+#include "../TestCommon.h"
 
 bool autosend = true;
 uint32_t keyIndex = 0;
-char *szWriteBuf = new char[1024];
-
-
+char szWriteBuf[1024] = {0};
 
 // 命令解析
 bool cmdResolve(char* cmd, uint32_t key);
@@ -28,10 +11,8 @@ TCPClient* client = new TCPClient();
 
 void main()
 {
-#if OPEN_NET_UV_DEBUG == 1
-	// 注册异常处理函数
-	SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)ApplicationCrashHandler);
-#endif
+	REGISTER_EXCEPTION("tcpClient.dmp");
+
 	// 开启自动连接
 	client->setAutoReconnect(true);
 
@@ -95,7 +76,7 @@ void main()
 
 	for (int32_t i = 0; i < 10; ++i)
 	{
-		client->connect(CONNECT_IP, CONNECT_PORT, keyIndex++);
+		client->connect(TCP_CONNECT_IP, TCP_CONNECT_PORT, keyIndex++);
 	}
 
 	int32_t curCount = 0;
@@ -149,7 +130,7 @@ bool cmdResolve(char* cmd, uint32_t key)
 	else if (CMD_STRCMP("add"))
 	{
 		//新添加连接
-		client->connect(CONNECT_IP, CONNECT_PORT, keyIndex++);
+		client->connect(TCP_CONNECT_IP, TCP_CONNECT_PORT, keyIndex++);
 	}
 	else if (CMD_STRCMP("closea"))
 	{
@@ -193,26 +174,3 @@ bool cmdResolve(char* cmd, uint32_t key)
 	}
 	return true;
 }
-
-
-#if OPEN_NET_UV_DEBUG == 1
-// 创建dump文件
-void CreateDempFile(LPCWSTR lpstrDumpFilePathName, EXCEPTION_POINTERS* pException)
-{
-	HANDLE hDumpFile = CreateFile(lpstrDumpFilePathName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	//dump信息
-	MINIDUMP_EXCEPTION_INFORMATION dumpInfo;
-	dumpInfo.ExceptionPointers = pException;
-	dumpInfo.ThreadId = GetCurrentThreadId();
-	dumpInfo.ClientPointers = TRUE;
-	// 写入dump文件内容
-	MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, MiniDumpNormal, &dumpInfo, NULL, NULL);
-	CloseHandle(hDumpFile);
-}
-
-LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException)
-{
-	CreateDempFile(TEXT("tcpClient.dmp"), pException);
-	return EXCEPTION_EXECUTE_HANDLER;
-}
-#endif

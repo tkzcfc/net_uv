@@ -1,33 +1,11 @@
-#include "net_uv/tcp/TCPServer.h"
-#include "net_uv/tcp/TCPClient.h"
-
-#include <iostream>
-
-NS_NET_UV_OPEN
-
-#if OPEN_NET_UV_DEBUG == 1
-#include "DbgHelp.h"
-#pragma comment(lib, "DbgHelp.lib")
-// 处理Unhandled Exception的回调函数
-LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException);
-#endif
-
-//#define CONNECT_IP "127.0.0.1"
-#define CONNECT_IP "www.kurumi.xin"
-#define CONNECT_PORT 1001
-
-#define KEY_DOWN(VK_NONAME) ((GetAsyncKeyState(VK_NONAME) & 0x8000) ? 1:0)
-#define CMD_STR_STR(v) (strstr(cmdBuf, v))
+#include "../TestCommon.h"
 
 
 auto instance = new TCPClient();
 
-char *cmdBuf = new char[1024];
-char *szWriteBuf = new char[1024];
-
-
+char cmdBuf[1024] = {0};
+char szWriteBuf[1024] = {0};
 bool exitloop = false;
-
 uint32_t control_key = 0;
 
 void myPrintLog(int32_t level, const char* log)
@@ -40,10 +18,7 @@ void myPrintLog(int32_t level, const char* log)
 
 void main()
 {
-#if OPEN_NET_UV_DEBUG == 1
-	// 注册异常处理函数
-	SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)ApplicationCrashHandler);
-#endif
+	REGISTER_EXCEPTION("tcpControl.dmp");
 
 	setNetUVLogPrintFunc(myPrintLog);
 
@@ -51,11 +26,7 @@ void main()
 	instance->setAutoReconnect(true);
 	//设置重连时间
 	instance->setAutoReconnectTime(3.0f);
-
-	memset(cmdBuf, 0, 1024);
-	memset(szWriteBuf, 0, 1024);
-
-
+	
 	instance->setClientCloseCallback([](Client*) {
 		printf("客户端已关闭\n");
 		exitloop = true;
@@ -86,7 +57,7 @@ void main()
 		fc_free(msg);
 	});
 
-	instance->connect(CONNECT_IP, CONNECT_PORT, control_key);
+	instance->connect(TCP_CONNECT_IP, TCP_CONNECT_PORT, control_key);
 
 	while (!exitloop)
 	{
@@ -118,27 +89,3 @@ void main()
 	system("pause");
 }
 
-
-
-
-#if OPEN_NET_UV_DEBUG == 1
-// 创建dump文件
-void CreateDempFile(LPCWSTR lpstrDumpFilePathName, EXCEPTION_POINTERS* pException)
-{
-	HANDLE hDumpFile = CreateFile(lpstrDumpFilePathName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	//dump信息
-	MINIDUMP_EXCEPTION_INFORMATION dumpInfo;
-	dumpInfo.ExceptionPointers = pException;
-	dumpInfo.ThreadId = GetCurrentThreadId();
-	dumpInfo.ClientPointers = TRUE;
-	// 写入dump文件内容
-	MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, MiniDumpNormal, &dumpInfo, NULL, NULL);
-	CloseHandle(hDumpFile);
-}
-
-LONG ApplicationCrashHandler(EXCEPTION_POINTERS* pException)
-{
-	CreateDempFile(TEXT("tcpControl.dmp"), pException);
-	return EXCEPTION_EXECUTE_HANDLER;
-}
-#endif
