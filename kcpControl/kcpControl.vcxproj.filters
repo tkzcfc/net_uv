@@ -213,9 +213,6 @@
     <ClCompile Include="..\common\net_uv\udp\UDPSocket.cpp">
       <Filter>net_uv\udp</Filter>
     </ClCompile>
-    <ClCompile Include="..\common\net_uv\p2p\P2PUtils.cpp">
-      <Filter>net_uv\p2p</Filter>
-    </ClCompile>
     <ClCompile Include="..\common\net_uv\p2p\Turn.cpp">
       <Filter>net_uv\p2p</Filter>
     </ClCompile>
@@ -406,9 +403,6 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\udp\UDPSocket.h">
       <Filter>net_uv\udp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\common\net_uv\p2p\P2PUtils.h">
-      <Filter>net_uv\p2p</Filter>
     </ClInclude>
     <ClInclude Include="..\common\net_uv\p2p\Turn.h">
       <Filter>net_uv\p2p</Filter>

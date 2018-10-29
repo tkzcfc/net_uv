@@ -6,6 +6,7 @@ NS_NET_UV_BEGIN
 UDPPipe::UDPPipe()
 	: m_socket(NULL)
 	, m_state(RunState::STOP)
+	, m_overdueDetectionSpace(0)
 {
 	memset(&m_loop, 0, sizeof(uv_loop_t));
 	memset(&m_idle, 0, sizeof(uv_idle_t));
@@ -106,28 +107,27 @@ void UDPPipe::on_udp_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 	// 对方收到消息的回复
 	if (msg->msgID == P2P_MSG_RECV_MSG_RESULT__EX)
 	{
+		// 将对应消息移除发送队列
 		m_pipeLock.lock();
 
-		auto it = m_pipeInfoMap.find(info.key);
-		if (it != m_pipeInfoMap.end())
+		auto it = m_sendMsgMap.find(info.key);
+		if (it != m_sendMsgMap.end())
 		{
-			auto it_send = it->second.sendMap.find(msg->uniqueID);
-			if (it_send != it->second.sendMap.end())
+			auto it_send = it->second.find(msg->uniqueID);
+			if (it_send != it->second.end())
 			{
 				fc_free(it_send->second.msg);
-				it->second.sendMap.erase(it_send);
-			}
-			else
-			{
-				auto it_timout = it->second.sendTimeOutMap.find(msg->uniqueID);
-				if (it_timout != it->second.sendTimeOutMap.end())
-				{
-					it->second.sendTimeOutMap.erase(it_timout);
-				}
+				it->second.erase(it_send);
 			}
 		}
 
 		m_pipeLock.unlock();
+		return;
+	}
+
+	// 消息已经接收过
+	if (!addMsgToRecv(info.key, msg->uniqueID))
+	{
 		return;
 	}
 
@@ -172,50 +172,31 @@ void UDPPipe::onTimerRun()
 		return;
 	}
 
-	time_t curTime = time(NULL);
-
-	for (auto & it : m_pipeInfoMap)
+	for (auto& it : m_sendMsgMap)
 	{
-		if (it.second.sendMap.empty() == false)
+		for (auto it_send = it.second.begin(); it_send != it.second.end(); )
 		{
-			for (auto it_send = it.second.sendMap.begin(); it_send != it.second.sendMap.end(); )
+			//std::string send_str((char*)&it_send->second.msg[1], it_send->second.msg->msgLen);
+			//NET_UV_LOG(NET_UV_L_INFO, "send[%d]: %s", it_send->second.sendCount, send_str.c_str());
+
+			m_socket->udpSend((const char*)it_send->second.msg, (it_send->second.msg->msgLen + sizeof(P2PMessage)), (const struct sockaddr*)&it_send->second.send_addr);
+
+			it_send->second.sendCount--;
+
+			if (it_send->second.sendCount <= 0)
 			{
-				//std::string send_str((char*)&it_send->second.msg[1], it_send->second.msg->msgLen);
-				//NET_UV_LOG(NET_UV_L_INFO, "send[%d]: %s", it_send->second.sendCount, send_str.c_str());
-
-				m_socket->udpSend((const char*)it_send->second.msg, (it_send->second.msg->msgLen + sizeof(P2PMessage)), (const struct sockaddr*)&it_send->second.send_addr);
-				
-				it_send->second.sendCount--;
-
-				if (it_send->second.sendCount <= 0)
-				{
-					fc_free(it_send->second.msg);
-					it.second.sendTimeOutMap.insert(std::make_pair(it_send->first, curTime + 120));
-					it_send = it.second.sendMap.erase(it_send);
-				}
-				else
-				{
-					it_send++;
-				}
+				fc_free(it_send->second.msg);
+				it_send = it.second.erase(it_send);
 			}
-		}
-		if (it.second.sendTimeOutMap.empty() == false)
-		{
-			for (auto it_timeout = it.second.sendTimeOutMap.begin(); it_timeout != it.second.sendTimeOutMap.end(); )
+			else
 			{
-				if (it_timeout->second >= curTime)
-				{
-					it_timeout = it.second.sendTimeOutMap.erase(it_timeout);
-				}
-				else
-				{
-					it_timeout++;
-				}
+				it_send++;
 			}
 		}
 	}
-
 	m_pipeLock.unlock();
+
+	overdueDetection();
 }
 
 void UDPPipe::startTimer(uint64_t time)
@@ -282,16 +263,16 @@ void UDPPipe::sendMsg(P2PMessageID msgID, char* data, uint32_t len, uint32_t toI
 	uv_ip4_addr(addr, toPort, &sendInfo.send_addr);
 
 	m_pipeLock.lock();
-	auto it = m_pipeInfoMap.find(info.key);
-	if (it == m_pipeInfoMap.end())
+	auto it = m_sendMsgMap.find(info.key);
+	if (it == m_sendMsgMap.end())
 	{
-		PIPEData pipeData;
-		pipeData.sendMap.insert(std::make_pair(uniqueID, sendInfo));
-		m_pipeInfoMap.insert(std::make_pair(info.key, pipeData));
+		std::map<uint64_t, SendDataInfo> tmpMap;
+		tmpMap.insert(std::make_pair(uniqueID, sendInfo));
+		m_sendMsgMap.insert(std::make_pair(info.key, tmpMap));
 	}
 	else
 	{
-		it->second.sendMap.insert(std::make_pair(uniqueID, sendInfo));
+		it->second.insert(std::make_pair(uniqueID, sendInfo));
 	}
 	m_pipeLock.unlock();
 }
@@ -326,9 +307,9 @@ void UDPPipe::clearData()
 {
 	m_pipeLock.lock();
 
-	for (auto it : m_pipeInfoMap)
+	for (auto it : m_sendMsgMap)
 	{
-		for (auto it_send : it.second.sendMap)
+		for (auto it_send : it.second)
 		{
 			fc_free(it_send.second.msg);
 		}
@@ -336,6 +317,63 @@ void UDPPipe::clearData()
 	m_pipeInfoMap.clear();
 
 	m_pipeLock.unlock();
+}
+
+bool UDPPipe::addMsgToRecv(uint64_t clientID, uint64_t uniqueID)
+{
+	auto it_info = m_pipeInfoMap.find(clientID);
+	if (it_info == m_pipeInfoMap.end())
+	{
+		PIPEData data;
+		data.recvDataMap.insert(std::make_pair(uniqueID, time(NULL) + 300));
+		m_pipeInfoMap.insert(std::make_pair(clientID, data));
+	}
+	else
+	{
+		auto it = it_info->second.recvDataMap.find(uniqueID);
+		if (it != it_info->second.recvDataMap.end())
+		{
+			return false;
+		}
+		it_info->second.recvDataMap.insert(std::make_pair(uniqueID, time(NULL) + 300));
+	}
+	return true;
+}
+
+void UDPPipe::overdueDetection()
+{
+	m_overdueDetectionSpace++;
+
+	if (m_overdueDetectionSpace < 500)
+	{
+		return;
+	}
+	m_overdueDetectionSpace = 0;
+
+	auto curTime = time(NULL);
+
+	for (auto it = m_pipeInfoMap.begin(); it != m_pipeInfoMap.end(); )
+	{
+		if (it->second.recvDataMap.empty())
+		{
+			it = m_pipeInfoMap.erase(it);
+		}
+		else
+		{
+			for (auto it_recv = it->second.recvDataMap.begin(); it_recv != it->second.recvDataMap.end(); )
+			{
+				if (it_recv->second > curTime)
+				{
+					it_recv = it->second.recvDataMap.erase(it_recv);
+				}
+				else
+				{
+					it_recv++;
+				}
+			}
+			it++;
+		}
+	}
 }
 
 void UDPPipe::uv_on_idle_run(uv_idle_t* handle)

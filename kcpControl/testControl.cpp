@@ -1,7 +1,5 @@
 #include "../TestCommon.h"
 
-
-
 void main()
 {
 	Turn* turn = new Turn();

@@ -54,6 +54,11 @@ protected:
 
 	void clearData();
 
+	bool addMsgToRecv(uint64_t clientID, uint64_t uniqueID);
+
+	// 过期检测
+	void overdueDetection();
+
 protected:
 	/// Runnable
 	virtual void run()override;
@@ -82,28 +87,32 @@ protected:
 
 	RunState m_state;
 
+	struct PIPEData
+	{
+		// 已接收到的数据
+		// key: 消息uniqueID
+		// value : 过期时间
+		std::map<uint64_t, uint64_t> recvDataMap;
+	};
+	std::map<uint64_t, PIPEData> m_pipeInfoMap;
+	Mutex m_pipeLock;
 
+	// 过期检测间隔
+	uint32_t m_overdueDetectionSpace;
+
+	// 正在发送的数据	
 	struct SendDataInfo
 	{
 		P2PMessage* msg;
 		uint16_t sendCount;
 		sockaddr_in send_addr;
 	};
+	// key : userID(IP和端口组合而成)
+	// value : 
+	std::map<uint64_t, std::map<uint64_t, SendDataInfo> > m_sendMsgMap;
 
-	struct PIPEData
-	{
-		// 发送超时的数据
-		// key: 消息uniqueID
-		// value : 过期时间
-		std::map<uint64_t, uint64_t> sendTimeOutMap;
 
-		// 正在发送的数据
-		std::map<uint64_t, SendDataInfo> sendMap;
-	};
-
-	std::map<uint64_t, PIPEData> m_pipeInfoMap;
-
-	Mutex m_pipeLock;
+	// 心跳检测
 };
 
 NS_NET_UV_END
