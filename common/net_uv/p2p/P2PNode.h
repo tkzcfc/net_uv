@@ -17,24 +17,29 @@ public:
 	bool start(const char* turnIP, uint32_t turnPort);
 
 protected:
-	// 获取内网IP(只获取IPV4地址)
-	void getIntranetIP(std::vector<P2PIntranet_Address>& IPArr);
 
 	/// UDPPipe
 	virtual void onIdleRun()override;
 
-	void onTimerRun();
+	virtual void onTimerRun()override;
 
 	virtual void on_recv_msg(P2PMessageID msgID, rapidjson::Document& document, uint64_t key, const struct sockaddr* addr)override;
 
+	virtual void onSessionRemove(uint64_t sessionID)override;
+
+	virtual void onNewSession(uint64_t sessionID)override;
+
+
+	// send
+	void send_WantConnect(uint64_t key);
+
+	// 
 	void on_msg_ClientLoginResult(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr);
 
-	void on_msg_UserListResult(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr);
+	void on_msg_StartBurrow(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr);
 
 public:
-
-	std::vector<P2PIntranet_Address> m_InterfaceAddressInfo;
-
+	
 	AddrInfo m_turnAddr;	// turn地址信息
 	AddrInfo m_selfAddr;	// 自己地址信息
 

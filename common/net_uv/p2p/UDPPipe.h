@@ -47,6 +47,10 @@ protected:
 
 	virtual void onStop();
 
+	virtual void onSessionRemove(uint64_t sessionID);
+
+	virtual void onNewSession(uint64_t sessionID);
+
 
 	void setIsClient(bool isClient);
 
@@ -54,7 +58,7 @@ protected:
 
 	void clearData();
 
-	bool addMsgToRecv(uint64_t clientID, uint64_t uniqueID);
+	bool addMsgToRecv(uint64_t sessionID, uint64_t uniqueID, const struct sockaddr* addr);
 
 	// 过期检测
 	void overdueDetection();
@@ -87,15 +91,38 @@ protected:
 
 	RunState m_state;
 
-	struct PIPEData
+	struct SessionData
 	{
 		// 已接收到的数据
 		// key: 消息uniqueID
 		// value : 过期时间
 		std::map<uint64_t, uint64_t> recvDataMap;
+
+		// 心跳无响应次数
+		uint8_t noResponseCount;
+
+		// 地址
+		sockaddr_in send_addr;
+
+		bool recvData(uint64_t uniqueID)
+		{
+			noResponseCount = 0;
+
+			if (uniqueID == 0)
+				return false;
+
+			auto it = recvDataMap.find(uniqueID);
+			if (it == recvDataMap.end())
+			{
+				recvDataMap.insert(std::make_pair(uniqueID, time(NULL) + 300));
+				return true;
+			}
+			return false;
+		}
 	};
-	std::map<uint64_t, PIPEData> m_pipeInfoMap;
-	Mutex m_pipeLock;
+	std::map<uint64_t, SessionData> m_allSessionDataMap;
+
+	Mutex m_sendLock;
 
 	// 过期检测间隔
 	uint32_t m_overdueDetectionSpace;
@@ -107,12 +134,11 @@ protected:
 		uint16_t sendCount;
 		sockaddr_in send_addr;
 	};
-	// key : userID(IP和端口组合而成)
+	// key : sessionID(IP和端口组合而成)
 	// value : 
 	std::map<uint64_t, std::map<uint64_t, SendDataInfo> > m_sendMsgMap;
-
-
-	// 心跳检测
+	// 无效发送数据Map检测间隔
+	uint16_t m_invalidSendMsgDetectionSpace;
 };
 
 NS_NET_UV_END

@@ -23,9 +23,12 @@ protected:
 
 	virtual void on_recv_msg(P2PMessageID msgID, rapidjson::Document& document, uint64_t key, const struct sockaddr* addr)override;
 
+	virtual void onSessionRemove(uint64_t sessionID)override;
+
 
 	void on_msg_ClientLogin(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr);
 
+	void on_msg_ClientWantConnect(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr);
 protected:
 
 	std::map<uint64_t, P2PNodeInfo> m_nodeInfoMap;

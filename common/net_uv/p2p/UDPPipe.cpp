@@ -7,6 +7,7 @@ UDPPipe::UDPPipe()
 	: m_socket(NULL)
 	, m_state(RunState::STOP)
 	, m_overdueDetectionSpace(0)
+	, m_invalidSendMsgDetectionSpace(0)
 {
 	memset(&m_loop, 0, sizeof(uv_loop_t));
 	memset(&m_idle, 0, sizeof(uv_idle_t));
@@ -38,7 +39,11 @@ bool UDPPipe::startBind(const char* bindIP, uint32_t bindPort)
 
 	m_socket->setReadCallback(std::bind(&UDPPipe::on_udp_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
-	if (m_socket->bind(bindIP, bindPort) == 0)
+	bindPort = m_socket->bind(bindIP, bindPort);
+
+	NET_UV_LOG(NET_UV_L_INFO, "bind [%u]", bindPort);
+
+	if (bindPort == 0)
 	{
 		startFailureLogic();
 		return false;
@@ -108,7 +113,7 @@ void UDPPipe::on_udp_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 	if (msg->msgID == P2P_MSG_RECV_MSG_RESULT__EX)
 	{
 		// 将对应消息移除发送队列
-		m_pipeLock.lock();
+		m_sendLock.lock();
 
 		auto it = m_sendMsgMap.find(info.key);
 		if (it != m_sendMsgMap.end())
@@ -121,12 +126,36 @@ void UDPPipe::on_udp_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			}
 		}
 
-		m_pipeLock.unlock();
+		m_sendLock.unlock();
 		return;
 	}
 
+	// 心跳消息
+	if (msg->msgID == P2P_MSG_ID_HEART_SEND || msg->msgID == P2P_MSG_ID_HEART_RESULT)
+	{
+		// 心跳探测消息
+		if (msg->msgID == P2P_MSG_ID_HEART_SEND)
+		{
+			P2PMessage send_msg;
+			send_msg.msgID = P2P_MSG_ID_HEART_RESULT;
+			send_msg.msgLen = 0;
+			send_msg.uniqueID = 0;
+			m_socket->udpSend((const char*)&send_msg, sizeof(P2PMessage), addr);
+		}
+		//printf("recv heart\n");
+		addMsgToRecv(info.key, 0, addr);
+		return;
+	}
+
+	// 向对方通知收到该消息
+	P2PMessage send_msg;
+	send_msg.msgID = P2P_MSG_RECV_MSG_RESULT__EX;
+	send_msg.msgLen = 0;
+	send_msg.uniqueID = msg->uniqueID;
+	m_socket->udpSend((const char*)&send_msg, sizeof(P2PMessage), addr);
+
 	// 消息已经接收过
-	if (!addMsgToRecv(info.key, msg->uniqueID))
+	if (!addMsgToRecv(info.key, msg->uniqueID, addr))
 	{
 		return;
 	}
@@ -148,13 +177,6 @@ void UDPPipe::on_udp_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 	{
 		NET_UV_LOG(NET_UV_L_ERROR, "json parse error: %u", document.GetParseError());
 	}
-
-	// 向对方通知收到该消息
-	P2PMessage send_msg;
-	send_msg.msgID = P2P_MSG_RECV_MSG_RESULT__EX;
-	send_msg.msgLen = 0;
-	send_msg.uniqueID = msg->uniqueID;
-	m_socket->udpSend((const char*)&send_msg, sizeof(P2PMessage), addr);
 }
 
 void UDPPipe::onIdleRun()
@@ -167,7 +189,7 @@ void UDPPipe::onIdleRun()
 
 void UDPPipe::onTimerRun()
 {
-	if (m_pipeLock.trylock() != 0)
+	if (m_sendLock.trylock() != 0)
 	{
 		return;
 	}
@@ -194,7 +216,7 @@ void UDPPipe::onTimerRun()
 			}
 		}
 	}
-	m_pipeLock.unlock();
+	m_sendLock.unlock();
 
 	overdueDetection();
 }
@@ -230,6 +252,24 @@ void UDPPipe::onStop()
 	stopTimer();
 }
 
+void UDPPipe::onSessionRemove(uint64_t sessionID)
+{
+	m_sendLock.lock();
+
+	auto it = m_sendMsgMap.find(sessionID);
+	if (it == m_sendMsgMap.end())
+	{
+		m_sendLock.unlock();
+		return;
+	}
+	m_sendMsgMap.erase(it);
+
+	m_sendLock.unlock();
+}
+
+void UDPPipe::onNewSession(uint64_t sessionID)
+{}
+
 void UDPPipe::sendMsg(P2PMessageID msgID, char* data, uint32_t len, uint32_t toIP, uint32_t toPort, uint32_t timeoutCount/* = 10*/)
 {
 	char* senddata = (char*)fc_malloc(sizeof(P2PMessage) + len);
@@ -262,7 +302,7 @@ void UDPPipe::sendMsg(P2PMessageID msgID, char* data, uint32_t len, uint32_t toI
 	sendInfo.sendCount = timeoutCount;
 	uv_ip4_addr(addr, toPort, &sendInfo.send_addr);
 
-	m_pipeLock.lock();
+	m_sendLock.lock();
 	auto it = m_sendMsgMap.find(info.key);
 	if (it == m_sendMsgMap.end())
 	{
@@ -274,7 +314,7 @@ void UDPPipe::sendMsg(P2PMessageID msgID, char* data, uint32_t len, uint32_t toI
 	{
 		it->second.insert(std::make_pair(uniqueID, sendInfo));
 	}
-	m_pipeLock.unlock();
+	m_sendLock.unlock();
 }
 
 uint64_t UDPPipe::newUniqueID()
@@ -305,7 +345,7 @@ void UDPPipe::setIsClient(bool isClient)
 
 void UDPPipe::clearData()
 {
-	m_pipeLock.lock();
+	m_sendLock.lock();
 
 	for (auto it : m_sendMsgMap)
 	{
@@ -314,51 +354,50 @@ void UDPPipe::clearData()
 			fc_free(it_send.second.msg);
 		}
 	}
-	m_pipeInfoMap.clear();
 
-	m_pipeLock.unlock();
+	m_sendLock.unlock();
+
+	m_allSessionDataMap.clear();
 }
 
-bool UDPPipe::addMsgToRecv(uint64_t clientID, uint64_t uniqueID)
+bool UDPPipe::addMsgToRecv(uint64_t sessionID, uint64_t uniqueID, const struct sockaddr* addr)
 {
-	auto it_info = m_pipeInfoMap.find(clientID);
-	if (it_info == m_pipeInfoMap.end())
+	auto it_info = m_allSessionDataMap.find(sessionID);
+	if (it_info == m_allSessionDataMap.end())
 	{
-		PIPEData data;
-		data.recvDataMap.insert(std::make_pair(uniqueID, time(NULL) + 300));
-		m_pipeInfoMap.insert(std::make_pair(clientID, data));
+		const struct sockaddr_in* recv_addr = (const struct sockaddr_in*)addr;
+
+		SessionData data;
+		memcpy(&data.send_addr, recv_addr, sizeof(struct sockaddr_in));
+		data.recvData(uniqueID);
+
+		m_allSessionDataMap.insert(std::make_pair(sessionID, data));
+
+		this->onNewSession(sessionID);
+
+		return true;
 	}
-	else
-	{
-		auto it = it_info->second.recvDataMap.find(uniqueID);
-		if (it != it_info->second.recvDataMap.end())
-		{
-			return false;
-		}
-		it_info->second.recvDataMap.insert(std::make_pair(uniqueID, time(NULL) + 300));
-	}
-	return true;
+	return it_info->second.recvData(uniqueID);
 }
 
 void UDPPipe::overdueDetection()
 {
 	m_overdueDetectionSpace++;
 
-	if (m_overdueDetectionSpace < 500)
+	if (m_overdueDetectionSpace < 20)
 	{
 		return;
 	}
 	m_overdueDetectionSpace = 0;
 
+	//printf("update\n");
+
 	auto curTime = time(NULL);
 
-	for (auto it = m_pipeInfoMap.begin(); it != m_pipeInfoMap.end(); )
+	// 心跳检测
+	for (auto it = m_allSessionDataMap.begin(); it != m_allSessionDataMap.end(); )
 	{
-		if (it->second.recvDataMap.empty())
-		{
-			it = m_pipeInfoMap.erase(it);
-		}
-		else
+		if (it->second.recvDataMap.empty() == false)
 		{
 			for (auto it_recv = it->second.recvDataMap.begin(); it_recv != it->second.recvDataMap.end(); )
 			{
@@ -371,9 +410,60 @@ void UDPPipe::overdueDetection()
 					it_recv++;
 				}
 			}
+		}
+
+		if (it->second.noResponseCount >= 4)
+		{
+			onSessionRemove(it->first);
+			it = m_allSessionDataMap.erase(it);
+		}
+		else
+		{
+			it->second.noResponseCount++;
+
+			P2PMessage send_msg;
+			send_msg.msgID = P2P_MSG_ID_HEART_RESULT;
+			send_msg.msgLen = 0;
+			send_msg.uniqueID = 0;
+			m_socket->udpSend((const char*)&send_msg, sizeof(P2PMessage), (const sockaddr*)&it->second.send_addr);
 			it++;
 		}
 	}
+
+	// 无效发送数据Map删除
+	m_invalidSendMsgDetectionSpace++;
+	if (m_invalidSendMsgDetectionSpace < 5)
+	{
+		return;
+	}
+	m_invalidSendMsgDetectionSpace = 0;
+
+	if (m_sendLock.trylock() != 0)
+	{
+		return;
+	}
+
+	for (auto it = m_sendMsgMap.begin(); it != m_sendMsgMap.end(); )
+	{
+		if (it->second.empty())
+		{
+			auto it_session = m_allSessionDataMap.find(it->first);
+			if (it_session == m_allSessionDataMap.end())
+			{
+				it = m_sendMsgMap.erase(it);
+			}
+			else
+			{
+				it++;
+			}
+		}
+		else
+		{
+			it++;
+		}
+	}
+
+	m_sendLock.unlock();
 }
 
 void UDPPipe::uv_on_idle_run(uv_idle_t* handle)

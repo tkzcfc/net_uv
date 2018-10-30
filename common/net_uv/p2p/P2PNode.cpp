@@ -29,31 +29,13 @@ bool P2PNode::start(const char* turnIP, uint32_t turnPort)
 	m_state = RunState::RUN;
 
 	this->startLoop();
-
-	getIntranetIP(m_InterfaceAddressInfo);
-
-	rapidjson::StringBuffer s;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
-
-	writer.StartArray();
-
-	for (auto i = 0; i < m_InterfaceAddressInfo.size(); ++i)
-	{
-		writer.StartObject();
-		writer.Key("IP");
-		writer.Uint(m_InterfaceAddressInfo[i].addr);
-		writer.Key("mask");
-		writer.Uint(m_InterfaceAddressInfo[i].mask);
-		writer.EndObject();
-	}
-
-	writer.EndArray();
-
+	
 	m_turnAddr.ip = inet_addr(turnIP);
 	m_turnAddr.port = turnPort;
 
-	const char* sendData = s.GetString();
-	this->sendMsg(P2PMessageID::P2P_MSG_ID_C2T_CLIENT_LOGIN, (char*)sendData, s.GetLength(), m_turnAddr.ip, m_turnAddr.port);
+	const char* loginJson = "{}";
+
+	this->sendMsg(P2PMessageID::P2P_MSG_ID_C2T_CLIENT_LOGIN, (char*)loginJson, sizeof(loginJson), m_turnAddr.ip, m_turnAddr.port);
 
 	return true;
 }
@@ -94,6 +76,45 @@ void P2PNode::onTimerRun()
 	}
 }
 
+void P2PNode::onSessionRemove(uint64_t sessionID)
+{
+	UDPPipe::onSessionRemove(sessionID);
+
+	for (auto it = m_userList.begin(); it != m_userList.end(); )
+	{
+		if (it->key == sessionID)
+		{
+			printf("remove session %llu\n", sessionID);
+			it = m_userList.erase(it);
+		}
+		else
+		{
+			it++;
+		}
+	}
+}
+
+void P2PNode::onNewSession(uint64_t sessionID)
+{
+	//UDPPipe::onNewSession(sessionID);
+	printf("new session %llu\n", sessionID);
+}
+
+void P2PNode::send_WantConnect(uint64_t key)
+{
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+
+	writer.StartObject();
+
+	writer.Key("key");
+	writer.Uint64(key);
+
+	writer.EndObject();
+
+	this->sendMsg(P2P_MSG_ID_C2T_WANT_TO_CONNECT, (char*)s.GetString(), s.GetLength(), m_turnAddr.ip, m_turnAddr.port);
+}
+
 void P2PNode::on_recv_msg(P2PMessageID msgID, rapidjson::Document& document, uint64_t key, const struct sockaddr* addr)
 {
 	switch (msgID)
@@ -101,88 +122,48 @@ void P2PNode::on_recv_msg(P2PMessageID msgID, rapidjson::Document& document, uin
 	case net_uv::P2P_MSG_ID_T2C_CLIENT_LOGIN_RESULT:
 		on_msg_ClientLoginResult(document, key, addr);
 		break;
-	case net_uv::P2P_MSG_ID_T2C_GET_LIST_RESULT:
-		on_msg_UserListResult(document, key, addr);
+	case net_uv::P2P_MSG_ID_T2C_START_BURROW:
+		on_msg_StartBurrow(document, key, addr);
 		break;
 	}
 }
 
 void P2PNode::on_msg_ClientLoginResult(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr)
 {
-	m_selfAddr.ip = document["ip"].GetUint();
-	m_selfAddr.port = document["port"].GetUint();
-}
-
-void P2PNode::on_msg_UserListResult(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr)
-{
-	m_userList.clear();
-
-	AddrInfo info;
-
-	if (document.IsArray())
+	if (document.HasMember("ip") && document.HasMember("port"))
 	{
-		rapidjson::Value obj = document.GetArray();
-		for (size_t i = 0; i < obj.Size(); ++i)
+		rapidjson::Value& ip_value = document["ip"];
+		rapidjson::Value& port_value = document["port"];
+		if (ip_value.IsUint() && port_value.IsUint())
 		{
-			rapidjson::Value & v = obj[i];
-
-			if (v.HasMember("ip") && v["ip"].IsUint())
-			{
-				info.ip = v["ip"].GetUint();
-			}
-			if (v.HasMember("port") && v["port"].IsUint())
-			{
-				info.port = v["port"].GetUint();
-			}
-			m_userList.push_back(info);
+			m_selfAddr.ip = ip_value.GetUint();
+			m_selfAddr.port = port_value.GetUint();
 		}
 	}
 }
 
-void P2PNode::getIntranetIP(std::vector<P2PIntranet_Address>& IPArr)
+void P2PNode::on_msg_StartBurrow(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr)
 {
-	uv_interface_address_t *info;
-	int count, i;
-
-	uv_interface_addresses(&info, &count);
-	i = count;
-
-	P2PIntranet_Address addressData;
-	while (i--)
+	if (document.HasMember("ip") && document.HasMember("port"))
 	{
-		uv_interface_address_t interface = info[i];
-
-		if (!interface.is_internal && interface.address.address4.sin_family == AF_INET)
+		rapidjson::Value& ip_value = document["ip"];
+		rapidjson::Value& port_value = document["port"];
+		if (ip_value.IsUint() && port_value.IsUint())
 		{
-			//char buf[256];
-			//uv_ip4_name(&interface.address.address4, buf, sizeof(buf));
-			//printf("ip: %s\n", buf);
-			//uv_ip4_name(&interface.netmask.netmask4, buf, sizeof(buf));
-			//printf("mask: %s\n", buf);
+			rapidjson::StringBuffer s;
+			rapidjson::Writer<rapidjson::StringBuffer> writer(s);
 
-			addressData.addr = interface.address.address4.sin_addr.s_addr;
-			addressData.mask = interface.netmask.netmask4.sin_addr.s_addr;
+			writer.StartObject();
+			writer.Key("hello");
+			writer.String("hello");
+			writer.EndObject();
 
-			//char * ipaddr = NULL;
-			//char addr[20];
-			//in_addr inaddr;
-			//inaddr.s_addr = addressData.addr;
-			//ipaddr = inet_ntoa(inaddr);
-			//strcpy(addr, ipaddr);
-			//printf("new ip: %s\n", addr);
+			int32_t send_ip = ip_value.GetUint();
+			int32_t send_port = port_value.GetUint();
 
-			//char* ipaddr_mask = NULL;
-			//in_addr inaddr_mask;
-			//inaddr_mask.s_addr = addressData.mask;
-			//ipaddr_mask = inet_ntoa(inaddr_mask);
-			//strcpy(addr, ipaddr_mask);
-			//printf("new mask: %s\n", addr);
-
-			IPArr.push_back(addressData);
+			this->sendMsg(P2P_MSG_ID_C2C_HELLO, (char*)s.GetString(), s.GetLength(), send_ip, send_port, 100);
 		}
 	}
-	uv_free_interface_addresses(info, count);
 }
-
 
 NS_NET_UV_END
