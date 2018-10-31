@@ -16,6 +16,8 @@ public:
 
 	bool start(const char* turnIP, uint32_t turnPort);
 
+	void connect(uint64_t key);
+
 protected:
 
 	/// UDPPipe
@@ -32,6 +34,8 @@ protected:
 
 	// send
 	void send_WantConnect(uint64_t key);
+
+	void send_Hello(uint32_t send_ip, uint32_t send_port);
 
 	// 
 	void on_msg_ClientLoginResult(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr);

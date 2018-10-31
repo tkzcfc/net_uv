@@ -8,11 +8,28 @@ void main()
 
 	P2PNode* node = new P2PNode();
 
-	//node->start("39.105.20.204", 1234);
-	node->start("127.0.0.1", 1234);
+	node->start("39.105.20.204", 1234);
+	//node->start("127.0.0.1", 1234);
 
 	while (true)
 	{
+		if (KEY_DOWN(VK_SPACE))
+		{
+			char buf[128] = {0};
+			printf("请输入要连接的Key:");
+			std::cin >> buf;
+			try
+			{
+				int64_t key = 0;
+				key = std::stoll(buf); 
+				node->connect(key);
+			}
+			catch (...)
+			{
+				continue;
+			}
+			
+		}
 		Sleep(1);
 	}
 

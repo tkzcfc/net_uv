@@ -29,6 +29,10 @@ protected:
 	void on_msg_ClientLogin(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr);
 
 	void on_msg_ClientWantConnect(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr);
+
+
+	void showNodeList();
+
 protected:
 
 	std::map<uint64_t, P2PNodeInfo> m_nodeInfoMap;

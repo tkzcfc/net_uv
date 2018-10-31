@@ -45,6 +45,7 @@ void Turn::onSessionRemove(uint64_t sessionID)
 		printf("remove user %llu\n", sessionID);
 		m_nodeInfoMap.erase(it);
 	}
+	showNodeList();
 }
 
 void Turn::on_recv_msg(P2PMessageID msgID, rapidjson::Document& document, uint64_t key, const struct sockaddr* addr)
@@ -93,6 +94,8 @@ void Turn::on_msg_ClientLogin(rapidjson::Document& document, uint64_t key, const
 	writer.EndObject();
 
 	this->sendMsg(P2P_MSG_ID_T2C_CLIENT_LOGIN_RESULT, (char*)s.GetString(), s.GetLength(), info.addr.ip, info.addr.port);
+
+	showNodeList();
 }
 
 void Turn::on_msg_ClientWantConnect(rapidjson::Document& document, uint64_t key, const struct sockaddr* addr)
@@ -126,6 +129,18 @@ void Turn::on_msg_ClientWantConnect(rapidjson::Document& document, uint64_t key,
 			}
 		}
 	}
+}
+
+void Turn::showNodeList()
+{
+	int32_t index = 0;
+
+	printf("\n{\n");
+	for (auto &it : m_nodeInfoMap)
+	{
+		printf("\t[%d] : %llu\n", ++index, it.first);
+	}
+	printf("}\n");
 }
 
 NS_NET_UV_END

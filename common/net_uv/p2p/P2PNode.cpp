@@ -40,6 +40,11 @@ bool P2PNode::start(const char* turnIP, uint32_t turnPort)
 	return true;
 }
 
+void P2PNode::connect(uint64_t key)
+{
+	send_WantConnect(key);
+}
+
 	/// UDPPipe
 void P2PNode::onIdleRun()
 {
@@ -98,6 +103,14 @@ void P2PNode::onNewSession(uint64_t sessionID)
 {
 	//UDPPipe::onNewSession(sessionID);
 	printf("new session %llu\n", sessionID);
+
+	if (m_turnAddr.key == sessionID)
+		return;
+
+	AddrInfo info;
+	info.key = sessionID;
+	
+	m_userList.push_back(info);
 }
 
 void P2PNode::send_WantConnect(uint64_t key)
@@ -113,6 +126,25 @@ void P2PNode::send_WantConnect(uint64_t key)
 	writer.EndObject();
 
 	this->sendMsg(P2P_MSG_ID_C2T_WANT_TO_CONNECT, (char*)s.GetString(), s.GetLength(), m_turnAddr.ip, m_turnAddr.port);
+
+	AddrInfo sendInfo;
+	sendInfo.key = key;
+	send_Hello(sendInfo.ip, sendInfo.port);
+}
+
+void P2PNode::send_Hello(uint32_t send_ip, uint32_t send_port)
+{
+	rapidjson::StringBuffer s;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(s);
+
+	writer.StartObject();
+	writer.Key("hello");
+	writer.String("hello");
+	writer.EndObject();
+
+	printf("StartBurrow to %u : %u->\n", send_ip, send_port);
+
+	this->sendMsg(P2P_MSG_ID_C2C_HELLO, (char*)s.GetString(), s.GetLength(), send_ip, send_port, 100);
 }
 
 void P2PNode::on_recv_msg(P2PMessageID msgID, rapidjson::Document& document, uint64_t key, const struct sockaddr* addr)
@@ -138,6 +170,8 @@ void P2PNode::on_msg_ClientLoginResult(rapidjson::Document& document, uint64_t k
 		{
 			m_selfAddr.ip = ip_value.GetUint();
 			m_selfAddr.port = port_value.GetUint();
+
+			printf("Login Suc my key : %llu->\n", m_selfAddr.key);
 		}
 	}
 }
@@ -150,18 +184,7 @@ void P2PNode::on_msg_StartBurrow(rapidjson::Document& document, uint64_t key, co
 		rapidjson::Value& port_value = document["port"];
 		if (ip_value.IsUint() && port_value.IsUint())
 		{
-			rapidjson::StringBuffer s;
-			rapidjson::Writer<rapidjson::StringBuffer> writer(s);
-
-			writer.StartObject();
-			writer.Key("hello");
-			writer.String("hello");
-			writer.EndObject();
-
-			int32_t send_ip = ip_value.GetUint();
-			int32_t send_port = port_value.GetUint();
-
-			this->sendMsg(P2P_MSG_ID_C2C_HELLO, (char*)s.GetString(), s.GetLength(), send_ip, send_port, 100);
+			send_Hello(ip_value.GetUint(), port_value.GetUint());
 		}
 	}
 }
