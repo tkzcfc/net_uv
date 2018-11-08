@@ -21,5 +21,6 @@
 #include "udp/UDPSocket.h"
 
 // p2p
-#include "p2p/P2PNode.h"
-#include "p2p/Turn.h"
+#include "p2p/P2PPipe.h"
+#include "p2p/P2PPeer.h"
+#include "p2p/P2PTurn.h"

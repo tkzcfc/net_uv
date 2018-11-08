@@ -2,7 +2,7 @@
 
 void main()
 {
-	Turn* turn = new Turn();
+	P2PTurn* turn = new P2PTurn();
 	turn->start("0.0.0.0", 1234);
 
 	while (true)

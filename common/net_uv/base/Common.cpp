@@ -121,7 +121,7 @@ void fc_free(void* p)
 	auto it = block_map.find(p);
 	if (it == block_map.end())
 	{
-		assert(p == NULL);
+		//assert(p == NULL);
 		NET_UV_LOG(NET_UV_L_WARNING, "fc_free: [%p] not find", p);
 	}
 	else

@@ -6,12 +6,55 @@ void main()
 {
 	REGISTER_EXCEPTION("p2pNode.dmp");
 
-	P2PNode* node = new P2PNode();
+	bool continueRun = true;
 
-	node->start("39.105.20.204", 1234);
-	//node->start("127.0.0.1", 1234);
+	P2PPeer* node = new P2PPeer();
 
-	while (true)
+	node->setStartCallback([](bool isSuccess) 
+	{
+		printf("Peer启动%s\n", isSuccess ? "成功" : "失败");
+	});
+
+	node->setNewConnectCallback([](uint64_t key) 
+	{
+		printf("新连接[%llu]进入\n", key);
+	});
+
+	node->setConnectToPeerCallback([](uint64_t key, bool isSuccess) 
+	{
+		printf("连接到[%llu]%s\n", key, isSuccess ? "成功" : "失败");
+	});
+
+	node->setConnectToTurnCallback([](bool isSuccess, uint64_t selfKey) 
+	{
+		if(isSuccess)
+			printf("连接到Turn成功，本机Key:[%llu]\n", selfKey);
+		else
+			printf("连接到Turn失败\n");
+	});
+
+	node->setDisConnectCallback([](uint64_t key) 
+	{
+		printf("连接[%llu]已断开\n", key);
+	});
+
+	node->setRecvCallback([](uint64_t key, char* data, uint32_t len) 
+	{
+		std::string recvstr(data, len);
+		printf("[%llu]收到数据: %s\n", key, recvstr.c_str());
+	});
+
+	node->setCloseCallback([&]() 
+	{
+		printf("Peer关闭\n");
+		continueRun = false;
+	});
+
+
+	//node->start("39.105.20.204", 1234);
+	node->start("127.0.0.1", 1234);
+
+	while (continueRun)
 	{
 		if (KEY_DOWN(VK_SPACE))
 		{
@@ -22,14 +65,14 @@ void main()
 			{
 				int64_t key = 0;
 				key = std::stoll(buf); 
-				node->connect(key);
+				node->connectToPeer(key);
 			}
 			catch (...)
 			{
 				continue;
 			}
-			
 		}
+		node->updateFrame();
 		Sleep(1);
 	}
 
