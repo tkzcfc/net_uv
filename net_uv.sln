@@ -15,6 +15,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kcpClient", "kcpClient\kcpC
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kcpControl", "kcpControl\kcpControl.vcxproj", "{056D11A8-B3C7-4897-8A43-02667F78A53F}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "p2pClient", "p2pClient\p2pClient.vcxproj", "{D8747BE7-FD75-4DBD-BDAB-F1E5FD89AE21}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -71,6 +73,14 @@ Global
 		{056D11A8-B3C7-4897-8A43-02667F78A53F}.Release|x64.Build.0 = Release|x64
 		{056D11A8-B3C7-4897-8A43-02667F78A53F}.Release|x86.ActiveCfg = Release|Win32
 		{056D11A8-B3C7-4897-8A43-02667F78A53F}.Release|x86.Build.0 = Release|Win32
+		{D8747BE7-FD75-4DBD-BDAB-F1E5FD89AE21}.Debug|x64.ActiveCfg = Debug|x64
+		{D8747BE7-FD75-4DBD-BDAB-F1E5FD89AE21}.Debug|x64.Build.0 = Debug|x64
+		{D8747BE7-FD75-4DBD-BDAB-F1E5FD89AE21}.Debug|x86.ActiveCfg = Debug|Win32
+		{D8747BE7-FD75-4DBD-BDAB-F1E5FD89AE21}.Debug|x86.Build.0 = Debug|Win32
+		{D8747BE7-FD75-4DBD-BDAB-F1E5FD89AE21}.Release|x64.ActiveCfg = Release|x64
+		{D8747BE7-FD75-4DBD-BDAB-F1E5FD89AE21}.Release|x64.Build.0 = Release|x64
+		{D8747BE7-FD75-4DBD-BDAB-F1E5FD89AE21}.Release|x86.ActiveCfg = Release|Win32
+		{D8747BE7-FD75-4DBD-BDAB-F1E5FD89AE21}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{80F610C2-DB04-4A14-BD21-AB40C88E6C38}</ProjectGuid>
+    <ProjectGuid>{D8747BE7-FD75-4DBD-BDAB-F1E5FD89AE21}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>p2pClient</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
@@ -87,12 +87,14 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../common/libuv/include;../common/libuv;../common/;../common/libuv/thirdparty;../common/libuv/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CRT_SECURE_NO_DEPRECATE=1;_CRT_NON_CONFORMING_SWPRINTFS=1;_SCL_SECURE_NO_WARNINGS=1;__WXMSW__;_UNICODE;WXUSINGDLL;_WINDOWS;wxUSE_UNICODE_MSLU;NOPCH;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../thirdpart/wxWidget/debug/lib/vc140_dll/mswud;../thirdpart/wxWidget/wxWidgets-3.0.4-headers/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>../thirdpart/wxWidget/debug/lib/vc140_dll/;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wxbase31ud.lib;wxbase31ud_net.lib;wxbase31ud_xml.lib;wxexpatd.lib;wxjpegd.lib;wxmsw31ud_adv.lib;wxmsw31ud_aui.lib;wxmsw31ud_core.lib;wxmsw31ud_gl.lib;wxmsw31ud_html.lib;wxmsw31ud_media.lib;wxmsw31ud_propgrid.lib;wxmsw31ud_qa.lib;wxmsw31ud_ribbon.lib;wxmsw31ud_richtext.lib;wxmsw31ud_stc.lib;wxmsw31ud_webview.lib;wxmsw31ud_xrc.lib;wxpngd.lib;wxregexud.lib;wxscintillad.lib;wxtiffd.lib;wxzlibd.lib;opengl32.lib;glu32.lib;kernel32.lib;user32.lib;gdi32.lib;comdlg32.lib;winspool.lib;winmm.lib;shell32.lib;shlwapi.lib;comctl32.lib;ole32.lib;oleaut32.lib;uuid.lib;rpcrt4.lib;advapi32.lib;version.lib;wsock32.lib;wininet.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -101,10 +103,10 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -116,13 +118,13 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -133,139 +135,22 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\common\libuv\include\android-ifaddrs.h" />
-    <ClInclude Include="..\common\libuv\include\pthread-barrier.h" />
-    <ClInclude Include="..\common\libuv\include\stdint-msvc2008.h" />
-    <ClInclude Include="..\common\libuv\include\tree.h" />
-    <ClInclude Include="..\common\libuv\include\uv-aix.h" />
-    <ClInclude Include="..\common\libuv\include\uv-bsd.h" />
-    <ClInclude Include="..\common\libuv\include\uv-darwin.h" />
-    <ClInclude Include="..\common\libuv\include\uv-errno.h" />
-    <ClInclude Include="..\common\libuv\include\uv-linux.h" />
-    <ClInclude Include="..\common\libuv\include\uv-os390.h" />
-    <ClInclude Include="..\common\libuv\include\uv-posix.h" />
-    <ClInclude Include="..\common\libuv\include\uv-sunos.h" />
-    <ClInclude Include="..\common\libuv\include\uv-threadpool.h" />
-    <ClInclude Include="..\common\libuv\include\uv-unix.h" />
-    <ClInclude Include="..\common\libuv\include\uv-version.h" />
-    <ClInclude Include="..\common\libuv\include\uv-win.h" />
-    <ClInclude Include="..\common\libuv\include\uv.h" />
-    <ClInclude Include="..\common\libuv\src\heap-inl.h" />
-    <ClInclude Include="..\common\libuv\src\queue.h" />
-    <ClInclude Include="..\common\libuv\src\uv-common.h" />
-    <ClInclude Include="..\common\libuv\src\win\atomicops-inl.h" />
-    <ClInclude Include="..\common\libuv\src\win\handle-inl.h" />
-    <ClInclude Include="..\common\libuv\src\win\internal.h" />
-    <ClInclude Include="..\common\libuv\src\win\req-inl.h" />
-    <ClInclude Include="..\common\libuv\src\win\stream-inl.h" />
-    <ClInclude Include="..\common\libuv\src\win\winapi.h" />
-    <ClInclude Include="..\common\libuv\src\win\winsock.h" />
-    <ClInclude Include="..\common\net_uv\base\Buffer.h" />
-    <ClInclude Include="..\common\net_uv\base\Client.h" />
-    <ClInclude Include="..\common\net_uv\base\Common.h" />
-    <ClInclude Include="..\common\net_uv\base\Config.h" />
-    <ClInclude Include="..\common\net_uv\base\Macros.h" />
-    <ClInclude Include="..\common\net_uv\base\md5.h" />
-    <ClInclude Include="..\common\net_uv\base\Misc.h" />
-    <ClInclude Include="..\common\net_uv\base\Mutex.h" />
-    <ClInclude Include="..\common\net_uv\base\Runnable.h" />
-    <ClInclude Include="..\common\net_uv\base\Server.h" />
-    <ClInclude Include="..\common\net_uv\base\Session.h" />
-    <ClInclude Include="..\common\net_uv\base\SessionManager.h" />
-    <ClInclude Include="..\common\net_uv\base\Socket.h" />
-    <ClInclude Include="..\common\net_uv\common\NetHeart.h" />
-    <ClInclude Include="..\common\net_uv\common\NetUVThreadMsg.h" />
-    <ClInclude Include="..\common\net_uv\kcp\ikcp.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPClient.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPCommon.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPConfig.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPServer.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPSession.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPSocket.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPSocketManager.h" />
-    <ClInclude Include="..\common\net_uv\kcp\KCPUtils.h" />
-    <ClInclude Include="..\common\net_uv\net_uv.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PClient.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h" />
-    <ClInclude Include="..\common\net_uv\p2p\P2PServer.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPClient.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPCommon.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPServer.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPSession.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPSocket.h" />
-    <ClInclude Include="..\common\net_uv\tcp\TCPUtils.h" />
+    <ClCompile Include="MyApp.cpp" />
+    <ClCompile Include="MyFrame.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\common\libuv\src\fs-poll.c" />
-    <ClCompile Include="..\common\libuv\src\inet.c" />
-    <ClCompile Include="..\common\libuv\src\threadpool.c" />
-    <ClCompile Include="..\common\libuv\src\uv-common.c" />
-    <ClCompile Include="..\common\libuv\src\uv-data-getter-setters.c" />
-    <ClCompile Include="..\common\libuv\src\version.c" />
-    <ClCompile Include="..\common\libuv\src\win\async.c" />
-    <ClCompile Include="..\common\libuv\src\win\core.c" />
-    <ClCompile Include="..\common\libuv\src\win\detect-wakeup.c" />
-    <ClCompile Include="..\common\libuv\src\win\dl.c" />
-    <ClCompile Include="..\common\libuv\src\win\error.c" />
-    <ClCompile Include="..\common\libuv\src\win\fs-event.c" />
-    <ClCompile Include="..\common\libuv\src\win\fs.c" />
-    <ClCompile Include="..\common\libuv\src\win\getaddrinfo.c" />
-    <ClCompile Include="..\common\libuv\src\win\getnameinfo.c" />
-    <ClCompile Include="..\common\libuv\src\win\handle.c" />
-    <ClCompile Include="..\common\libuv\src\win\loop-watcher.c" />
-    <ClCompile Include="..\common\libuv\src\win\pipe.c" />
-    <ClCompile Include="..\common\libuv\src\win\poll.c" />
-    <ClCompile Include="..\common\libuv\src\win\process-stdio.c" />
-    <ClCompile Include="..\common\libuv\src\win\process.c" />
-    <ClCompile Include="..\common\libuv\src\win\req.c" />
-    <ClCompile Include="..\common\libuv\src\win\signal.c" />
-    <ClCompile Include="..\common\libuv\src\win\snprintf.c" />
-    <ClCompile Include="..\common\libuv\src\win\stream.c" />
-    <ClCompile Include="..\common\libuv\src\win\tcp.c" />
-    <ClCompile Include="..\common\libuv\src\win\thread.c" />
-    <ClCompile Include="..\common\libuv\src\win\timer.c" />
-    <ClCompile Include="..\common\libuv\src\win\tty.c" />
-    <ClCompile Include="..\common\libuv\src\win\udp.c" />
-    <ClCompile Include="..\common\libuv\src\win\util.c" />
-    <ClCompile Include="..\common\libuv\src\win\winapi.c" />
-    <ClCompile Include="..\common\libuv\src\win\winsock.c" />
-    <ClCompile Include="..\common\net_uv\base\Client.cpp" />
-    <ClCompile Include="..\common\net_uv\base\Common.cpp" />
-    <ClCompile Include="..\common\net_uv\base\md5.cpp" />
-    <ClCompile Include="..\common\net_uv\base\Misc.cpp" />
-    <ClCompile Include="..\common\net_uv\base\Mutex.cpp" />
-    <ClCompile Include="..\common\net_uv\base\Runnable.cpp" />
-    <ClCompile Include="..\common\net_uv\base\Server.cpp" />
-    <ClCompile Include="..\common\net_uv\base\Session.cpp" />
-    <ClCompile Include="..\common\net_uv\base\SessionManager.cpp" />
-    <ClCompile Include="..\common\net_uv\base\Socket.cpp" />
-    <ClCompile Include="..\common\net_uv\kcp\ikcp.c" />
-    <ClCompile Include="..\common\net_uv\kcp\KCPClient.cpp" />
-    <ClCompile Include="..\common\net_uv\kcp\KCPServer.cpp" />
-    <ClCompile Include="..\common\net_uv\kcp\KCPSession.cpp" />
-    <ClCompile Include="..\common\net_uv\kcp\KCPSocket.cpp" />
-    <ClCompile Include="..\common\net_uv\kcp\KCPSocketManager.cpp" />
-    <ClCompile Include="..\common\net_uv\kcp\KCPUtils.cpp" />
-    <ClCompile Include="..\common\net_uv\p2p\P2PClient.cpp" />
-    <ClCompile Include="..\common\net_uv\p2p\P2PServer.cpp" />
-    <ClCompile Include="..\common\net_uv\tcp\TCPClient.cpp" />
-    <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp" />
-    <ClCompile Include="..\common\net_uv\tcp\TCPSession.cpp" />
-    <ClCompile Include="..\common\net_uv\tcp\TCPSocket.cpp" />
-    <ClCompile Include="..\common\net_uv\tcp\TCPUtils.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClInclude Include="MyApp.h" />
+    <ClInclude Include="MyFrame.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
