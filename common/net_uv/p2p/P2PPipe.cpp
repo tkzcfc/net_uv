@@ -76,7 +76,7 @@ void P2PPipe::send(P2PMessageID msgID, const char* data, int32_t len, uint32_t t
 	if (msgID != P2P_MSG_ID_PING && msgID != P2P_MSG_ID_PONG && msgID != P2P_MSG_ID_KCP)
 	{
 		std::string logstr(data, len);
-		printf("send to [%u]:[%u] %s\n", toIP, toPort, logstr.c_str());
+		printf("send to [%u]:[%u]  [%d]%s\n", toIP, toPort, msgID, logstr.c_str());
 	}
 
 	const int32_t alloc_len = sizeof(P2PMessage) + len;
@@ -121,7 +121,7 @@ void P2PPipe::send(P2PMessageID msgID, const char* data, int32_t len, const stru
 	if (msgID != P2P_MSG_ID_PING && msgID != P2P_MSG_ID_PONG && msgID != P2P_MSG_ID_KCP)
 	{
 		std::string logstr(data, len);
-		printf("send %s\n", logstr.c_str());
+		printf("send [%d]%s\n", msgID, logstr.c_str());
 	}
 
 	const int32_t alloc_len = sizeof(P2PMessage) + len;
@@ -286,7 +286,7 @@ void P2PPipe::on_udp_read(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 	if (msg->msgID != P2PMessageID::P2P_MSG_ID_PING && msg->msgID != P2PMessageID::P2P_MSG_ID_PONG)
 	{
 		std::string recv_str(data, msg->msgLen);
-		NET_UV_LOG(NET_UV_L_INFO, "recv[%u]:[%u] : %s", info.ip, info.port, recv_str.c_str());
+		NET_UV_LOG(NET_UV_L_INFO, "recv[%u]:[%u] : [%d]%s", info.ip, info.port, msg->msgID, recv_str.c_str());
 	}
 #endif
 
@@ -397,6 +397,7 @@ void P2PPipe::on_recv_pong(uint64_t key, rapidjson::Document& document, const st
 void P2PPipe::on_recv_createKcp(uint64_t key, rapidjson::Document& document, const struct sockaddr* addr)
 {
 	createKcp(key, 0xFFFF);
+	this->send(P2PMessageID::P2P_MSG_ID_CREATE_KCP_RESULT, P2P_NULL_JSON, P2P_NULL_JSON_LEN, addr);
 }
 
 void P2PPipe::on_recv_createKcpResult(uint64_t key, rapidjson::Document& document, const struct sockaddr* addr)
@@ -436,7 +437,7 @@ void P2PPipe::createKcp(uint64_t key, uint32_t conv)
 
 		it->second.isStartCheck = true;
 
-		m_newSessionCallback(key);
+		m_newKcpCreateCallback(key);
 	}
 }
 

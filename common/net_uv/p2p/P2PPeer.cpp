@@ -268,7 +268,7 @@ void P2PPeer::onTimerRun()
 			}
 			else
 			{
-				m_pipe.send(P2PMessageID::P2P_MSG_ID_C2C_HELLO, P2P_NULL_JSON, P2P_NULL_JSON_LEN, (const struct sockaddr*)&it->second.targetAddr);
+				m_pipe.send(P2PMessageID::P2P_MSG_ID_C2C_HELLO, "{\"hello\":1}", 12, (const struct sockaddr*)&it->second.targetAddr);
 				it->second.sendCount++;
 				it++;
 			}
@@ -377,6 +377,7 @@ void P2PPeer::onPipeNewSessionCallback(uint64_t key)
 			sessionData.tryConnectCount = 0;
 			sessionData.isClient = false;
 			m_sessionManager[key] = sessionData;
+			printf("\n\nnew session %llu  new connect\n\n", key);
 		}
 	}
 }
@@ -388,6 +389,7 @@ void P2PPeer::onPipeNewKcpCreateCallback(uint64_t key)
 		auto it = m_sessionManager.find(key);
 		if (it != m_sessionManager.end())
 		{
+			it->second.state = SessionState::CONNECT;
 			if (it->second.isClient)
 			{
 				pushOutputOperation(key, P2POperationCMD::P2P_CONNECT_PEER_SUC, NULL, 0);
@@ -411,6 +413,12 @@ void P2PPeer::onPipeRemoveSessionCallback(uint64_t key)
 	else
 	{
 		pushOutputOperation(key, P2POperationCMD::P2P_DISCONNECT_PEER, NULL, 0);
+	}
+
+	auto it = m_sessionManager.find(key);
+	if (it != m_sessionManager.end())
+	{
+		m_sessionManager.erase(it);
 	}
 }
 
@@ -482,6 +490,9 @@ void P2PPeer::runInputOperation()
 			sessionData.isClient = true;
 			sessionData.sendData = std::string(s.GetString(), s.GetLength());
 			m_sessionManager[opData.key] = sessionData;
+
+
+			printf("\n\nnew session %llu  client\n\n", opData.key);
 
 			startBurrow(opData.key);
 		}break;
