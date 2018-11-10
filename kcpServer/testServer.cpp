@@ -10,9 +10,10 @@ void main()
 {
 	REGISTER_EXCEPTION("kcpServer.dmp");
 
-	printf("ÇëÊäÈë¶Ë¿ÚºÅ:");
-	int32_t port;
-	std::cin >> port;
+	//printf("ÇëÊäÈë¶Ë¿ÚºÅ:");
+	//int32_t port;
+	//std::cin >> port;
+	int32_t port = KCP_CONNECT_PORT;
 
 	KCPServer* svr = new KCPServer();
 

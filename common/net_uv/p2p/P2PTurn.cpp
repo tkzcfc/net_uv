@@ -16,7 +16,10 @@ P2PTurn::P2PTurn()
 }
 
 P2PTurn::~P2PTurn()
-{}
+{
+	stop();
+	this->join();
+}
 
 bool P2PTurn::start(const char* ip, uint32_t port)
 {
@@ -66,6 +69,7 @@ void P2PTurn::onIdleRun()
 		m_pipe.close();
 		uv_idle_stop(&m_idle);
 	}
+	ThreadSleep(1);
 }
 
 void P2PTurn::onPipeRecvJsonCallback(P2PMessageID msgID, rapidjson::Document& document, uint64_t key, const struct sockaddr* addr)
@@ -118,7 +122,7 @@ void P2PTurn::onPipeRecvKcpCallback(char* data, uint32_t len, uint64_t key, cons
 
 void P2PTurn::onPipeNewSessionCallback(uint64_t key)
 {
-	printf("%llu\t进入\n", key);
+	NET_UV_LOG(NET_UV_L_INFO,"%llu\t进入", key);
 }
 
 void P2PTurn::onPipeNewKcpCreateCallback(uint64_t key)
@@ -126,7 +130,7 @@ void P2PTurn::onPipeNewKcpCreateCallback(uint64_t key)
 
 void P2PTurn::onPipeRemoveSessionCallback(uint64_t key)
 {
-	printf("%llu\t离开\n", key);
+	NET_UV_LOG(NET_UV_L_INFO, "%llu\t离开\n", key);
 }
 
 void P2PTurn::uv_on_idle_run(uv_idle_t* handle)

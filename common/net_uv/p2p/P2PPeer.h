@@ -8,7 +8,8 @@ using P2PPeerStartCallback = std::function<void(bool isSuccess)>;
 using P2PPeerNewConnectCallback = std::function<void(uint64_t key)>;
 using P2PPeerConnectToPeerCallback = std::function<void(uint64_t key, bool isSuccess)>;
 using P2PPeerConnectToTurnCallback = std::function<void(bool isSuccess, uint64_t selfKey)>;
-using P2PPeerDisConnectCallback = std::function<void(uint64_t key)>;
+using P2PPeerDisConnectToPeerCallback = std::function<void(uint64_t key)>;
+using P2PPeerDisConnectToTurnCallback = std::function<void()>;
 using P2PPeerRecvCallback = std::function<void(uint64_t key, char* data, uint32_t len)>;
 using P2PPeerCloseCallback = std::function<void()>;
 
@@ -28,7 +29,7 @@ public:
 
 	void restartConnectTurn();
 
-	void connectToPeer(uint64_t key);
+	bool connectToPeer(uint64_t key);
 
 	void updateFrame();
 
@@ -44,11 +45,14 @@ public:
 	
 	inline void setConnectToTurnCallback(const P2PPeerConnectToTurnCallback& call);
 
-	inline void setDisConnectCallback(const P2PPeerDisConnectCallback& call);
+	inline void setDisConnectToPeerCallback(const P2PPeerDisConnectToPeerCallback& call);
+
+	inline void setDisConnectToTurnCallback(const P2PPeerDisConnectToTurnCallback& call);
 
 	inline void setRecvCallback(const P2PPeerRecvCallback& call);
 
 	inline void setCloseCallback(const P2PPeerCloseCallback& call);
+
 
 protected:
 	/// Runnable
@@ -104,7 +108,7 @@ protected:
 	uv_loop_t m_loop;
 	uv_idle_t m_idle;
 	uv_timer_t m_timer;
-
+	
 	std::string m_turnIP;
 	uint32_t m_turnPort;
 	AddrInfo m_turnAddrInfo;
@@ -154,7 +158,8 @@ protected:
 	P2PPeerNewConnectCallback	m_newConnectCallback;
 	P2PPeerConnectToPeerCallback		m_connectToPeerCallback;
 	P2PPeerConnectToTurnCallback		m_connectToTurnCallback;
-	P2PPeerDisConnectCallback	m_disConnectCallback;
+	P2PPeerDisConnectToPeerCallback	m_disConnectToPeerCallback;
+	P2PPeerDisConnectToTurnCallback m_disConnectToTurnCallback;
 	P2PPeerRecvCallback			m_recvCallback;
 	P2PPeerCloseCallback		m_closeCallback;
 };
@@ -180,9 +185,14 @@ void P2PPeer::setConnectToTurnCallback(const P2PPeerConnectToTurnCallback& call)
 	m_connectToTurnCallback = std::move(call);
 }
 
-void P2PPeer::setDisConnectCallback(const P2PPeerDisConnectCallback& call)
+void P2PPeer::setDisConnectToPeerCallback(const P2PPeerDisConnectToPeerCallback& call)
 {
-	m_disConnectCallback = std::move(call);
+	m_disConnectToPeerCallback = std::move(call);
+}
+
+void P2PPeer::setDisConnectToTurnCallback(const P2PPeerDisConnectToTurnCallback& call)
+{
+	m_disConnectToTurnCallback = std::move(call);
 }
 
 void P2PPeer::setRecvCallback(const P2PPeerRecvCallback& call)

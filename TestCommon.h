@@ -6,12 +6,31 @@
 
 
 
+#define NET_UV_USE_LOCAL_SVR 0
 
+// tcp
+#if NET_UV_USE_LOCAL_SVR 
+#define TCP_CONNECT_IP "127.0.0.1"
+#else
 #define TCP_CONNECT_IP "www.kurumi.xin"
+#endif
 #define TCP_CONNECT_PORT 1001
 
+// kcp
+#if NET_UV_USE_LOCAL_SVR 
+#define KCP_CONNECT_IP "127.0.0.1"
+#else
 #define KCP_CONNECT_IP "www.kurumi.xin"
+#endif
 #define KCP_CONNECT_PORT 1002
+
+// p2p
+#if NET_UV_USE_LOCAL_SVR 
+#define P2P_CONNECT_IP "127.0.0.1"
+#else
+#define P2P_CONNECT_IP "www.kurumi.xin"
+#endif
+#define P2P_CONNECT_PORT 1003
 
 NS_NET_UV_OPEN
 

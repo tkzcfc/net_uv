@@ -9,9 +9,10 @@ void main()
 {
 	REGISTER_EXCEPTION("tcpServer.dmp");
 
-	printf("ÇëÊäÈë¶Ë¿ÚºÅ:");
-	int32_t port;
-	std::cin >> port;
+	//printf("ÇëÊäÈë¶Ë¿ÚºÅ:");
+	//int32_t port;
+	//std::cin >> port;
+	int32_t port = TCP_CONNECT_PORT;
 
 	TCPServer* svr = new TCPServer();
 

@@ -35,7 +35,8 @@ P2PPeer::P2PPeer()
 	, m_newConnectCallback(nullptr)
 	, m_connectToPeerCallback(nullptr)
 	, m_connectToTurnCallback(nullptr)
-	, m_disConnectCallback(nullptr)
+	, m_disConnectToPeerCallback(nullptr)
+	, m_disConnectToTurnCallback(nullptr)
 	, m_recvCallback(nullptr)
 {
 	memset(&m_loop, 0, sizeof(m_loop));
@@ -66,7 +67,8 @@ bool P2PPeer::start(const char* ip, uint32_t port)
 	assert(m_newConnectCallback != nullptr);
 	assert(m_connectToPeerCallback != nullptr);
 	assert(m_connectToTurnCallback != nullptr);
-	assert(m_disConnectCallback != nullptr);
+	assert(m_disConnectToPeerCallback != nullptr);
+	assert(m_disConnectToTurnCallback != nullptr);
 	assert(m_recvCallback != nullptr);
 	assert(m_closeCallback != nullptr);
 
@@ -84,7 +86,6 @@ bool P2PPeer::start(const char* ip, uint32_t port)
 	restartConnectTurn();
 
 	startThread();
-
 	return true;
 }
 
@@ -106,13 +107,20 @@ void P2PPeer::restartConnectTurn()
 	pushInputOperation(0, P2POperationCMD::P2P_CONNECT_TO_TURN, NULL, 0);
 }
 
-void P2PPeer::connectToPeer(uint64_t key)
+bool P2PPeer::connectToPeer(uint64_t key)
 {
 	if (m_state != PeerState::START)
 	{
-		return;
+		return false;
 	}
+
+	if (key == m_selfAddrInfo.key)
+	{
+		return false;
+	}
+
 	pushInputOperation(key, P2POperationCMD::P2P_CONNECT_TO_PEER, NULL, 0);
+	return true;
 }
 
 void P2PPeer::updateFrame()
@@ -160,7 +168,7 @@ void P2PPeer::updateFrame()
 		}break;
 		case P2POperationCMD::P2P_DISCONNECT_TURN:
 		{
-			m_disConnectCallback(opData.key);
+			m_disConnectToTurnCallback();
 		}break;
 		case P2POperationCMD::P2P_CONNECT_PEER_SUC:
 		{
@@ -172,7 +180,7 @@ void P2PPeer::updateFrame()
 		}break;
 		case P2POperationCMD::P2P_DISCONNECT_PEER:
 		{
-			m_disConnectCallback(opData.key);
+			m_disConnectToPeerCallback(opData.key);
 		}break;
 		case P2POperationCMD::P2P_RECV_KCP_DATA:
 		{
@@ -201,12 +209,14 @@ void P2PPeer::updateFrame()
 
 void P2PPeer::send(uint64_t key, char* data, uint32_t len)
 {
-	pushOutputOperation(key, P2POperationCMD::P2P_SEND_TO_PEER, data, len);
+	char* sendData = (char*)fc_malloc(len);
+	memcpy(sendData, data, len);
+	pushInputOperation(key, P2POperationCMD::P2P_SEND_TO_PEER, sendData, len);
 }
 
 void P2PPeer::disconnect(uint64_t key)
 {
-	pushOutputOperation(key, P2POperationCMD::P2P_DISCONNECT_TO_PEER, NULL, 0);
+	pushInputOperation(key, P2POperationCMD::P2P_DISCONNECT_TO_PEER, NULL, 0);
 }
 
 /// Runnable
@@ -220,11 +230,14 @@ void P2PPeer::run()
 		pushOutputOperation(0, P2POperationCMD::P2P_START_FAIL, NULL, 0);
 		return;
 	}
+	pushOutputOperation(0, P2POperationCMD::P2P_START_SUC, NULL, 0);
 
 	struct sockaddr_in* addr4 = (struct sockaddr_in*)turnAddr;
 
 	m_turnAddrInfo.ip = addr4->sin_addr.s_addr;
 	m_turnAddrInfo.port = ntohs(addr4->sin_port);
+
+	fc_free(turnAddr);
 
 	uv_idle_init(&m_loop, &m_idle);
 	m_idle.data = this;
@@ -239,6 +252,8 @@ void P2PPeer::run()
 
 	m_state = PeerState::STOP;
 	clearData();
+
+	pushOutputOperation(0, P2POperationCMD::P2P_STOP, NULL, 0);
 }
 
 void P2PPeer::onIdleRun()
@@ -246,11 +261,14 @@ void P2PPeer::onIdleRun()
 	runInputOperation();
 
 	m_pipe.update(iclock());
+
 	if (m_state == PeerState::WILL_STOP)
 	{
 		m_pipe.close();
+		uv_timer_stop(&m_timer);
 		uv_idle_stop(&m_idle);
 	}
+
 	ThreadSleep(1);
 }
 
@@ -262,13 +280,14 @@ void P2PPeer::onTimerRun()
 	{
 		for (auto it = m_burrowManager.begin(); it != m_burrowManager.end(); )
 		{
+			// 打洞数据发送次数超过40次，则停止发送
 			if (it->second.sendCount >= 40)
 			{
 				it = m_burrowManager.erase(it);
 			}
 			else
 			{
-				m_pipe.send(P2PMessageID::P2P_MSG_ID_C2C_HELLO, "{\"hello\":1}", 12, (const struct sockaddr*)&it->second.targetAddr);
+				m_pipe.send(P2PMessageID::P2P_MSG_ID_C2C_HELLO, P2P_NULL_JSON, P2P_NULL_JSON_LEN, (const struct sockaddr*)&it->second.targetAddr);
 				it->second.sendCount++;
 				it++;
 			}
@@ -287,10 +306,12 @@ void P2PPeer::onTimerRun()
 
 			if (it->second.state != SessionState::CONNECT)
 			{
+				// 连接超过最大尝试次数
 				if (it->second.tryConnectCount > 10)
 				{
 					pushOutputOperation(it->first, P2POperationCMD::P2P_CONNECT_PEER_TIMEOUT, NULL, 0);
 					it = m_sessionManager.erase(it);
+					continue;
 				}
 				else
 				{
@@ -299,9 +320,9 @@ void P2PPeer::onTimerRun()
 					{
 						m_pipe.send(P2PMessageID::P2P_MSG_ID_C2T_WANT_TO_CONNECT, it->second.sendData.c_str(), it->second.sendData.length(), m_turnAddrInfo.ip, m_turnAddrInfo.port);
 					}
-					it++;
 				}
 			}
+			it++;
 		}
 	}
 }
@@ -377,7 +398,7 @@ void P2PPeer::onPipeNewSessionCallback(uint64_t key)
 			sessionData.tryConnectCount = 0;
 			sessionData.isClient = false;
 			m_sessionManager[key] = sessionData;
-			printf("\n\nnew session %llu  new connect\n\n", key);
+			NET_UV_LOG(NET_UV_L_INFO, "new session %llu  new connect", key);
 		}
 	}
 }
@@ -406,7 +427,7 @@ void P2PPeer::onPipeRemoveSessionCallback(uint64_t key)
 {
 	if (m_turnAddrInfo.key == key)
 	{
-		m_isConnectTurn = true;
+		m_isConnectTurn = false;
 		m_isStopConnectToTurn = true;
 		pushOutputOperation(0, P2POperationCMD::P2P_DISCONNECT_TURN, NULL, 0);
 	}
@@ -491,8 +512,7 @@ void P2PPeer::runInputOperation()
 			sessionData.sendData = std::string(s.GetString(), s.GetLength());
 			m_sessionManager[opData.key] = sessionData;
 
-
-			printf("\n\nnew session %llu  client\n\n", opData.key);
+			NET_UV_LOG(NET_UV_L_INFO, "new session %llu  client", opData.key);
 
 			startBurrow(opData.key);
 		}break;
@@ -546,9 +566,7 @@ void P2PPeer::startBurrow(uint64_t toKey)
 
 		m_burrowManager.insert(std::make_pair(toKey, burrowData));
 
-		//{\"hello\":1}
-		m_pipe.send(P2PMessageID::P2P_MSG_ID_C2C_HELLO, "{\"hello\":1}", 12, (const struct sockaddr*)&burrowData.targetAddr);
-		//m_pipe.send(P2PMessageID::P2P_MSG_ID_C2C_HELLO, P2P_NULL_JSON, P2P_NULL_JSON_LEN, (const struct sockaddr*)&burrowData.targetAddr);
+		m_pipe.send(P2PMessageID::P2P_MSG_ID_C2C_HELLO, P2P_NULL_JSON, P2P_NULL_JSON_LEN, (const struct sockaddr*)&burrowData.targetAddr);
 	}
 	else
 	{

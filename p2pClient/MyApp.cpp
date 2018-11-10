@@ -14,13 +14,8 @@ bool MyApp::OnInit()
 	MyFrame * frame = new MyFrame(0L);
 	frame->Show();
 
-	AllocConsole();
-
-	WriteConsole(GetStdHandle(STD_OUTPUT_HANDLE), L"zxczxcz", 8, NULL, NULL);
-
-	
-
-	printf("-----------------");
+	//AllocConsole();
+	//WriteConsole(GetStdHandle(STD_OUTPUT_HANDLE), L"zxczxcz", 8, NULL, NULL);
 
 	return true;
 }
@@ -28,11 +23,4 @@ bool MyApp::OnInit()
 int MyApp::OnExit()
 {
 	return wxApp::OnExit();
-}
-
-void MyApp::OnIdle(wxIdleEvent& event)
-{
-	wxApp::OnIdle(event);
-	WriteConsole(GetStdHandle(STD_OUTPUT_HANDLE), L"zxczxcz", 8, NULL, NULL);
-	printf("-----------------");
 }

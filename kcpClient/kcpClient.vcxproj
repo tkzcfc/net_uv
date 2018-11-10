@@ -265,10 +265,6 @@
     <ClInclude Include="..\common\net_uv\p2p\P2PCommon.h" />
     <ClInclude Include="..\common\net_uv\p2p\P2PMessage.h" />
     <ClInclude Include="..\common\net_uv\p2p\P2PTurn.h" />
-    <ClInclude Include="..\common\net_uv\p2p_udp\P2P_UBase.h" />
-    <ClInclude Include="..\common\net_uv\p2p_udp\P2P_UCommon.h" />
-    <ClInclude Include="..\common\net_uv\p2p_udp\P2P_UMessage.h" />
-    <ClInclude Include="..\common\net_uv\p2p_udp\P2P_UNode.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPClient.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPCommon.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h" />

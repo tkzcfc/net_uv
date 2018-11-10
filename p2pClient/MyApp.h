@@ -20,5 +20,4 @@ public:
 
 	virtual bool OnInit()override;
 	virtual int OnExit()override; 
-	void OnIdle(wxIdleEvent& event);
 };

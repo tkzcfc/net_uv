@@ -76,7 +76,7 @@ void P2PPipe::send(P2PMessageID msgID, const char* data, int32_t len, uint32_t t
 	if (msgID != P2P_MSG_ID_PING && msgID != P2P_MSG_ID_PONG && msgID != P2P_MSG_ID_KCP)
 	{
 		std::string logstr(data, len);
-		printf("send to [%u]:[%u]  [%d]%s\n", toIP, toPort, msgID, logstr.c_str());
+		NET_UV_LOG(NET_UV_L_INFO, "send to [%u]:[%u]  [%d]%s", toIP, toPort, msgID, logstr.c_str());
 	}
 
 	const int32_t alloc_len = sizeof(P2PMessage) + len;
@@ -121,7 +121,7 @@ void P2PPipe::send(P2PMessageID msgID, const char* data, int32_t len, const stru
 	if (msgID != P2P_MSG_ID_PING && msgID != P2P_MSG_ID_PONG && msgID != P2P_MSG_ID_KCP)
 	{
 		std::string logstr(data, len);
-		printf("send [%d]%s\n", msgID, logstr.c_str());
+		NET_UV_LOG(NET_UV_L_INFO, "send [%d]%s", msgID, logstr.c_str());
 	}
 
 	const int32_t alloc_len = sizeof(P2PMessage) + len;
@@ -248,6 +248,10 @@ bool P2PPipe::isContain(uint64_t key)
 
 void P2PPipe::close()
 {
+	for (auto& it : m_allSessionDataMap)
+	{
+		send(P2PMessageID::P2P_MSG_ID_C2C_DISCONNECT, P2P_NULL_JSON, P2P_NULL_JSON_LEN, (const struct sockaddr*)&it.second.send_addr);
+	}
 	shutdownSocket();
 }
 
@@ -372,8 +376,10 @@ void P2PPipe::on_recv_kcpMsg(uint64_t key, char* data, uint32_t len, const struc
 		{
 			kcp_recvd_bytes = 0;
 		}
-
-		m_recvKcpCallback(m_recvBuf, kcp_recvd_bytes, key, addr);
+		else
+		{
+			m_recvKcpCallback(m_recvBuf, kcp_recvd_bytes, key, addr);
+		}
 	} while (kcp_recvd_bytes > 0);
 }
 
@@ -420,7 +426,7 @@ void P2PPipe::createKcp(uint64_t key, uint32_t conv)
 	auto it = m_allSessionDataMap.find(key);
 	if (it != m_allSessionDataMap.end() && it->second.kcp == NULL)
 	{
-		ikcpcb* kcp = ikcp_create(conv, this);
+		ikcpcb* kcp = ikcp_create(conv, &it->second);
 		kcp->output = P2PPipe::udp_output;
 
 		ikcp_wndsize(kcp, 128, 128);
