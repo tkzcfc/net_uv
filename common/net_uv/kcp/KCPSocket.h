@@ -40,6 +40,8 @@ public:
 	inline void setNewConnectionCallback(const KCPSocketNewConnectionCall& call);
 	inline void setConnectFilterCallback(const KCPSocketConnectFilterCall& call);
 
+	void svrIdleRun();
+
 protected:
 	inline uv_udp_t* getUdp();
 	
@@ -83,7 +85,7 @@ protected:
 
 	inline void stopIdle();
 
-	void updateKcp(IUINT32 update_clock);
+	inline void setConnectTimeoutTime(uint32_t timout);
 
 protected:
 
@@ -114,8 +116,9 @@ protected:
 	IUINT32 m_conv;
 	IINT32 m_releaseCount;
 
-	bool m_firstSendSucTag;
-
+	uint32_t m_connectTimeoutTime;
+	uint32_t m_burrowCount;
+	
 	KCPSocketManager* m_socketMng;
 	bool m_weakRefSocketMng;
 
@@ -176,6 +179,11 @@ void KCPSocket::startIdle()
 void KCPSocket::stopIdle()
 {
 	m_runIdle = false;
+}
+
+void KCPSocket::setConnectTimeoutTime(uint32_t timout)
+{
+	m_connectTimeoutTime = timout;
 }
 
 NS_NET_UV_END

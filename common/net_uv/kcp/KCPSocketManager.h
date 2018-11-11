@@ -29,9 +29,9 @@ public:
 
 	inline int32_t getAwaitConnectCount();
 
-protected:
-
 	void idleRun();
+
+protected:
 
 	void on_socket_connect(Socket* socket, int32_t status);
 
@@ -42,11 +42,7 @@ protected:
 	void removeAwaitConnectSocket(KCPSocket* socket);
 
 	void clearInvalid();
-
-protected:
-
-	static void uv_on_idle_run(uv_idle_t* handle);
-
+	
 protected:
 
 	struct SMData
@@ -56,7 +52,6 @@ protected:
 	};
 
 	uv_loop_t* m_loop;
-	uv_idle_t m_idle;
 	IUINT32 m_convCount;
 
 	bool m_isConnectArrDirty;

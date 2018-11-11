@@ -225,16 +225,18 @@ void KCPServer::run()
 
 	uv_run(&m_loop, UV_RUN_DEFAULT);
 
-	m_server->~KCPSocket();
-	fc_free(m_server);
-	m_server = NULL;
+	if (m_server)
+	{
+		m_server->~KCPSocket();
+		fc_free(m_server);
+		m_server = NULL;
+	}
 
 	uv_loop_close(&m_loop);
 
 	m_serverStage = ServerStage::STOP;
 	pushThreadMsg(NetThreadMsgType::EXIT_LOOP, NULL);
 }
-
 
 void KCPServer::onNewConnect(Socket* socket)
 {
@@ -437,6 +439,8 @@ void KCPServer::clearData()
 
 void KCPServer::onIdleRun()
 {
+	m_server->svrIdleRun();
+
 	executeOperation();
 
 	switch (m_serverStage)
@@ -457,15 +461,19 @@ void KCPServer::onIdleRun()
 	{
 		if (m_allSession.empty())
 		{
+			m_server->~KCPSocket();
+			fc_free(m_server);
+			m_server = NULL;
+
 			stopIdle();
 			uv_stop(&m_loop);
-			m_serverStage = ServerStage::STOP;
 		}
 	}
 	break;
 	default:
 		break;
 	}
+
 	ThreadSleep(1);
 }
 

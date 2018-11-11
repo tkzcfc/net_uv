@@ -11,15 +11,10 @@ KCPSocketManager::KCPSocketManager(uv_loop_t* loop)
 	, m_isAwaitConnectArrDirty(false)
 {
 	m_loop = loop;
-
-	uv_idle_init(loop, &m_idle);
-	m_idle.data = this;
-	uv_idle_start(&m_idle, KCPSocketManager::uv_on_idle_run);
 }
 
 KCPSocketManager::~KCPSocketManager()
 {
-	uv_idle_stop(&m_idle);
 }
 
 void KCPSocketManager::push(KCPSocket* socket)
@@ -214,9 +209,9 @@ void KCPSocketManager::idleRun()
 
 	if (m_owner)
 	{
-		m_owner->updateKcp(update_clock);
+		m_owner->socketUpdate(update_clock);
 	}
-	
+
 	for (auto& it : m_allAwaitConnectSocket)
 	{
 		it.socket->socketUpdate(update_clock);
@@ -227,11 +222,5 @@ void KCPSocketManager::idleRun()
 		it.socket->socketUpdate(update_clock);
 	}
 }
-
-void KCPSocketManager::uv_on_idle_run(uv_idle_t* handle)
-{
-	((KCPSocketManager*)handle->data)->idleRun();
-}
-
 
 NS_NET_UV_END

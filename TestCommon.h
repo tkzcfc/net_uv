@@ -72,8 +72,9 @@ void on_uv_free_func(void* ptr)
 
 
 #define REGISTER_EXCEPTION(FileName) SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)ApplicationCrashHandler); \
-	uv_replace_allocator(on_uv_malloc_func, realloc, calloc, on_uv_free_func); \
 	DumpFileName = TEXT(FileName)
+
+//uv_replace_allocator(on_uv_malloc_func, realloc, calloc, on_uv_free_func); \
 
 
 #define CMD_STRCMP(v) (strcmp(cmd, v) == 0)

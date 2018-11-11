@@ -2,8 +2,11 @@
 
 NS_NET_UV_BEGIN
 
-// 连接超时时间 5S
-#define KCP_SOCKET_CONNECT_TIMEOUT (5000)
+// 连接超时时间
+/// 连接到服务器超时时间
+#define KCP_SOCKET_CONNECT_FIRST_TIMEOUT (5000)
+/// 重定向到服务器超时时间
+#define KCP_SOCKET_CONNECT_SECOND_TIMEOUT (30000)
 
 KCPSocket::KCPSocket(uv_loop_t* loop)
 	: m_socketAddr(NULL)
@@ -22,7 +25,8 @@ KCPSocket::KCPSocket(uv_loop_t* loop)
 	, m_weakRefSocketMng(false)
 	, m_kcp(NULL)
 	, m_runIdle(false)
-	, m_firstSendSucTag(false)
+	, m_connectTimeoutTime(KCP_SOCKET_CONNECT_FIRST_TIMEOUT)
+	, m_burrowCount(0)
 {
 	m_recvBuf = (char*)fc_malloc(KCP_MAX_MSG_SIZE);
 	memset(m_recvBuf, 0, KCP_MAX_MSG_SIZE);
@@ -57,6 +61,7 @@ KCPSocket::~KCPSocket()
 		}
 		else
 		{
+			m_socketMng->~KCPSocketManager();
 			fc_free(m_socketMng);
 		}
 		m_socketMng = NULL;
@@ -210,10 +215,10 @@ bool KCPSocket::connect(const char* ip, uint32_t port)
 	}
 
 	m_kcpState = State::WAIT_CONNECT;
-	m_firstSendSucTag = false;
 
 	m_first_send_connect_msg_time = iclock();
 	doSendConnectMsgPack(m_first_send_connect_msg_time);
+	this->setConnectTimeoutTime(KCP_SOCKET_CONNECT_FIRST_TIMEOUT);
 
 	startIdle();
 
@@ -232,6 +237,13 @@ bool KCPSocket::send(char* data, int32_t len)
 
 void KCPSocket::disconnect()
 {
+	if (m_kcp)
+	{
+		ikcp_release(m_kcp);
+		m_kcp = NULL;
+	}
+	setConv(0);
+
 	switch (m_kcpState)
 	{
 	case KCPSocket::State::WAIT_CONNECT:
@@ -258,13 +270,6 @@ void KCPSocket::disconnect()
 	}
 		break;
 	}
-
-	if (m_kcp)
-	{
-		ikcp_release(m_kcp);
-		m_kcp = NULL;
-	}
-	setConv(0);
 }
 
 bool KCPSocket::accept(const struct sockaddr* addr, IUINT32 conv)
@@ -328,16 +333,27 @@ void KCPSocket::svr_connect(struct sockaddr* addr, IUINT32 conv)
 	}
 
 	m_kcpState = State::WAIT_CONNECT;
-	m_firstSendSucTag = false;
 
 	m_first_send_connect_msg_time = iclock();
 	doSendSvrConnectMsgPack(m_first_send_connect_msg_time);
+	this->setConnectTimeoutTime(KCP_SOCKET_CONNECT_SECOND_TIMEOUT);
 
 	startIdle();
 }
 
+void KCPSocket::svrIdleRun()
+{
+	if (m_socketMng)
+	{
+		m_socketMng->idleRun();
+	}
+}
+
 void KCPSocket::socketUpdate(IUINT32 clock)
 {
+	if (!m_runIdle)
+		return;
+
 	m_last_update_time = clock;
 
 	switch (m_kcpState)
@@ -359,26 +375,24 @@ void KCPSocket::socketUpdate(IUINT32 clock)
 
 		if (m_kcp)
 		{
-			// 这段代码，在打开心跳时此段代码可以注释，在没有打开心跳时，此段代码如果注释了并且没有任何数据返回
-			// 将会在一分钟后判断连接为发送超时自动断开，要打开此段代码可将时间改长一点，3S有些短
-			//// kcp没有收到过数据
-			//if (!m_firstSendSucTag)
-			//{
-			//	// kcp数据发送后3S没有数据返回则表明该连接未连接成功
-			//	if (m_last_kcp_packet_send_time > 0 && m_last_kcp_packet_send_time - m_last_kcp_packet_recv_time > 3000)
-			//	{
-			//		doSendTimeout();
-			//		return;
-			//	}
-			//}
 			ikcp_update(m_kcp, clock);
+		}
+
+		// 连接成功后，持续发送消息一段时间。
+		if (m_burrowCount <= 2000)
+		{
+			if (m_burrowCount % 200 == 0)
+			{
+				doSendConnectMsgPack(clock);
+			}
+			m_burrowCount++;
 		}
 	}
 	break;
 	case KCPSocket::State::WAIT_CONNECT:
 	{
 		// 连接超时
-		if (m_first_send_connect_msg_time > 0 && clock - m_first_send_connect_msg_time > KCP_SOCKET_CONNECT_TIMEOUT)
+		if (m_first_send_connect_msg_time > 0 && clock - m_first_send_connect_msg_time > m_connectTimeoutTime)
 		{
 			doConnectTimeout();
 			return;
@@ -620,6 +634,9 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			}
 			this->setSocketAddr(addr);
 
+			m_first_send_connect_msg_time = m_last_update_time;
+			this->setConnectTimeoutTime(KCP_SOCKET_CONNECT_SECOND_TIMEOUT);
+
 			// 向新端口发送数据
 			doSendConnectMsgPack(iclock());
 
@@ -682,7 +699,7 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			return;
 		}
 	}
-	// 连接请求，客户端不进行处理，该消息可用于内网打洞，不影响kcpinput
+	// 连接请求，客户端不进行处理，该消息可用于打洞，不影响kcpinput
 	else if (kcp_is_connect_packet(buf->base, nread))
 	{}
 	else
@@ -691,11 +708,6 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 		{
 			kcpInput(buf->base, nread);
 		}
-	}
-
-	if (m_kcpState == State::CONNECT)
-	{
-		m_firstSendSucTag = true;
 	}
 }
 
@@ -706,6 +718,7 @@ void KCPSocket::connectResult(int32_t status)
 		m_kcpState = State::CONNECT;
 		m_last_kcp_packet_recv_time = 0;
 		m_last_kcp_packet_send_time = 0;
+		m_burrowCount = 0;
 	}
 	else
 	{
@@ -733,7 +746,6 @@ void KCPSocket::doSendConnectMsgPack(IUINT32 clock)
 
 void KCPSocket::doConnectTimeout()
 {
-	stopIdle();
 	shutdownSocket(false);
 	connectResult(2);
 }
@@ -746,13 +758,6 @@ void KCPSocket::doSendTimeout()
 		m_kcp = NULL;
 	}
 	shutdownSocket();
-}
-
-void KCPSocket::updateKcp(IUINT32 update_clock)
-{
-	if (!m_runIdle)
-		return;
-	socketUpdate(update_clock);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

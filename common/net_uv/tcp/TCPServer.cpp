@@ -392,7 +392,6 @@ void TCPServer::onIdleRun()
 		{
 			stopIdle();
 			uv_stop(&m_loop);
-			m_serverStage = ServerStage::STOP;
 		}
 	}
 	break;

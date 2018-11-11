@@ -289,7 +289,7 @@ void KCPSession::update(uint32_t time)
 
 void KCPSession::updateKcp(IUINT32 update_clock)
 {
-	getKCPSocket()->updateKcp(update_clock);
+	getKCPSocket()->socketUpdate(update_clock);
 }
 
 NS_NET_UV_END
