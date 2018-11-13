@@ -379,12 +379,9 @@ void KCPSocket::socketUpdate(IUINT32 clock)
 		}
 
 		// 连接成功后，持续发送消息一段时间。
-		if (m_burrowCount <= 2000)
+		if (m_burrowCount <= 5 && clock - m_last_send_connect_msg_time >= 1000)
 		{
-			if (m_burrowCount % 200 == 0)
-			{
-				doSendConnectMsgPack(clock);
-			}
+			doSendConnectMsgPack(clock);
 			m_burrowCount++;
 		}
 	}
@@ -398,7 +395,7 @@ void KCPSocket::socketUpdate(IUINT32 clock)
 			return;
 		}
 
-		if (clock - m_last_send_connect_msg_time >= 100)
+		if (clock - m_last_send_connect_msg_time >= 1000)
 		{
 			if (m_socketMng)
 			{
@@ -520,7 +517,7 @@ void KCPSocket::udpSend(const char* data, int32_t len, const struct sockaddr* ad
 
 void KCPSocket::kcpInput(const char* data, long size)
 {
-	if (size <= 0)
+	if (size <= 0 || m_kcp == NULL)
 		return;
 	
 	m_last_kcp_packet_recv_time = m_last_update_time;
@@ -568,7 +565,7 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 	{
 		if (kcp_is_connect_packet(buf->base, nread))
 		{
-			if (m_socketMng->isContain(addr) == 0)
+			if (m_socketMng->isAccept(addr))
 			{
 				KCPSocket* socket = NULL;
 				if (m_connectFilterCall != nullptr)

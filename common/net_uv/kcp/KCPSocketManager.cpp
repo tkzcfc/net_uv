@@ -11,6 +11,11 @@ KCPSocketManager::KCPSocketManager(uv_loop_t* loop)
 	, m_isAwaitConnectArrDirty(false)
 {
 	m_loop = loop;
+
+	m_allAwaitConnectSocket.reserve(200);
+	m_allConnectSocket.reserve(200);
+
+	m_lastUpdateClock = iclock();
 }
 
 KCPSocketManager::~KCPSocketManager()
@@ -205,22 +210,94 @@ void KCPSocketManager::idleRun()
 {
 	clearInvalid();
 
-	IUINT32 update_clock = iclock();
-
+	m_lastUpdateClock = iclock();
+	
 	if (m_owner)
 	{
-		m_owner->socketUpdate(update_clock);
+		m_owner->socketUpdate(m_lastUpdateClock);
 	}
 
 	for (auto& it : m_allAwaitConnectSocket)
 	{
-		it.socket->socketUpdate(update_clock);
+		it.socket->socketUpdate(m_lastUpdateClock);
 	}
 
 	for (auto& it : m_allConnectSocket)
 	{
-		it.socket->socketUpdate(update_clock);
+		it.socket->socketUpdate(m_lastUpdateClock);
 	}
+}
+
+bool KCPSocketManager::isAccept(const struct sockaddr* addr)
+{
+	std::string strip;
+	uint32_t port;
+	uint32_t addrlen = net_getsockAddrIPAndPort(addr, strip, port);
+	if (addrlen == 0)
+	{
+		return false;
+	}
+	
+	bool recessFinish = false;
+	auto it_recess = m_recessTimeMap.find(strip);
+	if (it_recess != m_recessTimeMap.end())
+	{
+		// 该IP冷却时间未到
+		if (it_recess->second > m_lastUpdateClock)
+		{
+			return false;
+		}
+		else
+		{
+			recessFinish = true;
+			m_recessTimeMap.erase(it_recess);
+		}
+	}
+
+	if (recessFinish)
+	{
+		for (auto& it : m_allAwaitConnectSocket)
+		{
+			if (!it.invalid && it.socket && it.socket->getIp() == strip)
+			{
+				it.socket->disconnect();
+			}
+		}
+	}
+	else
+	{
+		uint32_t awaitCount = 0;
+		for (auto& it : m_allAwaitConnectSocket)
+		{
+			if (!it.invalid && it.socket && it.socket->getIp() == strip)
+			{
+				awaitCount++;
+				// 该IP、端口正在连接
+				if (it.socket->getPort() == port)
+				{
+					return false;
+				}
+			}
+		}
+
+		// 该IP等待连接数量过多，暂停accept
+		if (awaitCount > 500)
+		{
+			// 休息10S
+			m_recessTimeMap[strip] = m_lastUpdateClock + 10000;
+			return false;
+		}
+	}
+
+	// 该IP、端口已连接成功
+	for (auto& it : m_allConnectSocket)
+	{
+		if (!it.invalid && it.socket->getIp() == strip && it.socket->getPort() == port)
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 NS_NET_UV_END

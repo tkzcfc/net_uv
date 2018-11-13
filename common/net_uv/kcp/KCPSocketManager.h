@@ -24,14 +24,16 @@ public:
 	inline void setOwner(KCPSocket* socket);
 
 	inline KCPSocket* getOwner();
-
-	int32_t isContain(const struct sockaddr* addr);
-
+	
 	inline int32_t getAwaitConnectCount();
 
 	void idleRun();
 
+	bool isAccept(const struct sockaddr* addr);
+
 protected:
+
+	int32_t isContain(const struct sockaddr* addr);
 
 	void on_socket_connect(Socket* socket, int32_t status);
 
@@ -53,12 +55,15 @@ protected:
 
 	uv_loop_t* m_loop;
 	IUINT32 m_convCount;
-
+	IUINT32 m_lastUpdateClock;
+	
 	bool m_isConnectArrDirty;
 	bool m_isAwaitConnectArrDirty;
 
 	std::vector<SMData> m_allConnectSocket;
 	std::vector<SMData> m_allAwaitConnectSocket;
+
+	std::map<std::string, IUINT32> m_recessTimeMap;
 
 	KCPSocket* m_owner;
 	bool m_stop;

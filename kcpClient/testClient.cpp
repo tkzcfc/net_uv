@@ -76,7 +76,7 @@ void main()
 		}
 	});
 
-	for (int32_t i = 0; i < 10; ++i)
+	for (int32_t i = 0; i < 300; ++i)
 	{
 		client->connect(KCP_CONNECT_IP, KCP_CONNECT_PORT, keyIndex++);
 	}
