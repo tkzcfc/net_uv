@@ -8,16 +8,6 @@ SessionManager::SessionManager()
 SessionManager::~SessionManager()
 {}
 
-void SessionManager::send(Session* session, char* data, uint32_t len)
-{
-	send(session->getSessionID(), data, len);
-}
-
-void SessionManager::disconnect(Session* session)
-{
-	disconnect(session->getSessionID());
-}
-
 void SessionManager::pushOperation(int32_t type, void* data, uint32_t len, uint32_t sessionID)
 {
 	SessionManager::SessionOperation operationData;

@@ -16,12 +16,8 @@ public:
 
 	virtual void send(uint32_t sessionID, char* data, uint32_t len) = 0;
 
-	void send(Session* session, char* data, uint32_t len);
-
 	virtual void disconnect(uint32_t sessionID) = 0;
-
-	void disconnect(Session* session);
-
+	
 protected:
 
 	void pushOperation(int32_t type, void* data, uint32_t len, uint32_t sessionID);
