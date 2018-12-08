@@ -21,9 +21,9 @@ public:
 
 	inline uint32_t getSessionID();
 
-	virtual inline uint32_t getPort() = 0;
+	virtual uint32_t getPort() = 0;
 
-	virtual inline const std::string& getIp() = 0;
+	virtual std::string getIp() = 0;
 
 protected:
 

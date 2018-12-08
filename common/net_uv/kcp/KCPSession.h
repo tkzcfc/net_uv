@@ -13,9 +13,9 @@ public:
 	virtual ~KCPSession();
 
 	/// Session
-	virtual inline uint32_t getPort()override;
+	virtual uint32_t getPort()override;
 
-	virtual inline const std::string& getIp()override;
+	virtual std::string getIp()override;
 	
 protected:
 
@@ -74,16 +74,6 @@ protected:
 	NET_HEART_TYPE m_sendHeartMsg;
 #endif
 };
-
-uint32_t KCPSession::getPort()
-{
-	return getKCPSocket()->getPort();
-}
-
-inline const std::string& KCPSession::getIp()
-{
-	return getKCPSocket()->getIp();
-}
 
 void KCPSession::setKCPSocket(KCPSocket* socket)
 {

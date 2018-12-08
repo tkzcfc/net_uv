@@ -292,4 +292,14 @@ void KCPSession::updateKcp(IUINT32 update_clock)
 	getKCPSocket()->socketUpdate(update_clock);
 }
 
+uint32_t KCPSession::getPort()
+{
+	return getKCPSocket()->getPort();
+}
+
+std::string KCPSession::getIp()
+{
+	return getKCPSocket()->getIp();
+}
+
 NS_NET_UV_END

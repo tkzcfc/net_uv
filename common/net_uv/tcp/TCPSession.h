@@ -12,9 +12,9 @@ public:
 	TCPSession(const TCPSession&) = delete;
 	virtual ~TCPSession();
 
-	virtual inline uint32_t getPort()override;
+	virtual uint32_t getPort()override;
 
-	virtual inline const std::string& getIp()override;
+	virtual std::string getIp()override;
 	
 protected:
 
@@ -74,16 +74,6 @@ protected:
 TCPSocket* TCPSession::getTCPSocket()
 {
 	return m_socket;
-}
-
-uint32_t TCPSession::getPort()
-{
-	return getTCPSocket()->getPort();
-}
-
-const std::string& TCPSession::getIp()
-{
-	return getTCPSocket()->getIp();
 }
 
 

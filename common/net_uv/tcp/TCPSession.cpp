@@ -309,4 +309,14 @@ void TCPSession::update(uint32_t time)
 	}
 }
 
+uint32_t TCPSession::getPort()
+{
+	return getTCPSocket()->getPort();
+}
+
+std::string TCPSession::getIp()
+{
+	return getTCPSocket()->getIp();
+}
+
 NS_NET_UV_END

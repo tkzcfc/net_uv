@@ -42,7 +42,7 @@ public:
 	inline uint32_t getBindPort();
 public:
 
-	inline const std::string& getIp();
+	inline std::string getIp();
 
 	inline uint32_t getPort();
 
@@ -82,7 +82,7 @@ protected:
 	SocketRecvCall m_recvCall;
 };
 
-const std::string& Socket::getIp()
+std::string Socket::getIp()
 {
 	return m_ip;
 }
