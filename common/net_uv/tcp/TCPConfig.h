@@ -8,7 +8,7 @@ NS_NET_UV_BEGIN
 // 是否使用内置消息结构
 // 开启此选项以下配置才生效传送消息时使用TCPMsgHead结构
 // 关闭此选项后socket的接收发送为原始数据
-#define TCP_USE_NET_UV_MSG_STRUCT 0
+#define TCP_USE_NET_UV_MSG_STRUCT 1
 
 
 // 套接字最小接收缓存大小
