@@ -125,7 +125,9 @@ void TCPSession::on_socket_recv(char* data, ssize_t len)
 
 #if TCP_USE_NET_UV_MSG_STRUCT == 0
 
-	onRecvMsgPackage(data, len, NET_MSG_TYPE::MT_DEFAULT);
+	char* buf = (char*)fc_malloc(sizeof(char) * len);
+	memcpy(buf, data, len);
+	onRecvMsgPackage(buf, len, NET_MSG_TYPE::MT_DEFAULT);
 
 #else
 	m_recvBuffer->add(data, len);

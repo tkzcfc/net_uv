@@ -146,7 +146,11 @@ uv_buf_t* tcp_packageData(char* data, uint32_t len, int32_t* bufCount)
 	// 大文件分片
 	if (sendlen > TCP_WRITE_MAX_LEN)
 	{
-		*bufCount = sendlen / TCP_WRITE_MAX_LEN + 1;
+		*bufCount = sendlen / TCP_WRITE_MAX_LEN;
+		if (sendlen % TCP_WRITE_MAX_LEN != 0)
+		{
+			*bufCount = *bufCount + 1;
+		}
 
 		outBuf = (uv_buf_t*)fc_malloc(sizeof(uv_buf_t) * (*bufCount));
 		
