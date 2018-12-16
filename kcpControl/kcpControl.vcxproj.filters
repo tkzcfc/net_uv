@@ -222,6 +222,9 @@
     <ClCompile Include="..\common\net_uv\p2p\P2PPeer.cpp">
       <Filter>net_uv\p2p</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\net_uv\base\DNSCache.cpp">
+      <Filter>net_uv\base</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\libuv\include\uv-posix.h">
@@ -418,6 +421,9 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\p2p\P2PPeer.h">
       <Filter>net_uv\p2p</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\base\DNSCache.h">
+      <Filter>net_uv\base</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

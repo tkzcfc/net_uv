@@ -6,7 +6,7 @@
 
 
 
-#define NET_UV_USE_LOCAL_SVR 0
+#define NET_UV_USE_LOCAL_SVR 1
 
 // tcp
 #if NET_UV_USE_LOCAL_SVR 

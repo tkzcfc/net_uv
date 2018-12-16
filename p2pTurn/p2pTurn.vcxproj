@@ -178,6 +178,7 @@
     <ClCompile Include="..\common\libuv\src\win\winsock.c" />
     <ClCompile Include="..\common\net_uv\base\Client.cpp" />
     <ClCompile Include="..\common\net_uv\base\Common.cpp" />
+    <ClCompile Include="..\common\net_uv\base\DNSCache.cpp" />
     <ClCompile Include="..\common\net_uv\base\md5.cpp" />
     <ClCompile Include="..\common\net_uv\base\Misc.cpp" />
     <ClCompile Include="..\common\net_uv\base\Mutex.cpp" />
@@ -236,6 +237,7 @@
     <ClInclude Include="..\common\net_uv\base\Client.h" />
     <ClInclude Include="..\common\net_uv\base\Common.h" />
     <ClInclude Include="..\common\net_uv\base\Config.h" />
+    <ClInclude Include="..\common\net_uv\base\DNSCache.h" />
     <ClInclude Include="..\common\net_uv\base\Macros.h" />
     <ClInclude Include="..\common\net_uv\base\md5.h" />
     <ClInclude Include="..\common\net_uv\base\Misc.h" />

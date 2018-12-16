@@ -241,6 +241,9 @@
     <ClInclude Include="..\common\net_uv\net_uv.h">
       <Filter>net_uv</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\net_uv\base\DNSCache.h">
+      <Filter>net_uv\base</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyApp.cpp">
@@ -425,6 +428,9 @@
     </ClCompile>
     <ClCompile Include="..\common\net_uv\udp\UDPSocket.cpp">
       <Filter>net_uv\udp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\base\DNSCache.cpp">
+      <Filter>net_uv\base</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

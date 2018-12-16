@@ -207,6 +207,9 @@
     <ClCompile Include="..\common\net_uv\kcp\KCPClient.cpp">
       <Filter>net_uv\kcp</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\net_uv\base\DNSCache.cpp">
+      <Filter>net_uv\base</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\libuv\include\uv.h">
@@ -382,6 +385,9 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\kcp\KCPCommon.h">
       <Filter>net_uv\kcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\base\DNSCache.h">
+      <Filter>net_uv\base</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
