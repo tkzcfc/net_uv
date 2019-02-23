@@ -507,6 +507,7 @@ void TCPClient::executeOperation()
 void TCPClient::onIdleRun()
 {
 	executeOperation();
+	ThreadSleep(1);
 }
 
 void TCPClient::onSessionUpdateRun()

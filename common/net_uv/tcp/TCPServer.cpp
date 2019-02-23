@@ -398,6 +398,7 @@ void TCPServer::onIdleRun()
 	default:
 		break;
 	}
+	ThreadSleep(1);
 }
 
 void TCPServer::onSessionUpdateRun()
