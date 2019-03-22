@@ -29,7 +29,7 @@ struct Pure_TCPClientConnectOperation
 //////////////////////////////////////////////////////////////////////////////////
 Pure_TCPClient::Pure_TCPClient()
 	: m_enableNoDelay(true)
-	, m_enableKeepAlive(true)
+	, m_enableKeepAlive(false)
 	, m_keepAliveDelay(10)
 	, m_isStop(false)
 {
@@ -183,7 +183,9 @@ void Pure_TCPClient::send(uint32_t sessionId, char* data, uint32_t len)
 	if (data == 0 || len <= 0)
 		return;
 
-	pushOperation(Pure_TCP_CLI_OP_SENDDATA, data, len, sessionId);
+	char* pdata = (char*)fc_malloc(len);
+	memcpy(pdata, data, len);
+	pushOperation(Pure_TCP_CLI_OP_SENDDATA, pdata, len, sessionId);
 }
 
 /// TCPClient

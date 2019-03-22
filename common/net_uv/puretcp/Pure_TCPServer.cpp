@@ -153,7 +153,9 @@ void Pure_TCPServer::send(uint32_t sessionID, char* data, uint32_t len)
 	if (data == NULL || len <= 0)
 		return;
 
-	pushOperation(Pure_TCP_SVR_OP_SEND_DATA, data, len, sessionID);
+	char* pdata = (char*)fc_malloc(len);
+	memcpy(pdata, data, len);
+	pushOperation(Pure_TCP_SVR_OP_SEND_DATA, pdata, len, sessionID);
 }
 
 void Pure_TCPServer::disconnect(uint32_t sessionID)

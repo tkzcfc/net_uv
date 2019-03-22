@@ -14,7 +14,7 @@ void main()
 	//std::cin >> port;
 	int32_t port = TCP_CONNECT_PORT;
 
-	TCPServer* svr = new TCPServer();
+	Pure_TCPServer* svr = new Pure_TCPServer();
 
 	svr->setCloseCallback([](Server* svr)
 	{

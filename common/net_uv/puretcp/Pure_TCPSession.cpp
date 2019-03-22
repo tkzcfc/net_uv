@@ -92,7 +92,7 @@ void Pure_TCPSession::on_socket_recv(char* data, ssize_t len)
 		return;
 	char* buf = (char*)fc_malloc(sizeof(char) * len);
 	memcpy(buf, data, len);
-	m_sessionRecvCallback(this, data, len);
+	m_sessionRecvCallback(this, buf, len);
 }
 
 void Pure_TCPSession::on_socket_close(Socket* socket)
