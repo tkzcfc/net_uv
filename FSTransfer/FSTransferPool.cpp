@@ -54,7 +54,7 @@ bool FSTransferPool::listen(const char* ip, uint32_t port, bool isIPV6)
 		});
 	}
 
-	return m_netServer->startServer(ip, port, isIPV6);
+	return m_netServer->startServer(ip, port, isIPV6, 0xFFFF);
 }
 
 void FSTransferPool::stopListen(void(*stopCall)())

@@ -33,6 +33,9 @@
     <Filter Include="net_uv\kcp">
       <UniqueIdentifier>{2ea4ffbb-ae21-4ea5-892d-5d4b7b0572e9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="net_uv\puretcp">
+      <UniqueIdentifier>{25f628f5-bfcd-4cf3-b659-05fd2ed2f422}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="testClient.cpp">
@@ -205,6 +208,15 @@
     </ClCompile>
     <ClCompile Include="..\common\net_uv\base\DNSCache.cpp">
       <Filter>net_uv\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\puretcp\Pure_TCPClient.cpp">
+      <Filter>net_uv\puretcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\puretcp\Pure_TCPServer.cpp">
+      <Filter>net_uv\puretcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\puretcp\Pure_TCPSession.cpp">
+      <Filter>net_uv\puretcp</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -384,6 +396,18 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\base\DNSCache.h">
       <Filter>net_uv\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\puretcp\Pure_TCPCommon.h">
+      <Filter>net_uv\puretcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\puretcp\Pure_TCPClient.h">
+      <Filter>net_uv\puretcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\puretcp\Pure_TCPServer.h">
+      <Filter>net_uv\puretcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\puretcp\Pure_TCPSession.h">
+      <Filter>net_uv\puretcp</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -22,7 +22,7 @@
     <ProjectGuid>{557CC55B-B551-440C-AD1C-C5C5FC0D7442}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>tcpClient</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -41,7 +41,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -197,6 +197,9 @@
     <ClCompile Include="..\common\net_uv\kcp\KCPSocket.cpp" />
     <ClCompile Include="..\common\net_uv\kcp\KCPSocketManager.cpp" />
     <ClCompile Include="..\common\net_uv\kcp\KCPUtils.cpp" />
+    <ClCompile Include="..\common\net_uv\puretcp\Pure_TCPClient.cpp" />
+    <ClCompile Include="..\common\net_uv\puretcp\Pure_TCPServer.cpp" />
+    <ClCompile Include="..\common\net_uv\puretcp\Pure_TCPSession.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPClient.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp" />
     <ClCompile Include="..\common\net_uv\tcp\TCPSession.cpp" />
@@ -257,6 +260,10 @@
     <ClInclude Include="..\common\net_uv\kcp\KCPSocket.h" />
     <ClInclude Include="..\common\net_uv\kcp\KCPSocketManager.h" />
     <ClInclude Include="..\common\net_uv\kcp\KCPUtils.h" />
+    <ClInclude Include="..\common\net_uv\puretcp\Pure_TCPClient.h" />
+    <ClInclude Include="..\common\net_uv\puretcp\Pure_TCPCommon.h" />
+    <ClInclude Include="..\common\net_uv\puretcp\Pure_TCPServer.h" />
+    <ClInclude Include="..\common\net_uv\puretcp\Pure_TCPSession.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPClient.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPCommon.h" />
     <ClInclude Include="..\common\net_uv\tcp\TCPConfig.h" />

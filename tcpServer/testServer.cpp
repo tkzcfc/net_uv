@@ -85,7 +85,7 @@ void main()
 		}
 	});
 
-	bool issuc = svr->startServer("0.0.0.0", port, false);
+	bool issuc = svr->startServer("0.0.0.0", port, false, 0xFFFF);
 	if (issuc)
 	{
 		printf("服务器启动成功\n");

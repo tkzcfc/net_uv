@@ -21,7 +21,7 @@ Server::Server()
 Server::~Server()
 {}
 
-bool Server::startServer(const char* ip, uint32_t port, bool isIPV6)
+bool Server::startServer(const char* ip, uint32_t port, bool isIPV6, int32_t maxCount)
 {
 	assert(m_closeCall != nullptr);
 	assert(m_newConnectCall != nullptr);
