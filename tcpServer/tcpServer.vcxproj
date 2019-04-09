@@ -190,6 +190,11 @@
     <ClCompile Include="..\common\net_uv\base\Session.cpp" />
     <ClCompile Include="..\common\net_uv\base\SessionManager.cpp" />
     <ClCompile Include="..\common\net_uv\base\Socket.cpp" />
+    <ClCompile Include="..\common\net_uv\http\HttpContext.cpp" />
+    <ClCompile Include="..\common\net_uv\http\HttpDetail.cpp" />
+    <ClCompile Include="..\common\net_uv\http\HttpRequest.cpp" />
+    <ClCompile Include="..\common\net_uv\http\HttpResponse.cpp" />
+    <ClCompile Include="..\common\net_uv\http\HttpServer.cpp" />
     <ClCompile Include="..\common\net_uv\kcp\ikcp.c" />
     <ClCompile Include="..\common\net_uv\kcp\KCPClient.cpp" />
     <ClCompile Include="..\common\net_uv\kcp\KCPServer.cpp" />
@@ -250,6 +255,12 @@
     <ClInclude Include="..\common\net_uv\base\SessionManager.h" />
     <ClInclude Include="..\common\net_uv\base\Socket.h" />
     <ClInclude Include="..\common\net_uv\common\NetUVThreadMsg.h" />
+    <ClInclude Include="..\common\net_uv\http\HttpCommon.h" />
+    <ClInclude Include="..\common\net_uv\http\HttpContext.h" />
+    <ClInclude Include="..\common\net_uv\http\HttpDetail.h" />
+    <ClInclude Include="..\common\net_uv\http\HttpRequest.h" />
+    <ClInclude Include="..\common\net_uv\http\HttpResponse.h" />
+    <ClInclude Include="..\common\net_uv\http\HttpServer.h" />
     <ClInclude Include="..\common\net_uv\kcp\ikcp.h" />
     <ClInclude Include="..\common\net_uv\kcp\KCPClient.h" />
     <ClInclude Include="..\common\net_uv\kcp\KCPCommon.h" />

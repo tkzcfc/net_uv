@@ -37,6 +37,9 @@
     <Filter Include="net_uv\puretcp">
       <UniqueIdentifier>{62281d60-a9fa-47e2-83df-6524354d2921}</UniqueIdentifier>
     </Filter>
+    <Filter Include="net_uv\http">
+      <UniqueIdentifier>{5f71c3ff-b4b2-428b-ba2f-3cf8b43a73fd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\common\net_uv\tcp\TCPServer.cpp">
@@ -218,6 +221,21 @@
     </ClCompile>
     <ClCompile Include="..\common\net_uv\puretcp\Pure_TCPServer.cpp">
       <Filter>net_uv\puretcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\http\HttpRequest.cpp">
+      <Filter>net_uv\http</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\http\HttpResponse.cpp">
+      <Filter>net_uv\http</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\http\HttpServer.cpp">
+      <Filter>net_uv\http</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\http\HttpContext.cpp">
+      <Filter>net_uv\http</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\http\HttpDetail.cpp">
+      <Filter>net_uv\http</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -409,6 +427,24 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\puretcp\Pure_TCPServer.h">
       <Filter>net_uv\puretcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\http\HttpRequest.h">
+      <Filter>net_uv\http</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\http\HttpResponse.h">
+      <Filter>net_uv\http</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\http\HttpServer.h">
+      <Filter>net_uv\http</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\http\HttpCommon.h">
+      <Filter>net_uv\http</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\http\HttpContext.h">
+      <Filter>net_uv\http</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\http\HttpDetail.h">
+      <Filter>net_uv\http</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
