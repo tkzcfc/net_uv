@@ -53,29 +53,20 @@ void HttpServer::onSvrNewConnectCallback(Server* svr, Session* session)
 	HttpContext* context = (HttpContext*)fc_malloc(sizeof(HttpContext));
 	new(context) HttpContext();
 	m_contextMap[session] = context;
-	printf("onSvrNewConnectCallback\n");
 }
 
 void HttpServer::onSvrRecvCallback(Server* svr, Session* session, char* data, uint32_t len)
 {
-	printf("onSvrRecvCallback\n");
 	HttpContext* context = m_contextMap[session];
-
-
-	printf("\n\n\n---------------------\n");
-	printf("%s", std::string(data, len).c_str());
-	printf("\n\n\n---------------------\n");
 
 	if (!context->parseRequest(data, len))
 	{
-		printf("no parseRequest\n");
 		static const char* badRequest = "HTTP/1.1 400 Bad Request\r\n\r\n";
 		session->send((char*)badRequest, sizeof(badRequest));
 	}
 
 	if (context->gotAll())
 	{
-		printf("gotAll\n");
 		const auto & req = context->request();
 
 		const string& connection = req.getHeader("Connection");
@@ -87,7 +78,6 @@ void HttpServer::onSvrRecvCallback(Server* svr, Session* session, char* data, ui
 		m_svrCallback(req, &response);
 		
 		std::string res = response.toString();
-		printf("%s\n", res.c_str());
 
 		session->send((char*)res.c_str(), res.size());
 		if (response.closeConnection())
@@ -99,13 +89,12 @@ void HttpServer::onSvrRecvCallback(Server* svr, Session* session, char* data, ui
 	}
 	else
 	{
-		printf("no gotAll\n");
+		session->disconnect();
 	}
 }
 
 void HttpServer::onSvrDisconnectCallback(Server* svr, Session* session)
 {
-	printf("onSvrDisconnectCallback\n");
 	HttpContext* context = m_contextMap[session];
 	context->~HttpContext();
 	fc_free(context);
