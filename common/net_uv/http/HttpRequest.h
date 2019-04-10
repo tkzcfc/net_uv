@@ -38,9 +38,13 @@ public:
 
 	inline void setPath(const char* start, const char* end);
 
+	inline void setPath(const std::string& path);
+
 	inline  const string& path() const;
 
 	inline  void setQuery(const char* start, const char* end);
+
+	inline  void setQuery(const std::string& query);
 
 	inline  const string& query() const;
 
@@ -75,6 +79,11 @@ void HttpRequest::setPath(const char* start, const char* end)
 	m_path.assign(start, end);
 }
 
+void HttpRequest::setPath(const std::string& path)
+{
+	m_path = std::move(path);
+}
+
 const string& HttpRequest::path() const
 {
 	return m_path;
@@ -83,6 +92,11 @@ const string& HttpRequest::path() const
 void HttpRequest::setQuery(const char* start, const char* end)
 {
 	m_query.assign(start, end);
+}
+
+void HttpRequest::setQuery(const std::string& query)
+{
+	m_query = std::move(query);
 }
 
 const string& HttpRequest::query() const
