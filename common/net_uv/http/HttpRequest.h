@@ -18,15 +18,15 @@ public:
 
 	HttpRequest();
 
-	bool HttpRequest::setMethod(const char* start, const char* end);
+	bool setMethod(const char* start, const char* end);
 
-	const char* HttpRequest::methodString() const;
+	const char* methodString() const;
 
-	void HttpRequest::addHeader(const char* start, const char* colon, const char* end);
+	void addHeader(const char* start, const char* colon, const char* end);
 
-	std::string HttpRequest::getHeader(const std::string& field) const;
+	std::string getHeader(const std::string& field) const;
 
-	void HttpRequest::swap(HttpRequest& that);
+	void swap(HttpRequest& that);
 
 public:
 
