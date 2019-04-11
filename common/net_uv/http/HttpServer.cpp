@@ -6,6 +6,7 @@
 NS_NET_UV_BEGIN
 
 HttpServer::HttpServer()
+	: m_svrCloseCallback(nullptr)
 {
 	m_svr = (Pure_TCPServer*)fc_malloc(sizeof(Pure_TCPServer));
 	new(m_svr) Pure_TCPServer();
@@ -13,7 +14,13 @@ HttpServer::HttpServer()
 	m_svr->setNewConnectCallback(std::bind(&HttpServer::onSvrNewConnectCallback, this, std::placeholders::_1, std::placeholders::_2));
 	m_svr->setRecvCallback(std::bind(&HttpServer::onSvrRecvCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
 	m_svr->setDisconnectCallback(std::bind(&HttpServer::onSvrDisconnectCallback, this, std::placeholders::_1, std::placeholders::_2));
-	m_svr->setCloseCallback([](Server*) {});
+	m_svr->setCloseCallback([this](Server*) 
+	{
+		if (m_svrCloseCallback != nullptr)
+		{
+			m_svrCloseCallback();
+		}
+	});
 
 	m_svrCallback = [](const HttpRequest&, HttpResponse* resp) 
 	{

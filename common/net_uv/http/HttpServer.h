@@ -10,6 +10,7 @@ class HttpResponse;
 class HttpContext;
 
 using HttpServerCallback = std::function<void(const HttpRequest&, HttpResponse*)>;
+using HttpServerCloseCallback = std::function<void()>;
 
 class HttpServer
 {
@@ -27,9 +28,9 @@ public:
 
 public:
 
-	inline void setHttpCallback(const HttpServerCallback& cb);
+	inline void setHttpCallback(const HttpServerCallback& call);
 
-	inline void setCloseCallback(const ServerCloseCall& call);
+	inline void setCloseCallback(const HttpServerCloseCallback& call);
 
 protected:
 
@@ -43,20 +44,22 @@ private:
 
 	HttpServerCallback m_svrCallback;
 
+	HttpServerCloseCallback m_svrCloseCallback;
+
 	Pure_TCPServer* m_svr;
 
 	std::unordered_map<Session*, HttpContext*> m_contextMap;
 };
 
 
-void HttpServer::setHttpCallback(const HttpServerCallback& cb)
+void HttpServer::setHttpCallback(const HttpServerCallback& call)
 {
-	m_svrCallback = std::move(cb);
+	m_svrCallback = std::move(call);
 }
 
-void HttpServer::setCloseCallback(const ServerCloseCall& call)
+void HttpServer::setCloseCallback(const HttpServerCloseCallback& call)
 {
-	m_svr->setCloseCallback(call);
+	m_svrCloseCallback = std::move(call);
 }
 
 NS_NET_UV_END
