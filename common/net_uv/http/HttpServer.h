@@ -31,6 +31,7 @@ public:
 	void disconnectAllSession();
 
 public:
+	inline Session* getCurSession();
 
 	inline void setHttpCallback(const HttpServerCallback& call);
 
@@ -53,8 +54,14 @@ private:
 	Pure_TCPServer* m_svr;
 
 	std::unordered_map<Session*, HttpContext*> m_contextMap;
+
+	Session* m_curSession;
 };
 
+Session* HttpServer::getCurSession()
+{
+	return m_curSession;
+}
 
 void HttpServer::setHttpCallback(const HttpServerCallback& call)
 {

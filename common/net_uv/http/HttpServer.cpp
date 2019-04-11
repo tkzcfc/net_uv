@@ -7,6 +7,7 @@ NS_NET_UV_BEGIN
 
 HttpServer::HttpServer()
 	: m_svrCloseCallback(nullptr)
+	, m_curSession(nullptr)
 {
 	m_svr = (Pure_TCPServer*)fc_malloc(sizeof(Pure_TCPServer));
 	new(m_svr) Pure_TCPServer();
@@ -77,6 +78,8 @@ void HttpServer::onSvrNewConnectCallback(Server* svr, Session* session)
 
 void HttpServer::onSvrRecvCallback(Server* svr, Session* session, char* data, uint32_t len)
 {
+	m_curSession = session;
+
 	HttpContext* context = m_contextMap[session];
 
 	if (!context->parseRequest(data, len))
@@ -111,6 +114,8 @@ void HttpServer::onSvrRecvCallback(Server* svr, Session* session, char* data, ui
 	{
 		session->disconnect();
 	}
+
+	m_curSession = nullptr;
 }
 
 void HttpServer::onSvrDisconnectCallback(Server* svr, Session* session)
