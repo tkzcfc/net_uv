@@ -26,6 +26,10 @@ public:
 
 	void updateFrame();
 
+	uint32_t getActiveCount();
+
+	void disconnectAllSession();
+
 public:
 
 	inline void setHttpCallback(const HttpServerCallback& call);

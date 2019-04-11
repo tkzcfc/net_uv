@@ -55,6 +55,19 @@ void HttpServer::updateFrame()
 	m_svr->updateFrame();
 }
 
+uint32_t HttpServer::getActiveCount()
+{
+	return (uint32_t)m_contextMap.size();
+}
+
+void HttpServer::disconnectAllSession()
+{
+	for (auto &it : m_contextMap)
+	{
+		it.first->disconnect();
+	}
+}
+
 void HttpServer::onSvrNewConnectCallback(Server* svr, Session* session)
 {
 	HttpContext* context = (HttpContext*)fc_malloc(sizeof(HttpContext));
