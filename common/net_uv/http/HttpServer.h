@@ -30,6 +30,8 @@ public:
 
 	void disconnectAllSession();
 
+	uint32_t getListenPort();
+
 public:
 	inline Session* getCurSession();
 

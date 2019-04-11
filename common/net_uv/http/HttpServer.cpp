@@ -69,6 +69,11 @@ void HttpServer::disconnectAllSession()
 	}
 }
 
+uint32_t HttpServer::getListenPort()
+{
+	return m_svr->getListenPort();
+}
+
 void HttpServer::onSvrNewConnectCallback(Server* svr, Session* session)
 {
 	HttpContext* context = (HttpContext*)fc_malloc(sizeof(HttpContext));
