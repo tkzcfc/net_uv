@@ -219,6 +219,8 @@ struct sockaddr* net_getsocketAddr(const char* ip, uint32_t port, uint32_t* outA
 			}
 		}
 
+		freeaddrinfo(ainfo);
+
 		struct sockaddr* addr = NULL;
 		if (addr4)
 		{
