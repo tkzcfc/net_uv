@@ -165,13 +165,15 @@ void MyFrame::startPeer(const char* turnAddr)
 		m_allConnectPeer.push_back(key);
 	});
 
-	m_peer->setConnectToPeerCallback([=](uint64_t key, bool isSuccess)
+	m_peer->setConnectToPeerCallback([=](uint64_t key, int status)
 	{
-		if (isSuccess)
+		// 0 找不到目标  1 成功 2 超时
+		if (status == 1)
 		{
 			m_allConnectPeer.push_back(key);
 		}
-		this->printLog("连接到[%llu]%s", key, isSuccess ? "成功" : "失败");
+		const char* msg[] = {"连接失败，错误:找不到目标", "连接成功", "连接失败，错误:超时", "连接失败，错误:该节点已经作为客户端连接到本节点"};
+		this->printLog("[%llu]%s", key, msg[status]);
 	});
 
 	m_peer->setConnectToTurnCallback([=](bool isSuccess, uint64_t selfKey)
