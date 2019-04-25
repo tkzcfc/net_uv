@@ -7,7 +7,7 @@ NS_NET_UV_BEGIN
 using P2PPeerStartCallback = std::function<void(bool isSuccess)>;
 using P2PPeerNewConnectCallback = std::function<void(uint64_t key)>;
 // 0 找不到目标  1 成功 2 超时  3该节点已经作为客户端连接到本节点
-using P2PPeerConnectToPeerCallback = std::function<void(uint64_t key, int status)>;  
+using P2PPeerConnectToPeerCallback = std::function<void(uint64_t key, int32_t status)>;
 using P2PPeerConnectToTurnCallback = std::function<void(bool isSuccess, uint64_t selfKey)>;
 using P2PPeerDisConnectToPeerCallback = std::function<void(uint64_t key)>;
 using P2PPeerDisConnectToTurnCallback = std::function<void()>;
