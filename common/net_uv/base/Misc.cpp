@@ -219,8 +219,6 @@ struct sockaddr* net_getsocketAddr(const char* ip, uint32_t port, uint32_t* outA
 			}
 		}
 
-		freeaddrinfo(ainfo);
-
 		struct sockaddr* addr = NULL;
 		if (addr4)
 		{
@@ -232,6 +230,8 @@ struct sockaddr* net_getsocketAddr(const char* ip, uint32_t port, uint32_t* outA
 			addr = (struct sockaddr*)fc_malloc(sizeof(struct sockaddr_in6));
 			memcpy(addr, addr6, sizeof(struct sockaddr_in6));
 		}
+		freeaddrinfo(ainfo);
+
 		return addr;
 	}
 	return NULL;
