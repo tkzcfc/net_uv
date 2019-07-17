@@ -222,6 +222,9 @@
     <ClCompile Include="..\common\net_uv\puretcp\Pure_TCPClient.cpp">
       <Filter>net_uv\puretcp</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\net_uv\base\Loop.cpp">
+      <Filter>net_uv\base</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\libuv\include\uv.h">
@@ -412,6 +415,12 @@
     </ClInclude>
     <ClInclude Include="..\common\net_uv\puretcp\Pure_TCPCommon.h">
       <Filter>net_uv\puretcp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\base\Loop.h">
+      <Filter>net_uv\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\base\Thread.h">
+      <Filter>net_uv\base</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

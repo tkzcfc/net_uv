@@ -244,6 +244,12 @@
     <ClInclude Include="..\common\net_uv\base\DNSCache.h">
       <Filter>net_uv\base</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\net_uv\base\Loop.h">
+      <Filter>net_uv\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\net_uv\base\Thread.h">
+      <Filter>net_uv\base</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyApp.cpp">
@@ -430,6 +436,9 @@
       <Filter>net_uv\udp</Filter>
     </ClCompile>
     <ClCompile Include="..\common\net_uv\base\DNSCache.cpp">
+      <Filter>net_uv\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\net_uv\base\Loop.cpp">
       <Filter>net_uv\base</Filter>
     </ClCompile>
   </ItemGroup>
