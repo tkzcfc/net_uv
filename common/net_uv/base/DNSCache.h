@@ -8,12 +8,9 @@ NS_NET_UV_BEGIN
 
 class DNSCache
 {
-	static DNSCache* instance;
 public:
 
 	static DNSCache* getInstance();
-
-	static void destroy();
 
 	DNSCache();
 

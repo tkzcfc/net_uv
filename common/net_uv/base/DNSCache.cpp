@@ -5,26 +5,11 @@
 
 NS_NET_UV_BEGIN
 
-DNSCache* DNSCache::instance = NULL;
+static DNSCache DNSInstance;
 
 DNSCache* DNSCache::getInstance()
 {
-	if (instance == NULL)
-	{
-		instance = (DNSCache*)fc_malloc(sizeof(DNSCache));
-		new(instance)DNSCache();
-	}
-	return instance;
-}
-
-void DNSCache::destroy()
-{
-	if (instance != NULL)
-	{
-		instance->~DNSCache();
-		fc_free(instance);
-		instance = NULL;
-	}
+	return &DNSInstance;
 }
 
 DNSCache::DNSCache()
