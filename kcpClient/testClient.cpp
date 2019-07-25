@@ -3,6 +3,7 @@
 
 
 bool autosend = true;
+bool autoDisconnect = true;
 uint32_t keyIndex = 0;
 char szWriteBuf[1024] = {0};
 bool clientClose = false;
@@ -70,7 +71,7 @@ void main()
 			}
 		}
 		fc_free(msg);
-		if (rand() % 100 == 0)
+		if (autoDisconnect && rand() % 100 == 0)
 		{
 			session->disconnect();
 		}
@@ -147,6 +148,14 @@ bool cmdResolve(char* cmd, uint32_t key)
 	else if (CMD_STRCMP("closeclient"))
 	{
 		client->closeClient();
+	}
+	else if (CMD_STRCMP("autodisb"))
+	{
+		autoDisconnect = true;
+	}
+	else if (CMD_STRCMP("autodise"))
+	{
+		autoDisconnect = false;
 	}
 	else if (CMD_STRCMP("big"))
 	{

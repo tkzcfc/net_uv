@@ -241,7 +241,10 @@ void KCPSocket::disconnect()
 	case KCPSocket::State::CONNECT:
 	{
 		std::string packet = kcp_making_disconnect_packet(getConv());
-		udpSend((char*)packet.c_str(), packet.size());
+		for (auto i = 0; i < 5; ++i)
+		{
+			udpSend((char*)packet.c_str(), packet.size());
+		}
 
 		m_kcpState = State::WAIT_DISCONNECT;
 		m_releaseCount = 10;
