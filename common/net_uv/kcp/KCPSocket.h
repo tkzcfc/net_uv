@@ -87,6 +87,10 @@ protected:
 
 	inline void setConnectTimeoutTime(uint32_t timout);
 
+	inline bool isServerSocket();
+
+	inline bool isServerListenSocket();
+
 protected:
 
 	enum State
@@ -184,6 +188,16 @@ void KCPSocket::stopIdle()
 void KCPSocket::setConnectTimeoutTime(uint32_t timout)
 {
 	m_connectTimeoutTime = timout;
+}
+
+bool KCPSocket::isServerSocket()
+{
+	return m_socketMng != NULL;
+}
+
+bool KCPSocket::isServerListenSocket()
+{
+	return (m_socketMng != NULL) && (m_socketMng->getOwner() == this);
 }
 
 NS_NET_UV_END

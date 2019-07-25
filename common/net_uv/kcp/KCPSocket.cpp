@@ -384,7 +384,7 @@ void KCPSocket::socketUpdate(IUINT32 clock)
 
 		if (clock - m_last_send_connect_msg_time >= 1000)
 		{
-			if (m_socketMng)
+			if (isServerSocket())
 			{
 				doSendSvrConnectMsgPack(clock);
 			}
@@ -397,7 +397,7 @@ void KCPSocket::socketUpdate(IUINT32 clock)
 		break;
 	case KCPSocket::State::WAIT_DISCONNECT:
 	{
-		if (m_socketMng && m_socketMng->getOwner() == this)
+		if (isServerListenSocket())
 		{
 			if (m_socketMng->getAwaitConnectCount() <= 0)
 			{
@@ -573,6 +573,9 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 		return;
 	}
 
+	/*
+		断开请求，双方套接字都可能会收到该消息
+	*/
 	if (kcp_is_disconnect_packet(buf->base, nread))
 	{
 		if (m_kcpState == KCPSocket::CONNECT)
@@ -590,6 +593,13 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			}
 		}
 	}
+	/*
+		客户端在给服务端listen套接字发送了连接请求后，
+		如果服务端接受了本连接，
+		客户端会收到服务端listen套接字回复的该消息
+		该消息会告诉客户端服务端准备的预连接套接字的端口号
+		客户端重定向端口号并向新的端口发送连接请求
+	*/
 	else if (kcp_is_send_back_conv_packet(buf->base, nread)) 
 	{
 		if (m_kcpState == KCPSocket::WAIT_CONNECT)
@@ -629,6 +639,12 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			setConv(conv);
 		}
 	}
+	/*
+		客户端收到服务端预连接套接字发送的该消息，
+		收到后获取kcp的conv并建立kcp连接，
+		并向服务端发送conv,
+		至此客户端状态已经为握手成功
+	*/
 	else if (kcp_is_svr_connect_packet(buf->base, nread)) 
 	{
 		if (m_kcpState == State::WAIT_CONNECT)
@@ -669,6 +685,11 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			return;
 		}
 	}
+	/* 
+		服务端预连接套接字会收到该消息,
+		收到后获取kcp的conv并建立kcp连接，
+		握手完成开始正常通信
+	*/
 	else if (kcp_is_svr_send_back_conv_packet(buf->base, nread)) 
 	{
 		if (m_kcpState == State::WAIT_CONNECT)
@@ -685,9 +706,40 @@ void KCPSocket::onUdpRead(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, 
 			return;
 		}
 	}
-	// 连接请求，客户端不进行处理，该消息可用于打洞，不影响kcpinput
+	// 服务端listen套接字和预连接套接字会收到该消息
 	else if (kcp_is_connect_packet(buf->base, nread))
-	{}
+	{
+		/// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		// 这儿预连接套接字收到客户端发送的连接请求后必须重定向网络地址
+		// 如果不重定向，并且客户端的NAT类型为3，
+		// 客户端将收不到预连接套接字发送的任何消息
+		// 握手将不能完成
+		/// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		if (m_kcpState == State::WAIT_CONNECT && isServerSocket())
+		{
+			// 地址重定向
+			uint32_t addrlen = 0;
+			if (addr->sa_family == AF_INET6)
+			{
+				addrlen = sizeof(struct sockaddr_in6);
+			}
+			else
+			{
+				addrlen = sizeof(struct sockaddr_in);
+			}
+			if (addrlen == 0)
+			{
+				connectResult(0);
+				return;
+			}
+			struct sockaddr* socker_addr = (struct sockaddr*)fc_malloc(addrlen);
+			memcpy(socker_addr, addr, addrlen);
+
+			this->setSocketAddr(socker_addr);
+
+			doSendSvrConnectMsgPack(iclock());
+		}
+	}
 	else
 	{
 		if (m_kcpState == State::CONNECT)
