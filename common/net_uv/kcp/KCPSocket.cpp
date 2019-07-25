@@ -241,6 +241,8 @@ void KCPSocket::disconnect()
 	case KCPSocket::State::CONNECT:
 	{
 		std::string packet = kcp_making_disconnect_packet(getConv());
+
+		// 多发送几次，尽量保证对方能收到
 		for (auto i = 0; i < 5; ++i)
 		{
 			udpSend((char*)packet.c_str(), packet.size());
