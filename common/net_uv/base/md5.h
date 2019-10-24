@@ -51,6 +51,6 @@ private:
     static const size_t MD5_BUFFER_SIZE = 1024;
 };
 
-#endif/*_VU_MD5_H*/
-
 NS_NET_UV_END
+
+#endif/*_VU_MD5_H*/
